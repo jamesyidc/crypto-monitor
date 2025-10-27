@@ -581,13 +581,15 @@ export class CoinService {
 
   // 🆕 获取今日创新高/新低的总次数
   async getTodayExtremeCount(date: string, recordType: 'high' | 'low'): Promise<number> {
+    // 数据库中存储的是 'new_high' 和 'new_low'
+    const dbRecordType = recordType === 'high' ? 'new_high' : 'new_low';
     const result = await this.db
       .prepare(`
         SELECT COUNT(*) as count 
         FROM extreme_records 
         WHERE DATE(timestamp) = ? AND record_type = ?
       `)
-      .bind(date, recordType)
+      .bind(date, dbRecordType)
       .first();
     return (result as any)?.count || 0;
   }
