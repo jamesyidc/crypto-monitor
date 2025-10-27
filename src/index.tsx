@@ -914,6 +914,7 @@ app.get('/', (c) => {
                                 <th class="text-center py-2 px-1">当天急跌次数</th>
                                 <th class="text-center py-2 px-1">+4%</th>
                                 <th class="text-center py-2 px-1">-3%</th>
+                                <th class="text-center py-2 px-1">今日V1</th>
                                 <th class="text-right py-2 px-1">更新时间</th>
                                 <th class="text-right py-2 px-1">历史高价</th>
                                 <th class="text-right py-2 px-1">高的时间</th>
@@ -931,7 +932,7 @@ app.get('/', (c) => {
                         </thead>
                         <tbody id="coinTableBody">
                             <tr>
-                                <td colspan="20" class="text-center py-8 text-gray-500">
+                                <td colspan="21" class="text-center py-8 text-gray-500">
                                     加载中...
                                 </td>
                             </tr>

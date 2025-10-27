@@ -423,9 +423,18 @@ export class AnalysisService {
     const todayNewHighCount = await this.coinService.getTodayExtremeCount(today, 'high');
     const todayNewLowCount = await this.coinService.getTodayExtremeCount(today, 'low');
 
+    // 🆕 查询今日每个币种的V1触发次数
+    const todayV1Counts = await this.coinService.getTodayV1Counts(today);
+
+    // 🆕 增强coinDetails数据：添加今日V1触发次数
+    const finalEnhancedCoinDetails = enhancedCoinDetails.map((detail: any) => ({
+      ...detail,
+      today_v1_count: todayV1Counts[detail.symbol] || 0
+    }));
+
     return {
       latestRound,
-      coinDetails: enhancedCoinDetails,
+      coinDetails: finalEnhancedCoinDetails,
       todayStats,
       extremes,
       priorities,

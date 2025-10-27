@@ -593,6 +593,30 @@ export class CoinService {
       .first();
     return (result as any)?.count || 0;
   }
+
+  // 🆕 获取今日每个币种的V1触发次数
+  async getTodayV1Counts(date: string): Promise<{ [symbol: string]: number }> {
+    const result = await this.db
+      .prepare(`
+        SELECT 
+          symbol,
+          COUNT(*) as v1_count
+        FROM alert_signals
+        WHERE DATE(created_at) = ?
+          AND triggers LIKE '%成交量≥V1%'
+        GROUP BY symbol
+      `)
+      .bind(date)
+      .all();
+    
+    // 转换为Map对象方便查询
+    const v1Counts: { [symbol: string]: number } = {};
+    (result.results || []).forEach((row: any) => {
+      v1Counts[row.symbol] = row.v1_count;
+    });
+    
+    return v1Counts;
+  }
 }
 
 // 将 CoinGecko ID 转换为符号

@@ -261,7 +261,7 @@ function renderCoinTable(coinDetails, extremes, priorities) {
   const tbody = document.getElementById('coinTableBody');
   
   if (!coinDetails || coinDetails.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="20" class="text-center py-8 text-gray-500">暂无币种数据</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="21" class="text-center py-8 text-gray-500">暂无币种数据</td></tr>';
     return;
   }
   
@@ -314,6 +314,12 @@ function renderCoinTable(coinDetails, extremes, priorities) {
     const extremeDownCount = coin.extreme_down_count || 0;
     const extremeDownCell = extremeDownCount > 0
       ? `<span class="inline-block w-full py-1 px-2 bg-red-200 text-red-800 font-bold rounded">${extremeDownCount}</span>`
+      : '<span class="text-gray-300">0</span>';
+    
+    // 🆕 今日V1 - 显示今日V1触发次数
+    const todayV1Count = coin.today_v1_count || 0;
+    const todayV1Cell = todayV1Count > 0
+      ? `<span class="inline-block w-full py-1 px-2 bg-blue-100 text-blue-700 font-bold rounded">${todayV1Count}</span>`
       : '<span class="text-gray-300">0</span>';
     
     // 更新时间
@@ -410,6 +416,7 @@ function renderCoinTable(coinDetails, extremes, priorities) {
         <td class="text-center py-2 px-1">${crashCell}</td>
         <td class="text-center py-2 px-1">${extremeUpCell}</td>
         <td class="text-center py-2 px-1">${extremeDownCell}</td>
+        <td class="text-center py-2 px-1">${todayV1Cell}</td>
         <td class="text-right py-2 px-1 text-xs text-gray-600">${updateTime}</td>
         <td class="text-right py-2 px-1 font-mono text-xs text-gray-700">${athPrice}</td>
         <td class="text-right py-2 px-1 text-xs text-gray-600">${athTime}</td>
