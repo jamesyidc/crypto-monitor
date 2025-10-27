@@ -18,6 +18,9 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(loadCompareData, 30000);
 });
 
+// 当前显示的统计表（'high' 或 'low'）
+let currentStatsView = 'high';
+
 // 绑定事件
 function bindEvents() {
     // 筛选输入框
@@ -27,6 +30,9 @@ function bindEvents() {
             renderAllTables(currentData);
         }
     });
+    
+    // 切换统计表按钮
+    document.getElementById('toggleStatsBtn').addEventListener('click', toggleStatsTable);
     
     // 导出按钮
     document.getElementById('exportBtn').addEventListener('click', exportData);
@@ -53,6 +59,27 @@ function bindEvents() {
     document.getElementById('machineBtn').addEventListener('click', () => {
         alert('机器号配置功能开发中...');
     });
+}
+
+// 切换统计表（最高/最低）
+function toggleStatsTable() {
+    const highTable = document.getElementById('highStatsTable');
+    const lowTable = document.getElementById('lowStatsTable');
+    const title = document.getElementById('rightPanelTitle');
+    
+    if (currentStatsView === 'high') {
+        // 切换到最低
+        highTable.style.display = 'none';
+        lowTable.style.display = 'table';
+        title.textContent = '最低';
+        currentStatsView = 'low';
+    } else {
+        // 切换到最高
+        highTable.style.display = 'table';
+        lowTable.style.display = 'none';
+        title.textContent = '最高';
+        currentStatsView = 'high';
+    }
 }
 
 // 加载比价数据
@@ -100,7 +127,8 @@ async function loadCompareData() {
 function renderAllTables(data) {
     renderLeftTable(data);
     renderCenterTable(data);
-    renderRightTable(data);
+    renderHighStatsTable(data);
+    renderLowStatsTable(data);
 }
 
 // 渲染左栏表格：最高价格数据
@@ -108,7 +136,7 @@ function renderLeftTable(data) {
     const tbody = document.getElementById('leftTableBody');
     
     if (!data.coins || data.coins.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="loading">暂无数据</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="loading">暂无数据</td></tr>';
         return;
     }
     
@@ -119,7 +147,7 @@ function renderLeftTable(data) {
     }
     
     if (filteredCoins.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="loading">筛选结果为空</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="loading">筛选结果为空</td></tr>';
         return;
     }
     
@@ -153,6 +181,10 @@ function renderLeftTable(data) {
         // 计次列黄色背景
         const countClass = 'yellow-bg';
         
+        // 单日最高（假设数据，实际应从API获取）
+        const dailyHigh = coin.currentPrice.toFixed(6);
+        const dailyHighClass = ''; // 可以根据条件添加颜色
+        
         html += `
             <tr>
                 <td class="coin-name">${coin.symbol}</td>
@@ -162,6 +194,7 @@ function renderLeftTable(data) {
                 <td class="${countClass} count-column">${coin.lowCount}</td>
                 <td class="${highRatioClass}">${coin.highRatio.toFixed(1)}%</td>
                 <td class="${lowRatioClass}">${coin.lowRatio.toFixed(1)}%</td>
+                <td class="${dailyHighClass}">${dailyHigh}</td>
             </tr>
         `;
     });
@@ -217,9 +250,9 @@ function renderCenterTable(data) {
     tbody.innerHTML = html;
 }
 
-// 渲染右栏表格：统计数据
-function renderRightTable(data) {
-    const tbody = document.getElementById('rightTableBody');
+// 渲染右栏表格：最高统计数据
+function renderHighStatsTable(data) {
+    const tbody = document.getElementById('highStatsBody');
     
     if (!data.coins || data.coins.length === 0) {
         tbody.innerHTML = '<tr><td colspan="4" class="loading">暂无数据</td></tr>';
@@ -240,7 +273,48 @@ function renderRightTable(data) {
     // 生成表格行
     let html = '';
     filteredCoins.forEach((coin) => {
-        // 统计数据（假设数据，实际应从API获取历史统计）
+        // 最高统计数据（假设数据，实际应从API获取历史统计）
+        const today = '0';
+        const threeDays = '0';
+        const sevenDays = '0';
+        
+        html += `
+            <tr>
+                <td class="coin-name">${coin.symbol}</td>
+                <td class="count-column">${today}</td>
+                <td class="count-column">${threeDays}</td>
+                <td class="count-column">${sevenDays}</td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+}
+
+// 渲染右栏表格：最低统计数据
+function renderLowStatsTable(data) {
+    const tbody = document.getElementById('lowStatsBody');
+    
+    if (!data.coins || data.coins.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="loading">暂无数据</td></tr>';
+        return;
+    }
+    
+    // 应用筛选
+    let filteredCoins = data.coins;
+    if (filterText) {
+        filteredCoins = data.coins.filter(c => c.symbol.toUpperCase().includes(filterText.toUpperCase()));
+    }
+    
+    if (filteredCoins.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="loading">筛选结果为空</td></tr>';
+        return;
+    }
+    
+    // 生成表格行
+    let html = '';
+    filteredCoins.forEach((coin) => {
+        // 最低统计数据（假设数据，实际应从API获取历史统计）
         const today = '0';
         const threeDays = '0';
         const sevenDays = '0';
@@ -329,7 +403,7 @@ function showError(message) {
     console.error(message);
     document.getElementById('leftTableBody').innerHTML = `
         <tr>
-            <td colspan="7" style="text-align: center; padding: 20px; color: red;">
+            <td colspan="8" style="text-align: center; padding: 20px; color: red;">
                 ${message}
                 <br><br>
                 <button class="control-btn" onclick="loadCompareData()">重新加载</button>
@@ -339,7 +413,10 @@ function showError(message) {
     document.getElementById('centerTableBody').innerHTML = `
         <tr><td colspan="4" style="text-align: center; color: red;">${message}</td></tr>
     `;
-    document.getElementById('rightTableBody').innerHTML = `
+    document.getElementById('highStatsBody').innerHTML = `
+        <tr><td colspan="4" style="text-align: center; color: red;">${message}</td></tr>
+    `;
+    document.getElementById('lowStatsBody').innerHTML = `
         <tr><td colspan="4" style="text-align: center; color: red;">${message}</td></tr>
     `;
 }

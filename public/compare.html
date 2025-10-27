@@ -307,11 +307,12 @@
                             <th style="width: 50px;">计次</th>
                             <th style="width: 60px;">最高占比</th>
                             <th style="width: 60px;">最低占比</th>
+                            <th style="width: 70px;">单日最高</th>
                         </tr>
                     </thead>
                     <tbody id="leftTableBody">
                         <tr>
-                            <td colspan="7" class="loading">加载中...</td>
+                            <td colspan="8" class="loading">加载中...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -340,11 +341,15 @@
             </div>
         </div>
 
-        <!-- 右栏：统计数据 -->
+        <!-- 右栏：统计数据（可切换最高/最低） -->
         <div class="right-panel">
-            <div class="panel-header">统计</div>
+            <div class="panel-header">
+                <span id="rightPanelTitle">最高</span>
+                <button id="toggleStatsBtn" style="margin-left: 10px; padding: 2px 8px; border: 1px solid #999; background: #f0f0f0; cursor: pointer; font-size: 11px;">切换</button>
+            </div>
             <div class="table-wrapper">
-                <table class="data-table">
+                <!-- 最高统计表 -->
+                <table class="data-table" id="highStatsTable">
                     <thead>
                         <tr>
                             <th style="width: 50px;">币名</th>
@@ -353,7 +358,24 @@
                             <th style="width: 40px;">七天</th>
                         </tr>
                     </thead>
-                    <tbody id="rightTableBody">
+                    <tbody id="highStatsBody">
+                        <tr>
+                            <td colspan="4" class="loading">加载中...</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <!-- 最低统计表（初始隐藏） -->
+                <table class="data-table" id="lowStatsTable" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">币名</th>
+                            <th style="width: 40px;">今天</th>
+                            <th style="width: 40px;">三日</th>
+                            <th style="width: 40px;">七天</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lowStatsBody">
                         <tr>
                             <td colspan="4" class="loading">加载中...</td>
                         </tr>
