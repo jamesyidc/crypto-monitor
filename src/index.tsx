@@ -418,36 +418,66 @@ app.get('/api/signal/:symbol', async (c) => {
     let telegramStatus = { sent: 0, failed: 0, skipped: false };
     if (sendTelegram && detection.alerts && detection.alerts.length > 0) {
       try {
-        // ===== 关键修改：只发送最近2小时的预警 =====
-        // 5分钟K线：1小时=12根，2小时=24根
-        // index=0是最新，所以只发送index < 24的预警
-        const recentAlerts = detection.alerts.filter((alert: any) => {
-          const alertIndex = alert.index || 0;
-          return alertIndex < 24; // 只发送最近24根K线（2小时）的预警
+        // 创建K线数据映射表（包含时间戳信息）
+        const klineDataMap = new Map();
+        result.data.forEach((k: any) => {
+          klineDataMap.set(k.index, k);
         });
         
-        if (recentAlerts.length === 0) {
+        // ===== 关键修改：只发送本小时和上一个小时的预警 =====
+        // 从K线数据中获取最新时间（而不是系统时间），因为系统时区可能不同
+        // 找到最新的K线时间戳（index=0是最新）
+        let latestKlineTime = 0;
+        if (result.data.length > 0 && result.data[0].open_time) {
+          latestKlineTime = result.data[0].open_time; // 毫秒时间戳
+        }
+        
+        if (latestKlineTime === 0) {
+          // 如果找不到K线时间戳，跳过
           telegramStatus.skipped = true;
-          console.log(`⏭️  ${symbol} 无最近2小时内的预警，跳过发送`);
+          console.log(`⏭️  ${symbol} 无法获取K线时间戳，跳过发送`);
         } else {
-          // 初始化Telegram服务
-          const telegramService = new TelegramService(
-            '8437045462:AAFePnwdC21cqeWhZISMQHGGgjmroVqE2H0',
-            '-1003227444260'
-          );
+          // 计算本小时和上一个小时的起始时间戳（基于K线数据的时区）
+          const latestDate = new Date(latestKlineTime);
+          const currentHour = new Date(latestDate);
+          currentHour.setMinutes(0, 0, 0); // 本小时00分00秒
+          const previousHour = new Date(currentHour.getTime() - 60 * 60 * 1000); // 上一个小时00分00秒
           
-          // 创建K线数据映射表
-          const klineDataMap = new Map();
-          result.data.forEach((k: any) => {
-            klineDataMap.set(k.index, k);
+          const previousHourStart = previousHour.getTime();
+          
+          // 过滤预警：只保留本小时和上一个小时的预警
+          const recentAlerts = detection.alerts.filter((alert: any) => {
+            const klineData = klineDataMap.get(alert.index);
+            if (!klineData || !klineData.open_time) {
+              return false; // 没有时间戳信息，跳过
+            }
+            
+            const alertTime = klineData.open_time; // K线开盘时间（毫秒时间戳）
+            
+            // 只保留时间戳 >= 上一个小时开始时间的预警
+            return alertTime >= previousHourStart;
           });
           
-          // 批量发送最近2小时的预警到Telegram
-          const sentCount = await telegramService.sendMultipleAlerts(recentAlerts, klineDataMap);
-          telegramStatus.sent = sentCount;
-          telegramStatus.failed = recentAlerts.length - sentCount;
-          
-          console.log(`📤 ${symbol} 预警已发送到Telegram: ${sentCount}/${recentAlerts.length} (过滤前: ${detection.alerts.length})`);
+          if (recentAlerts.length === 0) {
+            telegramStatus.skipped = true;
+            console.log(`⏭️  ${symbol} 无本小时和上一小时的预警，跳过发送`);
+          } else {
+            // 初始化Telegram服务
+            const telegramService = new TelegramService(
+              '8437045462:AAFePnwdC21cqeWhZISMQHGGgjmroVqE2H0',
+              '-1003227444260'
+            );
+            
+            // 批量发送最近2小时的预警到Telegram
+            const sentCount = await telegramService.sendMultipleAlerts(recentAlerts, klineDataMap);
+            telegramStatus.sent = sentCount;
+            telegramStatus.failed = recentAlerts.length - sentCount;
+            
+            // 格式化时间显示
+            const currentHourStr = currentHour.toISOString().substring(11, 16); // HH:MM
+            const previousHourStr = previousHour.toISOString().substring(11, 16);
+            console.log(`📤 ${symbol} 预警已发送到Telegram: ${sentCount}/${recentAlerts.length} (过滤前: ${detection.alerts.length}) [仅${previousHourStr}-${currentHourStr}xx]`);
+          }
         }
       } catch (telegramError: any) {
         console.error(`❌ ${symbol} Telegram发送失败:`, telegramError);
