@@ -91,8 +91,9 @@ async function loadKlineData() {
       return;
     }
 
-    // 获取预警信息
+    // 获取预警信息（同时自动发送到Telegram）
     let alerts = [];
+    let telegramStatus = null;
     try {
       const signalResponse = await axios.get(`/api/signal/${currentSymbol}`, {
         params: {
@@ -101,8 +102,9 @@ async function loadKlineData() {
         }
       });
       
-      if (signalResponse.data.success && signalResponse.data.alerts) {
-        alerts = signalResponse.data.alerts;
+      if (signalResponse.data.success) {
+        alerts = signalResponse.data.alerts || [];
+        telegramStatus = signalResponse.data.telegram;
       }
     } catch (error) {
       console.warn('获取预警信息失败:', error);
@@ -114,7 +116,7 @@ async function loadKlineData() {
     
     // 显示数据数量和预警统计
     document.getElementById('statsPanel').classList.remove('hidden');
-    displayAlertStats(alerts);
+    displayAlertStats(alerts, telegramStatus);
 
   } catch (error) {
     console.error('加载K线数据失败:', error);
@@ -297,7 +299,7 @@ function renderTable(klineData, alerts = []) {
 }
 
 // 显示预警统计
-function displayAlertStats(alerts) {
+function displayAlertStats(alerts, telegramStatus) {
   if (!alerts || alerts.length === 0) {
     return;
   }
@@ -309,6 +311,34 @@ function displayAlertStats(alerts) {
       triggerStats[trigger] = (triggerStats[trigger] || 0) + 1;
     });
   });
+  
+  // Telegram发送状态
+  let telegramStatusHtml = '';
+  if (telegramStatus) {
+    if (telegramStatus.skipped) {
+      telegramStatusHtml = `
+        <div class="mt-2 p-2 bg-gray-100 rounded text-xs text-gray-600">
+          <i class="fas fa-info-circle mr-1"></i>
+          Telegram通知已跳过
+        </div>
+      `;
+    } else if (telegramStatus.sent > 0) {
+      telegramStatusHtml = `
+        <div class="mt-2 p-2 bg-green-100 rounded text-xs">
+          <i class="fas fa-paper-plane mr-1 text-green-600"></i>
+          <span class="text-green-800 font-semibold">已发送到Telegram: ${telegramStatus.sent}条预警</span>
+          ${telegramStatus.failed > 0 ? `<span class="ml-2 text-red-600">(失败${telegramStatus.failed}条)</span>` : ''}
+        </div>
+      `;
+    } else if (telegramStatus.failed > 0) {
+      telegramStatusHtml = `
+        <div class="mt-2 p-2 bg-red-100 rounded text-xs">
+          <i class="fas fa-exclamation-circle mr-1 text-red-600"></i>
+          <span class="text-red-800">Telegram发送失败: ${telegramStatus.failed}条</span>
+        </div>
+      `;
+    }
+  }
   
   const statsHtml = `
     <div class="mt-4 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
@@ -324,6 +354,7 @@ function displayAlertStats(alerts) {
           </div>
         `).join('')}
       </div>
+      ${telegramStatusHtml}
     </div>
   `;
   

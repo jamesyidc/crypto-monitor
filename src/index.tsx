@@ -6,6 +6,7 @@ import { CoinService } from './services/coinService'
 import { AnalysisService } from './services/analysisService'
 import { KlineService } from './services/klineService'
 import { SignalService } from './services/signalService'
+import { TelegramService } from './services/telegramService'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
@@ -240,11 +241,12 @@ app.get('/api/signal/24h', async (c) => {
   }
 });
 
-// API: 获取单个币种的买卖点信号
+// API: 获取单个币种的买卖点信号（自动发送Telegram预警）
 app.get('/api/signal/:symbol', async (c) => {
   const symbol = c.req.param('symbol');
   const timeframe = c.req.query('timeframe') || '5m';
   const limit = parseInt(c.req.query('limit') || '100');
+  const sendTelegram = c.req.query('telegram') !== 'false'; // 默认发送，除非明确设置为false
   
   try {
     const klineService = new KlineService(c.env.DB);
@@ -256,10 +258,41 @@ app.get('/api/signal/:symbol', async (c) => {
     // 检测买卖点
     const detection = signalService.detectTradingSignals(result.data);
     
+    // 如果有预警且需要发送到Telegram
+    let telegramStatus = { sent: 0, failed: 0, skipped: false };
+    if (sendTelegram && detection.alerts && detection.alerts.length > 0) {
+      try {
+        // 初始化Telegram服务
+        const telegramService = new TelegramService(
+          '8437045462:AAFePnwdC21cqeWhZISMQHGGgjmroVqE2H0',
+          '-1003227444260'
+        );
+        
+        // 创建K线数据映射表
+        const klineDataMap = new Map();
+        result.data.forEach((k: any) => {
+          klineDataMap.set(k.index, k);
+        });
+        
+        // 批量发送预警到Telegram
+        const sentCount = await telegramService.sendMultipleAlerts(detection.alerts, klineDataMap);
+        telegramStatus.sent = sentCount;
+        telegramStatus.failed = detection.alerts.length - sentCount;
+        
+        console.log(`📤 ${symbol} 预警已发送到Telegram: ${sentCount}/${detection.alerts.length}`);
+      } catch (telegramError: any) {
+        console.error(`❌ ${symbol} Telegram发送失败:`, telegramError);
+        telegramStatus.failed = detection.alerts.length;
+      }
+    } else if (!sendTelegram) {
+      telegramStatus.skipped = true;
+    }
+    
     return c.json({
       success: true,
       symbol,
       timeframe,
+      telegram: telegramStatus,
       ...detection
     });
   } catch (error: any) {
@@ -280,6 +313,57 @@ app.get('/kline', (c) => {
 // 买卖点信号页面
 app.get('/signal', (c) => {
   return c.redirect('/signal.html');
+});
+
+// API: 测试Telegram连接
+app.get('/api/telegram/test', async (c) => {
+  try {
+    const telegramService = new TelegramService(
+      '8437045462:AAFePnwdC21cqeWhZISMQHGGgjmroVqE2H0',
+      '-1003227444260'
+    );
+    
+    // 测试连接
+    const connected = await telegramService.testConnection();
+    
+    if (!connected) {
+      return c.json({
+        success: false,
+        message: 'Bot连接成功，但无法验证Chat ID'
+      });
+    }
+    
+    // 尝试发送测试消息
+    const testResponse = await fetch('https://api.telegram.org/bot8437045462:AAFePnwdC21cqeWhZISMQHGGgjmroVqE2H0/sendMessage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: '-1003227444260',
+        text: '🧪 测试消息 - Telegram连接成功！'
+      })
+    });
+    
+    const result = await testResponse.json();
+    
+    return c.json({
+      success: result.ok,
+      result,
+      help: result.ok ? null : {
+        message: '请确保：',
+        steps: [
+          '1. Bot (@jamesyi_bot) 已添加到群组/频道',
+          '2. Bot在群组中有发送消息权限',
+          '3. Chat ID正确（-1003227444260）',
+          '4. 如果是频道，需要Bot是管理员'
+        ]
+      }
+    });
+  } catch (error: any) {
+    return c.json({
+      success: false,
+      error: error.message
+    }, 500);
+  }
 });
 
 // 首页
