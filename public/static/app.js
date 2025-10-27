@@ -253,9 +253,16 @@ function renderCoinTable(coinDetails, extremes, priorities) {
   const tbody = document.getElementById('coinTableBody');
   
   if (!coinDetails || coinDetails.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="17" class="text-center py-8 text-gray-500">暂无币种数据</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="18" class="text-center py-8 text-gray-500">暂无币种数据</td></tr>';
     return;
   }
+  
+  // 计算24小时涨幅排行
+  const sortedByChange24h = [...coinDetails].sort((a, b) => (b.change_24h || 0) - (a.change_24h || 0));
+  const rankingMap = {};
+  sortedByChange24h.forEach((coin, index) => {
+    rankingMap[coin.symbol] = index + 1;
+  });
   
   tbody.innerHTML = coinDetails.map((coin, index) => {
     const extreme = extremes.find(e => e.symbol === coin.symbol);
@@ -328,8 +335,14 @@ function renderCoinTable(coinDetails, extremes, priorities) {
       ? `<span class="text-red-600 font-bold">${newLowCount}</span>`
       : '<span class="text-gray-400">0</span>';
     
-    // 排行 (优先级)
-    let ranking = '-';
+    // 排行 (24小时涨幅排名)
+    const ranking24h = rankingMap[coin.symbol] || '-';
+    const rankingDisplay = typeof ranking24h === 'number' 
+      ? `<span class="font-semibold text-gray-700">${ranking24h}</span>`
+      : '<span class="text-gray-400">-</span>';
+    
+    // 优先级 (币种优先级等级)
+    let priorityDisplay = '-';
     if (priority) {
       const colors = {
         1: 'bg-red-500',
@@ -339,7 +352,7 @@ function renderCoinTable(coinDetails, extremes, priorities) {
         5: 'bg-green-500',
         6: 'bg-gray-500'
       };
-      ranking = `<span class="inline-block px-2 py-1 ${colors[priority.level]} text-white text-xs rounded font-bold">${priority.level}</span>`;
+      priorityDisplay = `<span class="inline-block px-2 py-1 ${colors[priority.level]} text-white text-xs rounded font-bold">${priority.level}</span>`;
     }
     
     // 异动 - 综合显示各种异常状态
@@ -378,7 +391,8 @@ function renderCoinTable(coinDetails, extremes, priorities) {
         <td class="text-right py-2 px-1 font-mono text-xs ${change24hClass}">${change24hDisplay}</td>
         <td class="text-center py-2 px-1 text-xs">${newHighDisplay}</td>
         <td class="text-center py-2 px-1 text-xs">${newLowDisplay}</td>
-        <td class="text-center py-2 px-1">${ranking}</td>
+        <td class="text-center py-2 px-1 text-xs">${rankingDisplay}</td>
+        <td class="text-center py-2 px-1">${priorityDisplay}</td>
         <td class="text-right py-2 px-1 font-mono text-sm font-semibold text-gray-800">$${coin.price.toFixed(6)}</td>
         <td class="text-right py-2 px-1 text-xs text-gray-600">${highRatio}%</td>
         <td class="text-right py-2 px-1 text-xs text-gray-600">${lowRatio}%</td>

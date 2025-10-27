@@ -260,7 +260,8 @@ app.get('/', (c) => {
                                 <th class="text-right py-2 px-1">24涨幅</th>
                                 <th class="text-center py-2 px-1">++</th>
                                 <th class="text-center py-2 px-1">--</th>
-                                <th class="text-right py-2 px-1">排行</th>
+                                <th class="text-center py-2 px-1">排行</th>
+                                <th class="text-center py-2 px-1">优先级</th>
                                 <th class="text-right py-2 px-1">当前价格</th>
                                 <th class="text-right py-2 px-1">最高占比</th>
                                 <th class="text-right py-2 px-1">最低占比</th>
@@ -269,7 +270,7 @@ app.get('/', (c) => {
                         </thead>
                         <tbody id="coinTableBody">
                             <tr>
-                                <td colspan="17" class="text-center py-8 text-gray-500">
+                                <td colspan="18" class="text-center py-8 text-gray-500">
                                     加载中...
                                 </td>
                             </tr>
