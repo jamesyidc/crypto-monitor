@@ -1,5 +1,10 @@
 // 买卖点识别服务
 export class SignalService {
+  private db?: D1Database;
+
+  constructor(db?: D1Database) {
+    this.db = db;
+  }
   // 识别买卖点信号
   detectTradingSignals(klineData: any[]): any {
     if (klineData.length < 30) {
@@ -83,6 +88,22 @@ export class SignalService {
           time: current.time,
           index: current.index,
           triggers: triggerConditions,
+          // K线原始数据
+          klineData: {
+            open: currentOpen,
+            high: currentHigh,
+            low: currentLow,
+            close: currentClose,
+            volume: currentVolume,
+            // BOLL指标（使用正确的字段名）
+            boll_upper: parseFloat(current.boll_ub || '0'),
+            boll_middle: parseFloat(current.boll_mb || '0'),
+            boll_lower: parseFloat(current.boll_lb || '0'),
+            // 其他指标
+            rsi_1h: parseFloat(current.rsi_1h || '0'),
+            sar_value: parseFloat(current.sar || '0'),
+            sar_direction: current.signal || ''
+          },
           data: {
             volume: currentVolume.toFixed(2),
             volumeLevel: volumeAboveV1 ? 'V1+' : volumeAboveV2 ? 'V2+' : 'Normal',
@@ -313,5 +334,172 @@ export class SignalService {
     summary.topSellSignals = summary.topSellSignals.slice(0, 10);
 
     return summary;
+  }
+
+  // 保存买卖点信号到数据库
+  async saveTradingSignal(signal: any): Promise<void> {
+    if (!this.db) return;
+
+    try {
+      await this.db
+        .prepare(`
+          INSERT INTO trading_signals (
+            symbol, signal_time, signal_type, price, reason, 
+            strength, details, keep_bars
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `)
+        .bind(
+          signal.symbol,
+          signal.time,
+          signal.type,
+          signal.price,
+          signal.reason || '',
+          signal.strength || 0,
+          JSON.stringify(signal.details || {}),
+          signal.keepBars || 0
+        )
+        .run();
+    } catch (error) {
+      console.error('保存买卖点信号失败:', error);
+    }
+  }
+
+  // 保存预警信号到数据库
+  async saveAlertSignal(alert: any): Promise<void> {
+    if (!this.db) return;
+
+    try {
+      const klineData = alert.klineData || {};
+      
+      await this.db
+        .prepare(`
+          INSERT INTO alert_signals (
+            symbol, alert_time, kline_index, triggers,
+            volume, volume_level, change_percent, volatility,
+            rsi_5min, sar_change_percent,
+            open_price, high_price, low_price, close_price,
+            boll_upper, boll_middle, boll_lower,
+            rsi_1h, sar_value, sar_direction
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `)
+        .bind(
+          alert.symbol,
+          alert.time,
+          alert.index || 0,
+          JSON.stringify(alert.triggers || []),
+          parseFloat(alert.data.volume || '0'),
+          alert.data.volumeLevel || 'Normal',
+          parseFloat(alert.data.changePercent || '0'),
+          parseFloat(alert.data.volatility || '0'),
+          parseFloat(alert.data.rsi5min || '50'),
+          parseFloat(alert.data.sarChangePercent || '0'),
+          // 新增K线数据
+          klineData.open || 0,
+          klineData.high || 0,
+          klineData.low || 0,
+          klineData.close || 0,
+          klineData.boll_upper || 0,
+          klineData.boll_middle || 0,
+          klineData.boll_lower || 0,
+          klineData.rsi_1h || 0,
+          klineData.sar_value || 0,
+          klineData.sar_direction || ''
+        )
+        .run();
+    } catch (error) {
+      console.error('保存预警信号失败:', error);
+    }
+  }
+
+  // 批量保存信号
+  async saveSignalsAndAlerts(signals: any[], alerts: any[]): Promise<void> {
+    if (!this.db) return;
+
+    // 保存买卖点信号
+    for (const signal of signals) {
+      await this.saveTradingSignal(signal);
+    }
+
+    // 保存预警
+    for (const alert of alerts) {
+      await this.saveAlertSignal(alert);
+    }
+  }
+
+  // 获取最近的买卖点信号
+  async getRecentTradingSignals(hours: number = 24, limit: number = 100): Promise<any[]> {
+    if (!this.db) return [];
+
+    try {
+      const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+      
+      const result = await this.db
+        .prepare(`
+          SELECT * FROM trading_signals 
+          WHERE created_at >= ?
+          ORDER BY created_at DESC
+          LIMIT ?
+        `)
+        .bind(cutoffTime, limit)
+        .all();
+
+      return result.results.map((row: any) => ({
+        ...row,
+        details: JSON.parse(row.details || '{}')
+      }));
+    } catch (error) {
+      console.error('获取买卖点信号失败:', error);
+      return [];
+    }
+  }
+
+  // 获取最近的预警信号
+  async getRecentAlertSignals(hours: number = 24, limit: number = 1000): Promise<any[]> {
+    if (!this.db) return [];
+
+    try {
+      const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+      
+      const result = await this.db
+        .prepare(`
+          SELECT * FROM alert_signals 
+          WHERE created_at >= ?
+          ORDER BY alert_time DESC
+          LIMIT ?
+        `)
+        .bind(cutoffTime, limit)
+        .all();
+
+      return result.results.map((row: any) => ({
+        ...row,
+        triggers: JSON.parse(row.triggers || '[]'),
+        // K线完整数据
+        klineData: {
+          open: row.open_price || 0,
+          high: row.high_price || 0,
+          low: row.low_price || 0,
+          close: row.close_price || 0,
+          volume: row.volume || 0,
+          boll_upper: row.boll_upper || 0,
+          boll_middle: row.boll_middle || 0,
+          boll_lower: row.boll_lower || 0,
+          rsi_1h: row.rsi_1h || 0,
+          rsi_5min: row.rsi_5min || 0,
+          sar_value: row.sar_value || 0,
+          sar_direction: row.sar_direction || ''
+        },
+        data: {
+          volume: row.volume?.toString() || '0',
+          volumeLevel: row.volume_level,
+          changePercent: row.change_percent?.toFixed(2) + '%',
+          volatility: row.volatility?.toFixed(2) + '%',
+          rsi5min: row.rsi_5min?.toFixed(2),
+          sarChangePercent: row.sar_change_percent?.toFixed(2) + '%'
+        }
+      }));
+    } catch (error) {
+      console.error('获取预警信号失败:', error);
+      return [];
+    }
   }
 }

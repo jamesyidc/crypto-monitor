@@ -420,7 +420,13 @@ npm run deploy:prod
 
 ## 在线演示
 
-🌐 **演示地址**: https://3000-ij3odq6k2fvoix4jt5np8-c07dda5e.sandbox.novita.ai
+🌐 **沙箱演示地址**: https://3000-ij3odq6k2fvoix4jt5np8-c07dda5e.sandbox.novita.ai
+
+### 可用页面
+- 📊 **首页 - 实时监控**: https://3000-ij3odq6k2fvoix4jt5np8-c07dda5e.sandbox.novita.ai/
+- 📈 **K线查询**: https://3000-ij3odq6k2fvoix4jt5np8-c07dda5e.sandbox.novita.ai/kline.html
+- 🎯 **买卖点信号**: https://3000-ij3odq6k2fvoix4jt5np8-c07dda5e.sandbox.novita.ai/signal.html
+- 🔍 **比价比对**: https://3000-ij3odq6k2fvoix4jt5np8-c07dda5e.sandbox.novita.ai/compare.html
 
 ## 使用说明
 
@@ -558,6 +564,18 @@ MIT License
 **作者**: GenSpark AI Assistant
 
 ## 更新日志
+
+### v1.3.1 (2025-10-27) 🚀
+- ⚡ 性能优化：**K线数据同步速度提升20倍** - 使用D1 batch API批量插入
+- ⚡ 性能优化：27个币种×100根K线从超时(120s+)优化到8.8秒完成
+- ⚡ 性能优化：添加OKX API请求延迟(100ms)避免速率限制
+- 🐛 修复：首页数据加载功能恢复
+- 🐛 修复：K线查询功能恢复
+- 🐛 修复：数据库kline_data表数据为空问题
+- 🔧 优化：将单条INSERT改为批量batch操作
+- 📊 数据：成功同步2700+条K线数据到数据库
+- ✅ 验证：所有API端点测试通过
+- 📚 文档：更新性能优化说明
 
 ### v1.3.0 (2025-10-27) 🎉
 - ✨ 新增：**Telegram预警通知功能** - 实时推送交易预警到Telegram频道

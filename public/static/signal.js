@@ -52,37 +52,191 @@ async function loadSignalData() {
   }
 }
 
-// 加载24小时信号数据
+// 加载24小时信号数据（从数据库读取历史数据）
 async function load24HourSignalData() {
   const refreshBtn = document.getElementById('refresh24hBtn');
   refreshBtn.disabled = true;
   refreshBtn.innerHTML = '<i class="fas fa-spinner loading mr-2"></i>加载中...';
   
   try {
-    const response = await axios.get('/api/signal/24h', {
+    // 从数据库读取历史信号
+    const response = await axios.get('/api/signal/history', {
       params: {
-        timeframe: '5m'
+        hours: 24,
+        limit: 1000
       }
     });
     
     if (response.data.success) {
-      signalData = response.data;
-      updateStatistics(signalData.summary);
-      renderAlertPool(signalData.results);
-      renderTopBuySignals(signalData.summary.topBuySignals);
-      renderTopSellSignals(signalData.summary.topSellSignals);
-      renderAllSignals(signalData.results);
+      console.log('📊 历史数据加载成功:', {
+        signals: response.data.stats.tradingSignals.total,
+        alerts: response.data.stats.alertSignals.total
+      });
+      
+      // 转换数据格式以匹配现有渲染函数
+      const formattedData = formatHistoryData(response.data);
+      console.log('✅ 数据格式化完成:', {
+        totalSignals: formattedData.summary.totalSignals,
+        symbolsCount: formattedData.summary.symbolsWithSignals.length
+      });
+      
+      signalData = formattedData;
+      
+      updateStatistics(formattedData.summary);
+      renderAlertPool(formattedData.results);
+      renderTopBuySignals(formattedData.summary.topBuySignals);
+      renderTopSellSignals(formattedData.summary.topSellSignals);
+      renderAllSignals(formattedData.results);
       updateLastUpdateTime();
-      updateDataRange(`过去24小时数据（${signalData.barsAnalyzed}根K线，${signalData.timeframe}周期）`);
+      updateDataRange(`过去24小时历史数据（数据库存储，共${response.data.stats.tradingSignals.total}个买卖点信号，${response.data.stats.alertSignals.total}个预警）`);
     } else {
+      console.error('❌ 加载失败:', response.data.error);
       showError('加载失败: ' + response.data.error);
     }
   } catch (error) {
+    console.error('❌ 网络错误:', error);
     showError('网络错误: ' + error.message);
   } finally {
     refreshBtn.disabled = false;
-    refreshBtn.innerHTML = '<i class="fas fa-clock mr-2"></i>过去24小时';
+    refreshBtn.innerHTML = '<i class="fas fa-database mr-2"></i>历史数据';
   }
+}
+
+// 格式化历史数据以匹配现有渲染函数的格式
+function formatHistoryData(historyData) {
+  const { tradingSignals, alertSignals, stats } = historyData;
+  
+  // 按币种分组
+  const symbolMap = new Map();
+  
+  // 处理买卖点信号
+  tradingSignals.forEach(signal => {
+    if (!symbolMap.has(signal.symbol)) {
+      symbolMap.set(signal.symbol, {
+        success: true,
+        signals: [],
+        alerts: []
+      });
+    }
+    
+    const symbolData = symbolMap.get(signal.symbol);
+    symbolData.signals.push({
+      type: signal.signal_type,
+      index: 0, // 历史数据没有index
+      time: signal.signal_time,
+      price: signal.price,
+      reason: signal.reason,
+      strength: signal.strength,
+      details: signal.details,
+      keepBars: signal.keep_bars
+    });
+  });
+  
+  // 处理预警信号
+  alertSignals.forEach(alert => {
+    if (!symbolMap.has(alert.symbol)) {
+      symbolMap.set(alert.symbol, {
+        success: true,
+        signals: [],
+        alerts: []
+      });
+    }
+    
+    const symbolData = symbolMap.get(alert.symbol);
+    
+    // triggers已经是数组类型（后端已解析），直接使用
+    const triggers = alert.triggers || [];
+    
+    symbolData.alerts.push({
+      index: alert.kline_index || 0,
+      time: alert.alert_time,
+      triggers: triggers,
+      volume: alert.volume,
+      volumeLevel: alert.volume_level,
+      changePercent: alert.change_percent,
+      volatility: alert.volatility,
+      rsi5m: alert.rsi_5min,
+      sarChangePercent: alert.sar_change_percent,
+      // K线完整数据（用于详情展示）
+      klineData: alert.klineData || {
+        open: 0,
+        high: 0,
+        low: 0,
+        close: 0,
+        volume: alert.volume || 0,
+        boll_upper: 0,
+        boll_middle: 0,
+        boll_lower: 0,
+        rsi_1h: 0,
+        rsi_5min: alert.rsi_5min || 0,
+        sar_value: 0,
+        sar_direction: ''
+      },
+      data: alert.data || {
+        volume: alert.volume?.toString() || '0',
+        volumeLevel: alert.volume_level,
+        changePercent: alert.change_percent?.toFixed(2) + '%',
+        volatility: alert.volatility?.toFixed(2) + '%',
+        rsi5min: alert.rsi_5min?.toFixed(2),
+        sarChangePercent: alert.sar_change_percent?.toFixed(2) + '%'
+      }
+    });
+  });
+  
+  // 转换为results格式
+  const results = {};
+  symbolMap.forEach((data, symbol) => {
+    results[symbol] = data;
+  });
+  
+  // 生成摘要
+  const buySignals = tradingSignals.filter(s => s.signal_type === 'BUY');
+  const sellSignals = tradingSignals.filter(s => s.signal_type === 'SELL');
+  
+  // 按强度排序获取Top信号
+  const topBuySignals = buySignals
+    .sort((a, b) => (b.strength || 0) - (a.strength || 0))
+    .slice(0, 10)
+    .map(s => ({
+      symbol: s.symbol,
+      time: s.signal_time,
+      strength: s.strength,
+      reason: s.reason,
+      price: s.price,
+      details: s.details || {},
+      keepBars: s.keep_bars || 0
+    }));
+  
+  const topSellSignals = sellSignals
+    .sort((a, b) => (b.strength || 0) - (a.strength || 0))
+    .slice(0, 10)
+    .map(s => ({
+      symbol: s.symbol,
+      time: s.signal_time,
+      strength: s.strength,
+      reason: s.reason,
+      price: s.price,
+      details: s.details || {},
+      keepBars: s.keep_bars || 0
+    }));
+  
+  const summary = {
+    totalSignals: stats.tradingSignals.total,
+    totalBuySignals: stats.tradingSignals.buy,
+    totalSellSignals: stats.tradingSignals.sell,
+    symbolsWithSignals: Array.from(symbolMap.keys()),
+    topBuySignals,
+    topSellSignals,
+    totalAlerts: stats.alertSignals.total
+  };
+  
+  return {
+    success: true,
+    summary,
+    results,
+    timeRange: '24h',
+    barsAnalyzed: 288
+  };
 }
 
 // 更新统计数据
@@ -506,15 +660,6 @@ function showError(message) {
     const container = document.getElementById(id);
     if (container) {
       container.innerHTML = `
-        <div class="text-center text-red-500 py-8">
-          <i class="fas fa-exclamation-triangle text-4xl mb-2"></i>
-          <p>${message}</p>
-        </div>
-      `;
-    }
-  });
-}
-iner.innerHTML = `
         <div class="text-center text-red-500 py-8">
           <i class="fas fa-exclamation-triangle text-4xl mb-2"></i>
           <p>${message}</p>

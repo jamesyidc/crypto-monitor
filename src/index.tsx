@@ -163,7 +163,7 @@ app.get('/api/signal/all', async (c) => {
   
   try {
     const klineService = new KlineService(c.env.DB);
-    const signalService = new SignalService();
+    const signalService = new SignalService(c.env.DB);
     
     // 获取所有币种配置
     const configs: any = await klineService.getAllOKXConfigs();
@@ -181,6 +181,15 @@ app.get('/api/signal/all', async (c) => {
     // 生成摘要
     const summary = signalService.generateSignalSummary(results);
     
+    // 保存所有信号到数据库
+    for (const [symbol, result] of Object.entries(results)) {
+      if ((result as any).success) {
+        const signals = (result as any).signals || [];
+        const alerts = (result as any).alerts || [];
+        await signalService.saveSignalsAndAlerts(signals, alerts);
+      }
+    }
+    
     return c.json({
       success: true,
       summary,
@@ -197,7 +206,7 @@ app.get('/api/signal/24h', async (c) => {
   
   try {
     const klineService = new KlineService(c.env.DB);
-    const signalService = new SignalService();
+    const signalService = new SignalService(c.env.DB);
     
     // 计算24小时需要的K线数量
     // 5分钟: 24 * 12 = 288根
@@ -228,6 +237,15 @@ app.get('/api/signal/24h', async (c) => {
     // 生成摘要
     const summary = signalService.generateSignalSummary(results);
     
+    // 保存所有信号到数据库
+    for (const [symbol, result] of Object.entries(results)) {
+      if ((result as any).success) {
+        const signals = (result as any).signals || [];
+        const alerts = (result as any).alerts || [];
+        await signalService.saveSignalsAndAlerts(signals, alerts);
+      }
+    }
+    
     return c.json({
       success: true,
       timeRange: '24h',
@@ -235,6 +253,61 @@ app.get('/api/signal/24h', async (c) => {
       barsAnalyzed: limit,
       summary,
       results
+    });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 获取历史信号数据（从数据库读取）
+// 注意：必须放在 :symbol 路由之前，否则会被 :symbol 匹配
+app.get('/api/signal/history', async (c) => {
+  const hours = parseInt(c.req.query('hours') || '24');
+  const limit = parseInt(c.req.query('limit') || '1000');
+  const symbolFilter = c.req.query('symbol');
+  const typeFilter = c.req.query('type'); // 'BUY' 或 'SELL'
+  
+  try {
+    const signalService = new SignalService(c.env.DB);
+    
+    // 获取买卖点信号
+    let tradingSignals = await signalService.getRecentTradingSignals(hours, limit);
+    
+    // 获取预警信号
+    let alertSignals = await signalService.getRecentAlertSignals(hours, limit);
+    
+    // 应用过滤器
+    if (symbolFilter) {
+      tradingSignals = tradingSignals.filter((s: any) => s.symbol === symbolFilter);
+      alertSignals = alertSignals.filter((a: any) => a.symbol === symbolFilter);
+    }
+    
+    if (typeFilter) {
+      tradingSignals = tradingSignals.filter((s: any) => s.signal_type === typeFilter);
+    }
+    
+    // 统计信息
+    const stats = {
+      tradingSignals: {
+        total: tradingSignals.length,
+        buy: tradingSignals.filter((s: any) => s.signal_type === 'BUY').length,
+        sell: tradingSignals.filter((s: any) => s.signal_type === 'SELL').length
+      },
+      alertSignals: {
+        total: alertSignals.length
+      },
+      timeRange: {
+        hours,
+        from: new Date(Date.now() - hours * 60 * 60 * 1000).toISOString(),
+        to: new Date().toISOString()
+      }
+    };
+    
+    return c.json({
+      success: true,
+      stats,
+      tradingSignals,
+      alertSignals
     });
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);
@@ -250,13 +323,18 @@ app.get('/api/signal/:symbol', async (c) => {
   
   try {
     const klineService = new KlineService(c.env.DB);
-    const signalService = new SignalService();
+    const signalService = new SignalService(c.env.DB);
     
     // 获取带指标的K线数据
     const result = await klineService.getKlineWithIndicators(symbol, timeframe, limit);
     
     // 检测买卖点
     const detection = signalService.detectTradingSignals(result.data);
+    
+    // 保存信号到数据库
+    const signals = detection.signals || [];
+    const alerts = detection.alerts || [];
+    await signalService.saveSignalsAndAlerts(signals, alerts);
     
     // 如果有预警且需要发送到Telegram
     let telegramStatus = { sent: 0, failed: 0, skipped: false };

@@ -32,33 +32,36 @@ export class KlineService {
     return data.data; // 返回 K线数组
   }
 
-  // 保存 K线数据
+  // 保存 K线数据 (优化：使用批量插入)
   async saveKlineData(symbol: string, timeframe: string, klineArray: any[]) {
-    for (const kline of klineArray) {
+    if (klineArray.length === 0) return;
+    
+    // 使用 D1 batch API 批量插入
+    const statements = klineArray.map((kline) => {
       // OKX K线格式: [timestamp, open, high, low, close, volume, volumeCcy, volCcyQuote, confirm]
       const [openTime, open, high, low, close, volume, volumeCcy, volCcyQuote] = kline;
       
-      await this.db
-        .prepare(`
-          INSERT OR IGNORE INTO kline_data (
-            symbol, timeframe, open_time, open, high, low, close, volume,
-            quote_volume, trades_count
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `)
-        .bind(
-          symbol,
-          timeframe,
-          parseInt(openTime),
-          parseFloat(open),
-          parseFloat(high),
-          parseFloat(low),
-          parseFloat(close),
-          parseFloat(volume),
-          parseFloat(volCcyQuote || '0'),
-          0 // OKX 不提供交易次数
-        )
-        .run();
-    }
+      return this.db.prepare(`
+        INSERT OR IGNORE INTO kline_data (
+          symbol, timeframe, open_time, open, high, low, close, volume,
+          quote_volume, trades_count
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        symbol,
+        timeframe,
+        parseInt(openTime),
+        parseFloat(open),
+        parseFloat(high),
+        parseFloat(low),
+        parseFloat(close),
+        parseFloat(volume),
+        parseFloat(volCcyQuote || '0'),
+        0 // OKX 不提供交易次数
+      );
+    });
+    
+    // 批量执行
+    await this.db.batch(statements);
   }
 
   // 获取币种的 K线数据
@@ -109,12 +112,13 @@ export class KlineService {
     return result.results;
   }
 
-  // 同步所有币种的 K线数据
+  // 同步所有币种的 K线数据 (优化：添加延迟避免速率限制)
   async syncAllKlineData(timeframe: string = '5m', limit: number = 300) {
     const configs: any = await this.getAllOKXConfigs();
     const results = [];
 
-    for (const config of configs) {
+    for (let i = 0; i < configs.length; i++) {
+      const config = configs[i];
       try {
         const klineData = await this.fetchKlineFromOKX(config.okx_symbol, timeframe, limit);
         await this.saveKlineData(config.symbol, timeframe, klineData);
@@ -123,6 +127,11 @@ export class KlineService {
           success: true,
           count: klineData.length
         });
+        
+        // 避免OKX API速率限制：每请求后延迟100ms
+        if (i < configs.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
       } catch (error: any) {
         results.push({
           symbol: config.symbol,
