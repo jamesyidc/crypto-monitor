@@ -469,9 +469,16 @@ app.get('/api/signal/:symbol', async (c) => {
         // ===== 关键修改：只发送本小时和上一个小时的预警 =====
         // 从K线数据中获取最新时间（而不是系统时间），因为系统时区可能不同
         // 找到最新的K线时间戳（index=0是最新）
+        // 注意：带指标的K线数据使用time字段（格式：2025/10/27 17:25:00）
         let latestKlineTime = 0;
-        if (result.data.length > 0 && result.data[0].open_time) {
-          latestKlineTime = result.data[0].open_time; // 毫秒时间戳
+        if (result.data.length > 0) {
+          if (result.data[0].time) {
+            // 解析时间字符串："2025/10/27 17:25:00" -> 时间戳
+            const timeStr = result.data[0].time.replace(/\//g, '-');
+            latestKlineTime = new Date(timeStr).getTime();
+          } else if (result.data[0].open_time) {
+            latestKlineTime = result.data[0].open_time;
+          }
         }
         
         if (latestKlineTime === 0) {
@@ -490,11 +497,23 @@ app.get('/api/signal/:symbol', async (c) => {
           // 过滤预警：只保留本小时和上一个小时的预警
           const recentAlerts = detection.alerts.filter((alert: any) => {
             const klineData = klineDataMap.get(alert.index);
-            if (!klineData || !klineData.open_time) {
+            if (!klineData) {
+              return false; // 没有K线数据，跳过
+            }
+            
+            // 获取时间戳：优先使用time字段，其次open_time
+            let alertTime = 0;
+            if (klineData.time) {
+              const timeStr = klineData.time.replace(/\//g, '-');
+              alertTime = new Date(timeStr).getTime();
+            } else if (klineData.open_time) {
+              alertTime = klineData.open_time;
+            }
+            
+            if (!alertTime) {
               return false; // 没有时间戳信息，跳过
             }
             
-            const alertTime = klineData.open_time; // K线开盘时间（毫秒时间戳）
             const alertDate = new Date(alertTime);
             const latestKlineDate = new Date(latestKlineTime);
             
