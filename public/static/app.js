@@ -54,6 +54,7 @@ async function runAnalysis() {
 function renderDashboard(data) {
   renderStatsCards(data.latestRound);
   renderMarketTrend(data.todayStats);
+  renderSurgeStats(data.latestRound, data.todayStats);
   renderCoinTable(data.coinDetails, data.extremes, data.priorities);
 }
 
@@ -201,50 +202,171 @@ function renderMarketTrend(todayStats) {
   `;
 }
 
+// 渲染急涨急跌统计
+function renderSurgeStats(latestRound, todayStats) {
+  // 本轮急涨急跌
+  const currentSurge = latestRound ? latestRound.surge_count : 0;
+  const currentCrash = latestRound ? latestRound.crash_count : 0;
+  
+  // 总急涨急跌
+  let totalSurge = 0;
+  let totalCrash = 0;
+  
+  if (todayStats && Array.isArray(todayStats)) {
+    todayStats.forEach(stat => {
+      totalSurge += stat.surge_count || 0;
+      totalCrash += stat.crash_count || 0;
+    });
+  }
+  
+  // 差值和比值
+  const surgeDiff = totalSurge - totalCrash;
+  const surgeRatio = totalCrash > 0 ? (totalSurge / totalCrash).toFixed(2) : (totalSurge > 0 ? '∞' : '-');
+  
+  // 更新DOM
+  document.getElementById('currentSurge').textContent = currentSurge;
+  document.getElementById('currentCrash').textContent = currentCrash;
+  document.getElementById('totalSurge').textContent = totalSurge;
+  document.getElementById('totalCrash').textContent = totalCrash;
+  document.getElementById('surgeDiff').textContent = surgeDiff >= 0 ? `+${surgeDiff}` : surgeDiff;
+  document.getElementById('surgeRatio').textContent = surgeRatio;
+}
+
 // 渲染币种表格
 function renderCoinTable(coinDetails, extremes, priorities) {
   const tbody = document.getElementById('coinTableBody');
   
   if (!coinDetails || coinDetails.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" class="text-center py-8 text-gray-500">暂无币种数据</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="17" class="text-center py-8 text-gray-500">暂无币种数据</td></tr>';
     return;
   }
   
-  tbody.innerHTML = coinDetails.map(coin => {
+  tbody.innerHTML = coinDetails.map((coin, index) => {
     const extreme = extremes.find(e => e.symbol === coin.symbol);
     const priority = priorities.find(p => p.symbol === coin.symbol);
     
     const highRatio = extreme ? ((coin.price / extreme.all_time_high) * 100).toFixed(2) : '-';
     const lowRatio = extreme ? ((coin.price / extreme.all_time_low) * 100).toFixed(2) : '-';
     
-    const changeClass = coin.change_percent && coin.change_percent > 0 ? 'green-text' : (coin.change_percent && coin.change_percent < 0 ? 'red-text' : '');
-    const change24hClass = coin.change_24h && coin.change_24h > 0 ? 'green-text' : (coin.change_24h && coin.change_24h < 0 ? 'red-text' : '');
+    // 序号
+    const sequenceNum = index + 1;
     
-    const levelBadge = priority ? `<span class="level-badge level-${priority.level}">等级${priority.level}</span>` : '-';
+    // 涨跌指示器
+    let changeIndicator = '<span class="text-gray-400">-</span>';
+    if (coin.is_surge) {
+      changeIndicator = '<span class="text-green-600 font-bold">↑</span>';
+    } else if (coin.is_crash) {
+      changeIndicator = '<span class="text-red-600 font-bold">↓</span>';
+    }
     
-    let statusBadges = [];
-    if (coin.is_surge) statusBadges.push('<span class="status-badge bg-green-100 text-green-700">急涨</span>');
-    if (coin.is_crash) statusBadges.push('<span class="status-badge bg-red-100 text-red-700">急跌</span>');
-    if (coin.is_extreme_up) statusBadges.push('<span class="status-badge bg-yellow-100 text-yellow-700">极涨</span>');
-    if (coin.is_extreme_down) statusBadges.push('<span class="status-badge bg-orange-100 text-orange-700">极跌</span>');
+    // 急涨 - 根据 is_surge 显示背景色
+    const surgeCell = coin.is_surge 
+      ? '<span class="inline-block w-full py-1 px-2 bg-green-100 text-green-700 font-bold rounded">涨</span>'
+      : '<span class="text-gray-300">-</span>';
     
-    const statusText = statusBadges.length > 0 ? statusBadges.join(' ') : '-';
+    // 急跌 - 根据 is_crash 显示背景色
+    const crashCell = coin.is_crash
+      ? '<span class="inline-block w-full py-1 px-2 bg-red-100 text-red-700 font-bold rounded">跌</span>'
+      : '<span class="text-gray-300">-</span>';
+    
+    // 更新时间
+    const updateTime = new Date(coin.round_time).toLocaleString('zh-CN', {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    // 历史高价和时间
+    const athPrice = extreme ? `$${extreme.all_time_high.toFixed(6)}` : '-';
+    const athTime = extreme && extreme.ath_date 
+      ? new Date(extreme.ath_date).toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        })
+      : '-';
+    
+    // 涨幅 (当前价格相对ATH的涨幅，实际上是跌幅)
+    let gainPercent = '-';
+    if (extreme && extreme.all_time_high) {
+      const change = ((coin.price - extreme.all_time_high) / extreme.all_time_high * 100);
+      const changeClass = change >= 0 ? 'text-green-600' : 'text-red-600';
+      gainPercent = `<span class="${changeClass}">${change >= 0 ? '+' : ''}${change.toFixed(2)}%</span>`;
+    }
+    
+    // 24小时涨跌幅
+    const change24h = coin.change_24h || 0;
+    const change24hClass = change24h >= 0 ? 'text-green-600' : 'text-red-600';
+    const change24hDisplay = change24h >= 0 ? `+${change24h.toFixed(2)}%` : `${change24h.toFixed(2)}%`;
+    
+    // ++ (创新高次数)
+    const newHighCount = extreme ? extreme.new_high_count : 0;
+    const newHighDisplay = newHighCount > 0 
+      ? `<span class="text-green-600 font-bold">${newHighCount}</span>`
+      : '<span class="text-gray-400">0</span>';
+    
+    // -- (创新低次数)
+    const newLowCount = extreme ? extreme.new_low_count : 0;
+    const newLowDisplay = newLowCount > 0
+      ? `<span class="text-red-600 font-bold">${newLowCount}</span>`
+      : '<span class="text-gray-400">0</span>';
+    
+    // 排行 (优先级)
+    let ranking = '-';
+    if (priority) {
+      const colors = {
+        1: 'bg-red-500',
+        2: 'bg-orange-500',
+        3: 'bg-yellow-500',
+        4: 'bg-blue-500',
+        5: 'bg-green-500',
+        6: 'bg-gray-500'
+      };
+      ranking = `<span class="inline-block px-2 py-1 ${colors[priority.level]} text-white text-xs rounded font-bold">${priority.level}</span>`;
+    }
+    
+    // 异动 - 综合显示各种异常状态
+    let abnormalBadges = [];
+    if (coin.is_surge) {
+      abnormalBadges.push('<span class="inline-block px-1 py-0.5 bg-green-500 text-white text-xs rounded mr-1">急涨</span>');
+    }
+    if (coin.is_crash) {
+      abnormalBadges.push('<span class="inline-block px-1 py-0.5 bg-red-500 text-white text-xs rounded mr-1">急跌</span>');
+    }
+    if (coin.is_extreme_up) {
+      abnormalBadges.push('<span class="inline-block px-1 py-0.5 bg-green-700 text-white text-xs rounded mr-1">极涨</span>');
+    }
+    if (coin.is_extreme_down) {
+      abnormalBadges.push('<span class="inline-block px-1 py-0.5 bg-red-700 text-white text-xs rounded mr-1">极跌</span>');
+    }
+    if (coin.is_new_high) {
+      abnormalBadges.push('<span class="inline-block px-1 py-0.5 bg-yellow-500 text-white text-xs rounded mr-1">新高</span>');
+    }
+    if (coin.is_new_low) {
+      abnormalBadges.push('<span class="inline-block px-1 py-0.5 bg-gray-600 text-white text-xs rounded mr-1">新低</span>');
+    }
+    const abnormalCell = abnormalBadges.length > 0 ? abnormalBadges.join('') : '<span class="text-gray-400">-</span>';
     
     return `
-      <tr class="coin-row border-b border-gray-200">
-        <td class="py-3 px-2 text-gray-700">${coin.rank_in_round}</td>
-        <td class="py-3 px-2 font-semibold text-gray-800">${coin.symbol}</td>
-        <td class="py-3 px-2 text-right font-mono">$${coin.price.toFixed(4)}</td>
-        <td class="py-3 px-2 text-right ${changeClass}">
-          ${coin.change_percent !== null ? (coin.change_percent > 0 ? '+' : '') + coin.change_percent.toFixed(2) + '%' : '-'}
-        </td>
-        <td class="py-3 px-2 text-right ${change24hClass}">
-          ${coin.change_24h !== null ? (coin.change_24h > 0 ? '+' : '') + coin.change_24h.toFixed(2) + '%' : '-'}
-        </td>
-        <td class="py-3 px-2 text-right text-gray-700">${highRatio}%</td>
-        <td class="py-3 px-2 text-right text-gray-700">${lowRatio}%</td>
-        <td class="py-3 px-2 text-center">${levelBadge}</td>
-        <td class="py-3 px-2 text-center">${statusText}</td>
+      <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+        <td class="text-center py-2 px-1 text-gray-600 text-xs">${sequenceNum}</td>
+        <td class="text-left py-2 px-1 font-semibold text-gray-800 text-sm">${coin.symbol}</td>
+        <td class="text-center py-2 px-1">${changeIndicator}</td>
+        <td class="text-center py-2 px-1">${surgeCell}</td>
+        <td class="text-center py-2 px-1">${crashCell}</td>
+        <td class="text-right py-2 px-1 text-xs text-gray-600">${updateTime}</td>
+        <td class="text-right py-2 px-1 font-mono text-xs text-gray-700">${athPrice}</td>
+        <td class="text-right py-2 px-1 text-xs text-gray-600">${athTime}</td>
+        <td class="text-right py-2 px-1 text-xs">${gainPercent}</td>
+        <td class="text-right py-2 px-1 font-mono text-xs ${change24hClass}">${change24hDisplay}</td>
+        <td class="text-center py-2 px-1 text-xs">${newHighDisplay}</td>
+        <td class="text-center py-2 px-1 text-xs">${newLowDisplay}</td>
+        <td class="text-center py-2 px-1">${ranking}</td>
+        <td class="text-right py-2 px-1 font-mono text-sm font-semibold text-gray-800">$${coin.price.toFixed(6)}</td>
+        <td class="text-right py-2 px-1 text-xs text-gray-600">${highRatio}%</td>
+        <td class="text-right py-2 px-1 text-xs text-gray-600">${lowRatio}%</td>
+        <td class="text-center py-2 px-1 text-xs">${abnormalCell}</td>
       </tr>
     `;
   }).join('');

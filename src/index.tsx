@@ -180,8 +180,44 @@ app.get('/', (c) => {
             </div>
 
             <!-- 统计卡片 -->
-            <div id="statsCards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <!-- 统计卡片将在这里动态生成 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+                <!-- 基础统计 -->
+                <div id="statsCards" class="col-span-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <!-- 统计卡片将在这里动态生成 -->
+                </div>
+                
+                <!-- 急涨急跌统计 -->
+                <div class="col-span-2 bg-white rounded-lg shadow-md p-4">
+                    <h3 class="text-sm font-bold text-gray-700 mb-3 border-b pb-2">
+                        <i class="fas fa-bolt mr-1"></i>急涨急跌统计
+                    </h3>
+                    <div class="space-y-2 text-xs">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">本轮急涨:</span>
+                            <span id="currentSurge" class="font-bold text-green-600">-</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">本轮急跌:</span>
+                            <span id="currentCrash" class="font-bold text-red-600">-</span>
+                        </div>
+                        <div class="flex justify-between items-center border-t pt-2">
+                            <span class="text-gray-600">总急涨:</span>
+                            <span id="totalSurge" class="font-bold text-green-600">-</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">总急跌:</span>
+                            <span id="totalCrash" class="font-bold text-red-600">-</span>
+                        </div>
+                        <div class="flex justify-between items-center border-t pt-2">
+                            <span class="text-gray-600">差值:</span>
+                            <span id="surgeDiff" class="font-bold text-blue-600">-</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">比值:</span>
+                            <span id="surgeRatio" class="font-bold text-purple-600">-</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- 市场趋势 -->
@@ -202,21 +238,29 @@ app.get('/', (c) => {
                 <div class="overflow-x-auto">
                     <table class="w-full">
                         <thead>
-                            <tr class="border-b-2 border-gray-200">
-                                <th class="text-left py-3 px-2">排名</th>
-                                <th class="text-left py-3 px-2">币种</th>
-                                <th class="text-right py-3 px-2">价格(USD)</th>
-                                <th class="text-right py-3 px-2">10分钟涨跌</th>
-                                <th class="text-right py-3 px-2">24小时涨跌</th>
-                                <th class="text-right py-3 px-2">最高占比</th>
-                                <th class="text-right py-3 px-2">最低占比</th>
-                                <th class="text-center py-3 px-2">等级</th>
-                                <th class="text-center py-3 px-2">状态</th>
+                            <tr class="border-b-2 border-gray-200 text-xs">
+                                <th class="text-center py-2 px-1">序号</th>
+                                <th class="text-left py-2 px-1">币名</th>
+                                <th class="text-center py-2 px-1">涨跌</th>
+                                <th class="text-center py-2 px-1">急涨</th>
+                                <th class="text-center py-2 px-1">急跌</th>
+                                <th class="text-right py-2 px-1">更新时间</th>
+                                <th class="text-right py-2 px-1">历史高价</th>
+                                <th class="text-right py-2 px-1">高的时间</th>
+                                <th class="text-right py-2 px-1">涨幅</th>
+                                <th class="text-right py-2 px-1">24涨幅</th>
+                                <th class="text-center py-2 px-1">++</th>
+                                <th class="text-center py-2 px-1">--</th>
+                                <th class="text-right py-2 px-1">排行</th>
+                                <th class="text-right py-2 px-1">当前价格</th>
+                                <th class="text-right py-2 px-1">最高占比</th>
+                                <th class="text-right py-2 px-1">最低占比</th>
+                                <th class="text-center py-2 px-1">异动</th>
                             </tr>
                         </thead>
                         <tbody id="coinTableBody">
                             <tr>
-                                <td colspan="9" class="text-center py-8 text-gray-500">
+                                <td colspan="17" class="text-center py-8 text-gray-500">
                                     加载中...
                                 </td>
                             </tr>
