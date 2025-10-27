@@ -1,19 +1,27 @@
 // 买卖点信号分析页面 JavaScript
 
 let signalData = null;
+let autoRefreshInterval = null; // 自动刷新定时器
+let isAutoRefreshEnabled = true; // 自动刷新开关状态
+let currentDataMode = '24h'; // 当前数据模式：'24h' 或 'realtime'
 
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', () => {
   // 默认加载24小时数据
   load24HourSignalData();
   
+  // 🆕 启动自动刷新（1分钟间隔）
+  startAutoRefresh();
+  
   // 实时信号按钮
   document.getElementById('refreshBtn').addEventListener('click', () => {
+    currentDataMode = 'realtime';
     loadSignalData();
   });
   
   // 24小时信号按钮
   document.getElementById('refresh24hBtn').addEventListener('click', () => {
+    currentDataMode = '24h';
     load24HourSignalData();
   });
 });
@@ -782,3 +790,46 @@ document.addEventListener('DOMContentLoaded', () => {
     checkbox.addEventListener('change', applyAlertFilters);
   });
 });
+
+// 🆕 启动自动刷新（每1分钟）
+function startAutoRefresh() {
+  // 清除已存在的定时器
+  if (autoRefreshInterval) {
+    clearInterval(autoRefreshInterval);
+  }
+  
+  // 设置1分钟（60000毫秒）自动刷新
+  autoRefreshInterval = setInterval(() => {
+    if (isAutoRefreshEnabled) {
+      console.log('🔄 自动刷新买卖点信号数据...');
+      
+      // 根据当前模式自动刷新
+      if (currentDataMode === '24h') {
+        load24HourSignalData();
+      } else {
+        loadSignalData();
+      }
+    }
+  }, 60000); // 60秒 = 1分钟
+  
+  console.log('✅ 自动刷新已启动（间隔：1分钟）');
+}
+
+// 🆕 停止自动刷新
+function stopAutoRefresh() {
+  if (autoRefreshInterval) {
+    clearInterval(autoRefreshInterval);
+    autoRefreshInterval = null;
+  }
+  console.log('⏸️  自动刷新已停止');
+}
+
+// 🆕 切换自动刷新状态
+function toggleAutoRefresh() {
+  isAutoRefreshEnabled = !isAutoRefreshEnabled;
+  if (isAutoRefreshEnabled) {
+    console.log('▶️  自动刷新已启用');
+  } else {
+    console.log('⏸️  自动刷新已暂停');
+  }
+}
