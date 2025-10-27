@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>买卖点信号分析 - 加密货币监控系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .signal-badge {
+            padding: 6px 12px;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .buy-signal {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .sell-signal {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .strength-bar {
+            height: 8px;
+            border-radius: 4px;
+            background: #e5e7eb;
+            overflow: hidden;
+        }
+        .strength-fill {
+            height: 100%;
+            transition: width 0.3s;
+        }
+        .strength-high { background: #10b981; }
+        .strength-medium { background: #f59e0b; }
+        .strength-low { background: #6b7280; }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .detail-label {
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+        .detail-value {
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+        
+        .loading {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        <!-- 标题栏 -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                        <i class="fas fa-signal mr-2 text-green-600"></i>
+                        买卖点信号分析
+                    </h1>
+                    <p class="text-gray-600">基于SAR、RSI、BOLL多指标组合的高级买卖点识别系统</p>
+                </div>
+                <div class="text-right">
+                    <button id="refreshBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition">
+                        <i class="fas fa-sync-alt mr-2"></i>刷新数据
+                    </button>
+                    <div class="mt-2 text-sm text-gray-500" id="lastUpdate"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm">总信号数</p>
+                        <p class="text-3xl font-bold text-gray-800" id="totalSignals">0</p>
+                    </div>
+                    <div class="bg-blue-100 p-3 rounded-full">
+                        <i class="fas fa-signal text-blue-600 text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm">做多信号</p>
+                        <p class="text-3xl font-bold text-green-600" id="buySignals">0</p>
+                    </div>
+                    <div class="bg-green-100 p-3 rounded-full">
+                        <i class="fas fa-arrow-up text-green-600 text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm">做空信号</p>
+                        <p class="text-3xl font-bold text-red-600" id="sellSignals">0</p>
+                    </div>
+                    <div class="bg-red-100 p-3 rounded-full">
+                        <i class="fas fa-arrow-down text-red-600 text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm">有信号币种</p>
+                        <p class="text-3xl font-bold text-purple-600" id="symbolsWithSignals">0</p>
+                    </div>
+                    <div class="bg-purple-100 p-3 rounded-full">
+                        <i class="fas fa-coins text-purple-600 text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 高强度信号 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <!-- 顶级做多信号 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-chart-line mr-2 text-green-600"></i>
+                    顶级做多信号（强度≥60）
+                </h2>
+                <div id="topBuySignals" class="space-y-3">
+                    <div class="text-center text-gray-400 py-8">
+                        <i class="fas fa-spinner loading text-4xl mb-2"></i>
+                        <p>加载中...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 顶级做空信号 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-chart-line mr-2 text-red-600"></i>
+                    顶级做空信号（强度≥60）
+                </h2>
+                <div id="topSellSignals" class="space-y-3">
+                    <div class="text-center text-gray-400 py-8">
+                        <i class="fas fa-spinner loading text-4xl mb-2"></i>
+                        <p>加载中...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 所有币种信号详情 -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">
+                <i class="fas fa-list mr-2 text-blue-600"></i>
+                所有币种信号详情
+            </h2>
+            <div id="allSignals" class="space-y-4">
+                <div class="text-center text-gray-400 py-8">
+                    <i class="fas fa-spinner loading text-4xl mb-2"></i>
+                    <p>加载中...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script src="/static/signal.js"></script>
+</body>
+</html>

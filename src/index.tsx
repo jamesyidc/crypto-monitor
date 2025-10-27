@@ -5,6 +5,7 @@ import type { Bindings } from './types'
 import { CoinService } from './services/coinService'
 import { AnalysisService } from './services/analysisService'
 import { KlineService } from './services/klineService'
+import { SignalService } from './services/signalService'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
@@ -152,6 +153,70 @@ app.get('/api/okx/config/:symbol', async (c) => {
   return c.json(config);
 });
 
+// ========== 买卖点信号 API ==========
+
+// API: 获取单个币种的买卖点信号
+app.get('/api/signal/:symbol', async (c) => {
+  const symbol = c.req.param('symbol');
+  const timeframe = c.req.query('timeframe') || '5m';
+  const limit = parseInt(c.req.query('limit') || '100');
+  
+  try {
+    const klineService = new KlineService(c.env.DB);
+    const signalService = new SignalService();
+    
+    // 获取带指标的K线数据
+    const result = await klineService.getKlineWithIndicators(symbol, timeframe, limit);
+    
+    // 检测买卖点
+    const detection = signalService.detectTradingSignals(result.data);
+    
+    return c.json({
+      success: true,
+      symbol,
+      timeframe,
+      ...detection
+    });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 400);
+  }
+});
+
+// API: 获取所有币种的买卖点信号
+app.get('/api/signal/all', async (c) => {
+  const timeframe = c.req.query('timeframe') || '5m';
+  const limit = parseInt(c.req.query('limit') || '100');
+  
+  try {
+    const klineService = new KlineService(c.env.DB);
+    const signalService = new SignalService();
+    
+    // 获取所有币种配置
+    const configs: any = await klineService.getAllOKXConfigs();
+    const symbols = configs.map((c: any) => c.symbol);
+    
+    // 检测所有币种的买卖点
+    const results = await signalService.detectMultiSymbolSignals(
+      symbols,
+      async (symbol: string) => {
+        const result = await klineService.getKlineWithIndicators(symbol, timeframe, limit);
+        return result.data;
+      }
+    );
+    
+    // 生成摘要
+    const summary = signalService.generateSignalSummary(results);
+    
+    return c.json({
+      success: true,
+      summary,
+      results
+    });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
 // 比价比对页面
 app.get('/compare', (c) => {
   return c.redirect('/compare.html');
@@ -160,6 +225,11 @@ app.get('/compare', (c) => {
 // K线查询页面
 app.get('/kline', (c) => {
   return c.redirect('/kline.html');
+});
+
+// 买卖点信号页面
+app.get('/signal', (c) => {
+  return c.redirect('/signal.html');
 });
 
 // 首页
@@ -210,6 +280,9 @@ app.get('/', (c) => {
                     <div class="flex gap-2">
                         <a href="/compare.html" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition">
                             <i class="fas fa-balance-scale mr-2"></i>比价比对
+                        </a>
+                        <a href="/signal.html" class="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition">
+                            <i class="fas fa-signal mr-2"></i>买卖点信号
                         </a>
                         <a href="/kline.html" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition">
                             <i class="fas fa-chart-candlestick mr-2"></i>K线查询
