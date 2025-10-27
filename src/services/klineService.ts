@@ -207,14 +207,30 @@ export class KlineService {
 
   // 获取带技术指标的 K线数据
   async getKlineWithIndicators(symbol: string, timeframe: string = '5m', limit: number = 300) {
-    // 获取 OKX 配置
-    const config: any = await this.getOKXConfig(symbol);
-    if (!config) {
-      throw new Error(`未找到 ${symbol} 的 OKX 配置`);
+    // 先尝试从数据库获取
+    const dbData: any = await this.getKlineData(symbol, timeframe, limit);
+    
+    let klineData: any[];
+    
+    if (dbData && dbData.length >= limit) {
+      // 数据库中有足够的数据，转换格式为 OKX 格式
+      // OKX 格式: [timestamp, open, high, low, close, volume, ...]
+      klineData = dbData.reverse().map((k: any) => [
+        k.open_time.toString(),
+        k.open.toString(),
+        k.high.toString(),
+        k.low.toString(),
+        k.close.toString(),
+        k.volume.toString()
+      ]);
+    } else {
+      // 数据库数据不足，从 OKX 获取
+      const config: any = await this.getOKXConfig(symbol);
+      if (!config) {
+        throw new Error(`未找到 ${symbol} 的 OKX 配置`);
+      }
+      klineData = await this.fetchKlineFromOKX(config.okx_symbol, timeframe, limit);
     }
-
-    // 从 OKX 获取最新数据
-    const klineData = await this.fetchKlineFromOKX(config.okx_symbol, timeframe, limit);
     
     // 计算技术指标
     const indicators = this.indicatorService.calculateSARRSIBoll(klineData, symbol);
