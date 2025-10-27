@@ -250,12 +250,17 @@ export class KlineService {
     const indicators = this.indicatorService.calculateSARRSIBoll(klineData, symbol);
 
     // 只返回用户请求的数量（最新的 limit 根K线）
-    // indicators 数组已经是从旧到新排列（因为输入的 klineData 已经 reverse 过）
-    // slice(-limit) 取最后 N 条，保持从旧到新的顺序
+    // indicators 数组是从旧到新排列（因为输入的 klineData 已经 reverse 过）
+    // slice(-limit) 取最后 N 条（最新的数据）
     let trimmedIndicators = indicators.slice(-limit);
     
-    // 重新计算 index，使其从 0 开始递增（时间越早 index 越小）
-    // 现在 trimmedIndicators[0] 是最早的时间，trimmedIndicators[n-1] 是最新的时间
+    // ===== 关键修改：反转为从新到旧排列 =====
+    // 前端和用户期望看到的是：最新的K线在序号0，越往下时间越早
+    // 所以需要将数组反转：从[旧...新]变成[新...旧]
+    trimmedIndicators = trimmedIndicators.reverse();
+    
+    // 重新计算 index，从 0 开始递增
+    // 现在 index=0 是最新时间，index 越大时间越早
     trimmedIndicators = trimmedIndicators.map((item, idx) => ({
       ...item,
       index: idx
