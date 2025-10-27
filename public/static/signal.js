@@ -516,9 +516,18 @@ function renderTopBuySignals(signals) {
         </div>
       </div>
       
-      <div class="mt-2 text-xs text-gray-500">
-        <i class="fas fa-info-circle mr-1"></i>
-        保留 ${signal.keepBars} 根K线观察
+      <div class="mt-3 flex justify-between items-center">
+        <div class="text-xs text-gray-500">
+          <i class="fas fa-info-circle mr-1"></i>
+          保留 ${signal.keepBars} 根K线观察
+        </div>
+        <a href="/kline.html?symbol=${signal.symbol}&timeframe=5m" 
+           target="_blank"
+           class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition text-xs inline-flex items-center gap-1"
+           title="查看${signal.symbol}的5分钟K线详情">
+          <i class="fas fa-chart-line"></i>
+          <span>K线详情</span>
+        </a>
       </div>
     </div>
   `).join('');
@@ -583,9 +592,18 @@ function renderTopSellSignals(signals) {
         </div>
       </div>
       
-      <div class="mt-2 text-xs text-gray-500">
-        <i class="fas fa-info-circle mr-1"></i>
-        保留 ${signal.keepBars} 根K线观察
+      <div class="mt-3 flex justify-between items-center">
+        <div class="text-xs text-gray-500">
+          <i class="fas fa-info-circle mr-1"></i>
+          保留 ${signal.keepBars} 根K线观察
+        </div>
+        <a href="/kline.html?symbol=${signal.symbol}&timeframe=5m" 
+           target="_blank"
+           class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition text-xs inline-flex items-center gap-1"
+           title="查看${signal.symbol}的5分钟K线详情">
+          <i class="fas fa-chart-line"></i>
+          <span>K线详情</span>
+        </a>
       </div>
     </div>
   `).join('');
@@ -636,7 +654,7 @@ function renderAllSignals(results) {
             <i class="fas fa-coins mr-2 text-yellow-600"></i>
             ${symbol}
           </h3>
-          <div class="flex gap-2">
+          <div class="flex gap-2 items-center">
             ${buySignals.length > 0 ? `
               <span class="signal-badge buy-signal">
                 <i class="fas fa-arrow-up"></i>
@@ -649,6 +667,13 @@ function renderAllSignals(results) {
                 ${sellSignals.length}个做空
               </span>
             ` : ''}
+            <a href="/kline.html?symbol=${symbol}&timeframe=5m" 
+               target="_blank"
+               class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition text-sm inline-flex items-center gap-1"
+               title="查看${symbol}的5分钟K线详情">
+              <i class="fas fa-chart-line"></i>
+              <span>K线详情</span>
+            </a>
           </div>
         </div>
         

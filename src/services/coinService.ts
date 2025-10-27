@@ -594,16 +594,16 @@ export class CoinService {
     return (result as any)?.count || 0;
   }
 
-  // 🆕 获取今日每个币种的V1触发次数
+  // 🆕 获取今日每个币种的V1触发次数（买卖点信号中的V1）
   async getTodayV1Counts(date: string): Promise<{ [symbol: string]: number }> {
     const result = await this.db
       .prepare(`
         SELECT 
           symbol,
           COUNT(*) as v1_count
-        FROM alert_signals
+        FROM trading_signals
         WHERE DATE(created_at) = ?
-          AND triggers LIKE '%成交量≥V1%'
+          AND (details LIKE '%V1%' OR details LIKE '%V1+%')
         GROUP BY symbol
       `)
       .bind(date)
