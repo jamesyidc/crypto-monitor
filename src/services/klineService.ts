@@ -1,8 +1,12 @@
+import { IndicatorService } from './indicatorService';
+
 export class KlineService {
   private db: D1Database;
+  private indicatorService: IndicatorService;
 
   constructor(db: D1Database) {
     this.db = db;
+    this.indicatorService = new IndicatorService();
   }
 
   // 从 OKX 获取 K线数据
@@ -199,5 +203,49 @@ export class KlineService {
       `)
       .bind(symbol, timeframe, symbol, timeframe, keepCount)
       .run();
+  }
+
+  // 获取带技术指标的 K线数据
+  async getKlineWithIndicators(symbol: string, timeframe: string = '5m', limit: number = 300) {
+    // 获取 OKX 配置
+    const config: any = await this.getOKXConfig(symbol);
+    if (!config) {
+      throw new Error(`未找到 ${symbol} 的 OKX 配置`);
+    }
+
+    // 从 OKX 获取最新数据
+    const klineData = await this.fetchKlineFromOKX(config.okx_symbol, timeframe, limit);
+    
+    // 计算技术指标
+    const indicators = this.indicatorService.calculateSARRSIBoll(klineData, symbol);
+
+    return {
+      symbol,
+      timeframe,
+      dataCount: indicators.length,
+      data: indicators
+    };
+  }
+
+  // 批量获取多个币种的技术指标
+  async getMultiSymbolIndicators(symbols: string[], timeframe: string = '5m', limit: number = 300) {
+    const results: any = {};
+
+    for (const symbol of symbols) {
+      try {
+        const data = await this.getKlineWithIndicators(symbol, timeframe, limit);
+        results[symbol] = {
+          success: true,
+          data: data
+        };
+      } catch (error: any) {
+        results[symbol] = {
+          success: false,
+          error: error.message
+        };
+      }
+    }
+
+    return results;
   }
 }

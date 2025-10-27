@@ -84,23 +84,37 @@
 
         <!-- K线数据表格 -->
         <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-lg font-bold text-gray-800 mb-4">K线数据</h2>
+            <h2 class="text-lg font-bold text-gray-800 mb-4">
+                K线数据与技术指标
+                <button id="toggleIndicators" class="ml-4 px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition">
+                    <i class="fas fa-eye mr-1"></i>显示指标
+                </button>
+            </h2>
             <div class="overflow-x-auto">
-                <table class="w-full">
+                <table class="w-full text-xs">
                     <thead>
                         <tr class="border-b-2 border-gray-200">
-                            <th class="text-left py-3 px-2">时间</th>
-                            <th class="text-right py-3 px-2">开盘</th>
-                            <th class="text-right py-3 px-2">最高</th>
-                            <th class="text-right py-3 px-2">最低</th>
-                            <th class="text-right py-3 px-2">收盘</th>
-                            <th class="text-right py-3 px-2">涨跌幅</th>
-                            <th class="text-right py-3 px-2">成交量</th>
+                            <th class="text-left py-2 px-1 sticky left-0 bg-white">时间</th>
+                            <th class="text-right py-2 px-1">开盘</th>
+                            <th class="text-right py-2 px-1">最高</th>
+                            <th class="text-right py-2 px-1">最低</th>
+                            <th class="text-right py-2 px-1">收盘</th>
+                            <th class="text-right py-2 px-1">涨跌幅</th>
+                            <th class="text-right py-2 px-1">成交量</th>
+                            <!-- 技术指标列 -->
+                            <th class="text-center py-2 px-1 indicator-col hidden">信号</th>
+                            <th class="text-right py-2 px-1 indicator-col hidden">SAR</th>
+                            <th class="text-right py-2 px-1 indicator-col hidden">RSI_5m</th>
+                            <th class="text-right py-2 px-1 indicator-col hidden">RSI_1h</th>
+                            <th class="text-right py-2 px-1 indicator-col hidden">BOLL_MB</th>
+                            <th class="text-right py-2 px-1 indicator-col hidden">BOLL_UB</th>
+                            <th class="text-right py-2 px-1 indicator-col hidden">BOLL_LB</th>
+                            <th class="text-center py-2 px-1 indicator-col hidden">通道状态</th>
                         </tr>
                     </thead>
                     <tbody id="klineTableBody">
                         <tr>
-                            <td colspan="7" class="text-center py-8 text-gray-500">
+                            <td colspan="15" class="text-center py-8 text-gray-500">
                                 请选择币种查看数据
                             </td>
                         </tr>

@@ -97,6 +97,33 @@ app.get('/api/okx/config', async (c) => {
   return c.json(configs);
 });
 
+// API: 获取带技术指标的 K线数据
+app.get('/api/kline/:symbol/indicators', async (c) => {
+  const symbol = c.req.param('symbol');
+  const timeframe = c.req.query('timeframe') || '5m';
+  const limit = parseInt(c.req.query('limit') || '300');
+  
+  try {
+    const klineService = new KlineService(c.env.DB);
+    const data = await klineService.getKlineWithIndicators(symbol, timeframe, limit);
+    return c.json({ success: true, ...data });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 400);
+  }
+});
+
+// API: 批量获取多个币种的技术指标
+app.post('/api/kline/indicators/batch', async (c) => {
+  const body = await c.req.json();
+  const symbols = body.symbols || [];
+  const timeframe = body.timeframe || '5m';
+  const limit = body.limit || 300;
+  
+  const klineService = new KlineService(c.env.DB);
+  const results = await klineService.getMultiSymbolIndicators(symbols, timeframe, limit);
+  return c.json({ success: true, results });
+});
+
 // API: 获取单个币种的 OKX 配置
 app.get('/api/okx/config/:symbol', async (c) => {
   const symbol = c.req.param('symbol');

@@ -1,14 +1,16 @@
 // 全局状态
 let currentSymbol = 'BTC';
-let currentTimeframe = '15m';
+let currentTimeframe = '5m';
 let klineChart = null;
 let allCoins = [];
+let showIndicators = false;
 
 // 初始化
 document.addEventListener('DOMContentLoaded', async () => {
   await loadCoins();
   bindTimeframeButtons();
   document.getElementById('syncBtn').addEventListener('click', syncKlineData);
+  document.getElementById('toggleIndicators').addEventListener('click', toggleIndicatorColumns);
 });
 
 // 加载币种列表
@@ -63,40 +65,38 @@ function bindTimeframeButtons() {
   });
 }
 
-// 加载 K线数据
+// 加载 K线数据（带技术指标）
 async function loadKlineData() {
   try {
     showLoading();
     
-    // 获取 K线数据
-    const response = await axios.get(`/api/kline/${currentSymbol}`, {
+    // 获取带技术指标的 K线数据
+    const response = await axios.get(`/api/kline/${currentSymbol}/indicators`, {
       params: {
         timeframe: currentTimeframe,
-        limit: 100
+        limit: 300
       }
     });
 
-    const klineData = response.data;
+    if (!response.data.success) {
+      showError(response.data.error || '加载失败');
+      return;
+    }
+
+    const result = response.data;
+    const klineData = result.data;
 
     if (!klineData || klineData.length === 0) {
       showNoData();
       return;
     }
 
-    // 获取统计信息
-    const statsResponse = await axios.get(`/api/kline/${currentSymbol}/stats`, {
-      params: {
-        timeframe: currentTimeframe,
-        limit: 100
-      }
-    });
-
-    const stats = statsResponse.data;
-
     // 渲染数据
-    renderStats(stats);
     renderChart(klineData);
     renderTable(klineData);
+    
+    // 显示数据数量
+    document.getElementById('statsPanel').classList.remove('hidden');
 
   } catch (error) {
     console.error('加载K线数据失败:', error);
@@ -190,25 +190,81 @@ function renderChart(klineData) {
 function renderTable(klineData) {
   const tbody = document.getElementById('klineTableBody');
   
-  tbody.innerHTML = klineData.map((k, index) => {
-    const prevClose = index < klineData.length - 1 ? klineData[index + 1].close : k.open;
-    const change = ((k.close - prevClose) / prevClose) * 100;
-    const changeClass = change > 0 ? 'text-green-600' : (change < 0 ? 'text-red-600' : 'text-gray-600');
+  tbody.innerHTML = klineData.map((k) => {
+    // 基础K线数据
+    const changeClass = k.change && k.change.includes('+') ? 'text-green-600' : 'text-red-600';
+    
+    // 信号样式
+    const signalClass = k.signal && k.signal.startsWith('多头') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+    
+    // RSI 样式
+    const getRSIClass = (rsi) => {
+      if (!rsi) return 'text-gray-400';
+      if (rsi > 70) return 'text-red-600 font-bold';
+      if (rsi < 30) return 'text-green-600 font-bold';
+      return 'text-gray-700';
+    };
+    
+    // 通道状态样式
+    const getChannelIcon = (state) => {
+      if (!state) return '-';
+      return state;
+    };
 
     return `
-      <tr class="border-b border-gray-200 hover:bg-gray-50">
-        <td class="py-3 px-2 text-gray-700">${formatDateTime(k.open_time)}</td>
-        <td class="py-3 px-2 text-right font-mono">${k.open.toFixed(4)}</td>
-        <td class="py-3 px-2 text-right font-mono text-green-600">${k.high.toFixed(4)}</td>
-        <td class="py-3 px-2 text-right font-mono text-red-600">${k.low.toFixed(4)}</td>
-        <td class="py-3 px-2 text-right font-mono font-bold">${k.close.toFixed(4)}</td>
-        <td class="py-3 px-2 text-right font-bold ${changeClass}">
-          ${change > 0 ? '+' : ''}${change.toFixed(2)}%
+      <tr class="border-b border-gray-100 hover:bg-gray-50 text-xs">
+        <td class="py-2 px-1 text-gray-700 sticky left-0 bg-white">${k.time || '-'}</td>
+        <td class="py-2 px-1 text-right font-mono">${k.open ? k.open.toFixed(4) : '-'}</td>
+        <td class="py-2 px-1 text-right font-mono text-green-600">${k.high ? k.high.toFixed(4) : '-'}</td>
+        <td class="py-2 px-1 text-right font-mono text-red-600">${k.low ? k.low.toFixed(4) : '-'}</td>
+        <td class="py-2 px-1 text-right font-mono font-bold">${k.close ? k.close.toFixed(4) : '-'}</td>
+        <td class="py-2 px-1 text-right font-bold ${changeClass}">${k.change || '-'}</td>
+        <td class="py-2 px-1 text-right font-mono text-gray-600">${k.volume ? formatVolume(k.volume) : '-'}</td>
+        <!-- 技术指标列 -->
+        <td class="py-2 px-1 text-center indicator-col ${showIndicators ? '' : 'hidden'}">
+          <span class="inline-block px-2 py-0.5 rounded ${signalClass} text-xs font-semibold">
+            ${k.signal || '-'}
+          </span>
         </td>
-        <td class="py-3 px-2 text-right font-mono text-gray-600">${formatVolume(k.volume)}</td>
+        <td class="py-2 px-1 text-right font-mono indicator-col ${showIndicators ? '' : 'hidden'}">
+          ${k.sar ? k.sar.toFixed(4) : '-'}
+        </td>
+        <td class="py-2 px-1 text-right font-mono indicator-col ${showIndicators ? '' : 'hidden'} ${getRSIClass(k.rsi_5min)}">
+          ${k.rsi_5min ? k.rsi_5min.toFixed(2) : '-'}
+        </td>
+        <td class="py-2 px-1 text-right font-mono indicator-col ${showIndicators ? '' : 'hidden'} ${getRSIClass(k.rsi_1h)}">
+          ${k.rsi_1h ? k.rsi_1h.toFixed(2) : '-'}
+        </td>
+        <td class="py-2 px-1 text-right font-mono text-blue-600 indicator-col ${showIndicators ? '' : 'hidden'}">
+          ${k.boll_mb ? k.boll_mb.toFixed(4) : '-'}
+        </td>
+        <td class="py-2 px-1 text-right font-mono text-gray-500 indicator-col ${showIndicators ? '' : 'hidden'}">
+          ${k.boll_ub ? k.boll_ub.toFixed(4) : '-'}
+        </td>
+        <td class="py-2 px-1 text-right font-mono text-gray-500 indicator-col ${showIndicators ? '' : 'hidden'}">
+          ${k.boll_lb ? k.boll_lb.toFixed(4) : '-'}
+        </td>
+        <td class="py-2 px-1 text-center indicator-col ${showIndicators ? '' : 'hidden'}">
+          ${getChannelIcon(k.channel_state)}
+        </td>
       </tr>
     `;
   }).join('');
+}
+
+// 切换指标列显示/隐藏
+function toggleIndicatorColumns() {
+  showIndicators = !showIndicators;
+  const btn = document.getElementById('toggleIndicators');
+  const indicatorCols = document.querySelectorAll('.indicator-col');
+  
+  if (showIndicators) {
+    indicatorCols.forEach(col => col.classList.remove('hidden'));
+    btn.innerHTML = '<i class="fas fa-eye-slash mr-1"></i>隐藏指标';
+  } else {
+    indicatorCols.forEach(col => col.classList.add('hidden'));
+    btn.innerHTML = '<i class="fas fa-eye mr-1"></i>显示指标';
+  }
 }
 
 // 同步 K线数据
