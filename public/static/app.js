@@ -50,11 +50,6 @@ async function runAnalysis() {
       showStatus('分析完成!', 'success');
       // 延迟1秒后刷新数据
       setTimeout(loadDashboard, 1000);
-      
-      // 如果是自动运行，重置下次分析时间
-      if (isAutoRunning) {
-        nextAnalysisTime = Date.now() + 10 * 60 * 1000; // 10分钟后
-      }
     } else {
       showStatus('分析失败: ' + response.data.error, 'error');
     }
@@ -422,18 +417,58 @@ function showStatus(message, type) {
   setTimeout(() => el.classList.add('hidden'), 5000);
 }
 
+// 计算下一个整10分钟的时间戳
+function getNextRoundTime() {
+  const now = new Date();
+  const minutes = now.getMinutes();
+  const seconds = now.getSeconds();
+  const milliseconds = now.getMilliseconds();
+  
+  // 计算到下一个整10分钟还有多少毫秒
+  const currentRoundMinute = Math.floor(minutes / 10) * 10;
+  const nextRoundMinute = currentRoundMinute + 10;
+  
+  // 如果下一个整10分钟超过60分钟，需要进入下一小时
+  if (nextRoundMinute >= 60) {
+    const nextHour = new Date(now);
+    nextHour.setHours(nextHour.getHours() + 1);
+    nextHour.setMinutes(0);
+    nextHour.setSeconds(0);
+    nextHour.setMilliseconds(0);
+    return nextHour.getTime();
+  } else {
+    const nextRound = new Date(now);
+    nextRound.setMinutes(nextRoundMinute);
+    nextRound.setSeconds(0);
+    nextRound.setMilliseconds(0);
+    return nextRound.getTime();
+  }
+}
+
 // 启动自动刷新
 function startAutoRefresh() {
-  // 设置下次分析时间
-  nextAnalysisTime = Date.now() + 10 * 60 * 1000; // 10分钟后
   isAutoRunning = true;
   
-  // 每10分钟自动执行分析
-  autoRefreshInterval = setInterval(() => {
+  // 计算下一个整10分钟的时间
+  nextAnalysisTime = getNextRoundTime();
+  const delay = nextAnalysisTime - Date.now();
+  
+  console.log(`下次分析时间: ${new Date(nextAnalysisTime).toLocaleString('zh-CN')}`);
+  console.log(`距离下次分析: ${Math.floor(delay / 1000)} 秒`);
+  
+  // 清除旧的定时器
+  if (autoRefreshInterval) {
+    clearTimeout(autoRefreshInterval);
+  }
+  
+  // 设置定时器在下一个整10分钟执行
+  autoRefreshInterval = setTimeout(() => {
     console.log('自动执行分析...');
     runAnalysis();
-    nextAnalysisTime = Date.now() + 10 * 60 * 1000; // 重置下次分析时间
-  }, 10 * 60 * 1000); // 10分钟
+    
+    // 执行完后，设置下一个10分钟的定时器
+    scheduleNextRound();
+  }, delay);
   
   // 启动倒计时显示
   startCountdown();
@@ -441,13 +476,35 @@ function startAutoRefresh() {
   // 更新按钮状态
   updateAutoToggleButton();
   
-  console.log('自动刷新已启动: 每10分钟执行一次');
+  console.log('自动刷新已启动: 严格按照每10分钟整点执行 (00/10/20/30/40/50分)');
+}
+
+// 安排下一轮分析
+function scheduleNextRound() {
+  if (!isAutoRunning) {
+    return;
+  }
+  
+  // 计算下一个整10分钟的时间
+  nextAnalysisTime = getNextRoundTime();
+  const delay = nextAnalysisTime - Date.now();
+  
+  console.log(`下次分析时间: ${new Date(nextAnalysisTime).toLocaleString('zh-CN')}`);
+  
+  // 设置定时器
+  autoRefreshInterval = setTimeout(() => {
+    console.log('自动执行分析...');
+    runAnalysis();
+    
+    // 继续安排下一轮
+    scheduleNextRound();
+  }, delay);
 }
 
 // 停止自动刷新
 function stopAutoRefresh() {
   if (autoRefreshInterval) {
-    clearInterval(autoRefreshInterval);
+    clearTimeout(autoRefreshInterval);
     autoRefreshInterval = null;
   }
   if (countdownInterval) {
@@ -455,6 +512,7 @@ function stopAutoRefresh() {
     countdownInterval = null;
   }
   isAutoRunning = false;
+  nextAnalysisTime = null;
   
   // 更新倒计时显示
   document.getElementById('countdown').textContent = '已暂停';
