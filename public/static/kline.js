@@ -3,7 +3,7 @@ let currentSymbol = 'BTC';
 let currentTimeframe = '5m';
 let klineChart = null;
 let allCoins = [];
-let showIndicators = false;
+let showIndicators = true; // 默认显示技术指标
 
 // 初始化
 document.addEventListener('DOMContentLoaded', async () => {
@@ -221,40 +221,40 @@ function renderTable(klineData) {
         <td class="py-2 px-1 text-right font-mono font-bold">${k.close ? k.close.toFixed(4) : '-'}</td>
         <td class="py-2 px-1 text-right font-bold ${changeClass}">${k.change || '-'}</td>
         <td class="py-2 px-1 text-right font-mono text-gray-600">${k.volume ? formatVolume(k.volume) : '-'}</td>
-        <!-- 技术指标列 -->
-        <td class="py-2 px-1 text-center indicator-col ${showIndicators ? '' : 'hidden'}">
+        <!-- 技术指标列（默认显示） -->
+        <td class="py-2 px-1 text-center indicator-col">
           <span class="inline-block px-2 py-0.5 rounded ${signalClass} text-xs font-semibold">
             ${k.signal || '-'}
           </span>
         </td>
-        <td class="py-2 px-1 text-right font-mono indicator-col ${showIndicators ? '' : 'hidden'}">
+        <td class="py-2 px-1 text-right font-mono indicator-col">
           ${k.sar ? k.sar.toFixed(4) : '-'}
         </td>
-        <td class="py-2 px-1 text-right font-mono indicator-col ${showIndicators ? '' : 'hidden'} ${k.sarChange ? (k.sarChange > 0 ? 'text-green-600' : 'text-red-600') : 'text-gray-400'}">
+        <td class="py-2 px-1 text-right font-mono indicator-col ${k.sarChange ? (k.sarChange > 0 ? 'text-green-600' : 'text-red-600') : 'text-gray-400'}">
           ${k.sarChange ? k.sarChange.toFixed(2) : '-'}
         </td>
-        <td class="py-2 px-1 text-right font-mono indicator-col ${showIndicators ? '' : 'hidden'} ${k.sarChangePercent ? (k.sarChangePercent > 0 ? 'text-green-600 font-bold' : 'text-red-600 font-bold') : 'text-gray-400'}">
+        <td class="py-2 px-1 text-right font-mono indicator-col ${k.sarChangePercent ? (k.sarChangePercent > 0 ? 'text-green-600 font-bold' : 'text-red-600 font-bold') : 'text-gray-400'}">
           ${k.sarChangePercent ? k.sarChangePercent.toFixed(2) + '%' : '-'}
         </td>
-        <td class="py-2 px-1 text-right font-mono indicator-col ${showIndicators ? '' : 'hidden'} ${k['change-diff'] ? (k['change-diff'] > 0.1 ? 'text-orange-600 font-bold' : 'text-gray-600') : 'text-gray-400'}">
+        <td class="py-2 px-1 text-right font-mono indicator-col ${k['change-diff'] ? (k['change-diff'] > 0.1 ? 'text-orange-600 font-bold' : 'text-gray-600') : 'text-gray-400'}">
           ${k['change-diff'] !== undefined ? k['change-diff'].toFixed(2) : '-'}
         </td>
-        <td class="py-2 px-1 text-right font-mono indicator-col ${showIndicators ? '' : 'hidden'} ${getRSIClass(k.rsi_5min)}">
+        <td class="py-2 px-1 text-right font-mono indicator-col ${getRSIClass(k.rsi_5min)}">
           ${k.rsi_5min ? k.rsi_5min.toFixed(2) : '-'}
         </td>
-        <td class="py-2 px-1 text-right font-mono indicator-col ${showIndicators ? '' : 'hidden'} ${getRSIClass(k.rsi_1h)}">
+        <td class="py-2 px-1 text-right font-mono indicator-col ${getRSIClass(k.rsi_1h)}">
           ${k.rsi_1h ? k.rsi_1h.toFixed(2) : '-'}
         </td>
-        <td class="py-2 px-1 text-right font-mono text-blue-600 indicator-col ${showIndicators ? '' : 'hidden'}">
+        <td class="py-2 px-1 text-right font-mono text-blue-600 indicator-col">
           ${k.boll_mb ? k.boll_mb.toFixed(4) : '-'}
         </td>
-        <td class="py-2 px-1 text-right font-mono text-gray-500 indicator-col ${showIndicators ? '' : 'hidden'}">
+        <td class="py-2 px-1 text-right font-mono text-gray-500 indicator-col">
           ${k.boll_ub ? k.boll_ub.toFixed(4) : '-'}
         </td>
-        <td class="py-2 px-1 text-right font-mono text-gray-500 indicator-col ${showIndicators ? '' : 'hidden'}">
+        <td class="py-2 px-1 text-right font-mono text-gray-500 indicator-col">
           ${k.boll_lb ? k.boll_lb.toFixed(4) : '-'}
         </td>
-        <td class="py-2 px-1 text-center indicator-col ${showIndicators ? '' : 'hidden'}">
+        <td class="py-2 px-1 text-center indicator-col">
           ${getChannelIcon(k.channel_state)}
         </td>
       </tr>

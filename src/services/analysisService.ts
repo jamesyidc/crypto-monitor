@@ -127,9 +127,33 @@ export class AnalysisService {
         risk_alert_count: riskAlertCount
       });
 
-      // 7. 保存单币详情
+      // 7. 计算相对上一轮的涨跌幅并保存单币详情
       for (const detail of coinDetails) {
-        await this.coinService.saveCoinRoundDetail(detail.symbol, roundTime, detail);
+        // 获取上一轮的数据用于计算涨跌幅
+        const previousRoundDetail: any = await this.coinService.getPreviousRoundDetail(detail.symbol);
+        
+        let changeVsPrevRound = 0;
+        let isSurgeVsPrev = false;
+        let isCrashVsPrev = false;
+        let previousRoundTime = null;
+        
+        if (previousRoundDetail) {
+          previousRoundTime = previousRoundDetail.round_time;
+          changeVsPrevRound = ((detail.price - previousRoundDetail.price) / previousRoundDetail.price) * 100;
+          isSurgeVsPrev = changeVsPrevRound >= 1;
+          isCrashVsPrev = changeVsPrevRound <= -1;
+        }
+        
+        // 添加轮次对比数据
+        const extendedDetail = {
+          ...detail,
+          previous_round_time: previousRoundTime,
+          change_vs_prev_round: changeVsPrevRound,
+          is_surge_vs_prev: isSurgeVsPrev ? 1 : 0,
+          is_crash_vs_prev: isCrashVsPrev ? 1 : 0
+        };
+        
+        await this.coinService.saveCoinRoundDetail(detail.symbol, roundTime, extendedDetail);
       }
 
       // 8. 更新日统计

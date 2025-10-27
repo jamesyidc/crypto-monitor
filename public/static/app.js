@@ -269,21 +269,23 @@ function renderCoinTable(coinDetails, extremes, priorities) {
     // 序号
     const sequenceNum = index + 1;
     
-    // 涨跌指示器
+    // 本轮相对上一轮的涨跌幅（change_vs_prev_round）
+    const changeVsPrev = coin.change_vs_prev_round || 0;
     let changeIndicator = '<span class="text-gray-400">-</span>';
-    if (coin.is_surge) {
-      changeIndicator = '<span class="text-green-600 font-bold">↑</span>';
-    } else if (coin.is_crash) {
-      changeIndicator = '<span class="text-red-600 font-bold">↓</span>';
+    
+    if (changeVsPrev !== 0) {
+      const changeText = changeVsPrev >= 0 ? `+${changeVsPrev.toFixed(2)}%` : `${changeVsPrev.toFixed(2)}%`;
+      const changeClass = changeVsPrev >= 0 ? 'text-green-600' : 'text-red-600';
+      changeIndicator = `<span class="${changeClass} font-semibold">${changeText}</span>`;
     }
     
-    // 急涨 - 根据 is_surge 显示背景色
-    const surgeCell = coin.is_surge 
+    // 急涨 - 根据 is_surge_vs_prev 显示（≥1%）
+    const surgeCell = coin.is_surge_vs_prev 
       ? '<span class="inline-block w-full py-1 px-2 bg-green-100 text-green-700 font-bold rounded">涨</span>'
       : '<span class="text-gray-300">-</span>';
     
-    // 急跌 - 根据 is_crash 显示背景色
-    const crashCell = coin.is_crash
+    // 急跌 - 根据 is_crash_vs_prev 显示（≤-1%）
+    const crashCell = coin.is_crash_vs_prev
       ? '<span class="inline-block w-full py-1 px-2 bg-red-100 text-red-700 font-bold rounded">跌</span>'
       : '<span class="text-gray-300">-</span>';
     

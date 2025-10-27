@@ -99,6 +99,20 @@ export class CoinService {
     return result;
   }
 
+  // 获取上一轮的币种详情（用于计算轮次涨跌幅）
+  async getPreviousRoundDetail(symbol: string) {
+    const result = await this.db
+      .prepare(`
+        SELECT * FROM coin_round_details 
+        WHERE symbol = ? 
+        ORDER BY round_time DESC 
+        LIMIT 1
+      `)
+      .bind(symbol)
+      .first();
+    return result;
+  }
+
   // 获取或创建极值记录
   async getOrCreatePriceExtreme(symbol: string, initialPrice: number) {
     let extreme = await this.db
@@ -187,8 +201,9 @@ export class CoinService {
       .prepare(`
         INSERT INTO coin_round_details (
           symbol, round_time, price, prev_price, change_amount, change_percent,
-          is_green, is_extreme_up, is_extreme_down, is_surge, is_crash, rank_in_round, change_24h
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          is_green, is_extreme_up, is_extreme_down, is_surge, is_crash, rank_in_round, change_24h,
+          previous_round_time, change_vs_prev_round, is_surge_vs_prev, is_crash_vs_prev
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .bind(
         symbol,
@@ -203,7 +218,11 @@ export class CoinService {
         detail.is_surge ? 1 : 0,
         detail.is_crash ? 1 : 0,
         detail.rank_in_round,
-        detail.change_24h || 0
+        detail.change_24h || 0,
+        detail.previous_round_time || null,
+        detail.change_vs_prev_round || 0,
+        detail.is_surge_vs_prev || 0,
+        detail.is_crash_vs_prev || 0
       )
       .run();
   }
