@@ -106,7 +106,7 @@ export class CoinService {
         SELECT * FROM coin_round_details 
         WHERE symbol = ? 
         ORDER BY round_time DESC 
-        LIMIT 1
+        LIMIT 1 OFFSET 1
       `)
       .bind(symbol)
       .first();
