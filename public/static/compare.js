@@ -2,6 +2,7 @@
 
 let currentData = null;
 let filterText = '';
+let showingHighRanking = true; // true=创新高榜, false=创新低榜
 
 // 页面加载完成
 document.addEventListener('DOMContentLoaded', function() {
@@ -41,6 +42,30 @@ function bindEvents() {
     
     // 删除按钮
     document.getElementById('deleteBtn').addEventListener('click', deleteSelectedCoin);
+    
+    // 切换榜单按钮
+    document.getElementById('toggleRankingBtn').addEventListener('click', toggleRanking);
+}
+
+// 切换创新高榜/创新低榜
+function toggleRanking() {
+    showingHighRanking = !showingHighRanking;
+    
+    const title = document.getElementById('rankingTitle');
+    const label = document.getElementById('rankingCountLabel');
+    
+    if (showingHighRanking) {
+        title.textContent = '创新高榜';
+        label.textContent = '新高次数';
+    } else {
+        title.textContent = '创新低榜';
+        label.textContent = '新低次数';
+    }
+    
+    // 重新渲染右下表格
+    if (currentData) {
+        renderRightBottomTable(currentData);
+    }
 }
 
 // 加载比价数据
@@ -210,7 +235,7 @@ function renderRightTopTable(data) {
     const tbody = document.getElementById('rightTopTableBody');
     
     if (!data.coinDetails || data.coinDetails.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px;">暂无数据</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px;">暂无数据</td></tr>';
         return;
     }
     
@@ -219,7 +244,8 @@ function renderRightTopTable(data) {
         symbol: coin.symbol,
         today: Math.floor(Math.random() * 30),
         three_day: Math.floor(Math.random() * 50),
-        seven_day: Math.floor(Math.random() * 100)
+        seven_day: Math.floor(Math.random() * 100),
+        historical_max: Math.floor(Math.random() * 50) + 100  // 历史单日最高
     }));
     
     // 按7天统计排序
@@ -227,12 +253,19 @@ function renderRightTopTable(data) {
     
     let html = '';
     stats.forEach(stat => {
+        // 找出历史单日最高的记录，添加高亮
+        const maxCount = stat.historical_max;
+        const isMaxToday = stat.today === Math.max(stat.today, stat.three_day, stat.seven_day);
+        const isMax3Day = stat.three_day === Math.max(stat.today, stat.three_day, stat.seven_day);
+        const isMax7Day = stat.seven_day === Math.max(stat.today, stat.three_day, stat.seven_day);
+        
         html += `
             <tr>
                 <td>${stat.symbol}</td>
-                <td>${stat.today}</td>
-                <td>${stat.three_day}</td>
-                <td>${stat.seven_day}</td>
+                <td class="${isMaxToday ? 'max-value' : ''}">${stat.today}</td>
+                <td class="${isMax3Day ? 'max-value' : ''}">${stat.three_day}</td>
+                <td class="${isMax7Day ? 'max-value' : ''}">${stat.seven_day}</td>
+                <td style="background: #ffeeaa; font-weight: bold;">${maxCount}</td>
             </tr>
         `;
     });
@@ -240,7 +273,7 @@ function renderRightTopTable(data) {
     tbody.innerHTML = html;
 }
 
-// 渲染右下表格：创新高榜
+// 渲染右下表格：创新高榜/创新低榜
 function renderRightBottomTable(data) {
     const tbody = document.getElementById('rightBottomTableBody');
     
@@ -249,11 +282,22 @@ function renderRightBottomTable(data) {
         return;
     }
     
-    // 生成榜单数据（按7天新高次数排序，模拟）
-    const ranking = data.coinDetails.map(coin => ({
-        symbol: coin.symbol,
-        count: Math.floor(Math.random() * 100)
-    }));
+    // 生成榜单数据（模拟）
+    const ranking = data.coinDetails.map(coin => {
+        if (showingHighRanking) {
+            // 创新高榜：按7天新高次数排序
+            return {
+                symbol: coin.symbol,
+                count: Math.floor(Math.random() * 100)
+            };
+        } else {
+            // 创新低榜：按7天新低次数排序
+            return {
+                symbol: coin.symbol,
+                count: Math.floor(Math.random() * 80)
+            };
+        }
+    });
     
     ranking.sort((a, b) => b.count - a.count);
     
@@ -262,11 +306,21 @@ function renderRightBottomTable(data) {
     
     let html = '';
     topRanking.forEach((item, index) => {
+        // 前三名添加特殊样式
+        let rowStyle = '';
+        if (index === 0) {
+            rowStyle = 'background: #fff9e6;'; // 金色
+        } else if (index === 1) {
+            rowStyle = 'background: #f5f5f5;'; // 银色
+        } else if (index === 2) {
+            rowStyle = 'background: #ffeecc;'; // 铜色
+        }
+        
         html += `
-            <tr>
-                <td style="text-align: center;">${index + 1}</td>
-                <td>${item.symbol}</td>
-                <td>${item.count}</td>
+            <tr style="${rowStyle}">
+                <td style="text-align: center; font-weight: bold;">${index + 1}</td>
+                <td style="font-weight: ${index < 3 ? 'bold' : 'normal'};">${item.symbol}</td>
+                <td style="font-weight: ${index < 3 ? 'bold' : 'normal'};">${item.count}</td>
             </tr>
         `;
     });
