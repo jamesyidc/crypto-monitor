@@ -639,4 +639,124 @@ export class SignalService {
       return [];
     }
   }
+
+  // 🆕 获取未发送到Telegram的买卖点信号
+  async getUnsentTradingSignals(symbol: string, hours: number = 2): Promise<any[]> {
+    if (!this.db) return [];
+
+    try {
+      const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+      
+      const result = await this.db
+        .prepare(`
+          SELECT * FROM trading_signals 
+          WHERE symbol = ? 
+            AND telegram_sent = 0
+            AND created_at >= ?
+          ORDER BY signal_time DESC
+        `)
+        .bind(symbol, cutoffTime)
+        .all();
+
+      return result.results.map((row: any) => ({
+        ...row,
+        details: JSON.parse(row.details || '{}')
+      }));
+    } catch (error) {
+      console.error('获取未发送买卖点信号失败:', error);
+      return [];
+    }
+  }
+
+  // 🆕 获取未发送到Telegram的预警信号
+  async getUnsentAlertSignals(symbol: string, hours: number = 2): Promise<any[]> {
+    if (!this.db) return [];
+
+    try {
+      const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+      
+      const result = await this.db
+        .prepare(`
+          SELECT * FROM alert_signals 
+          WHERE symbol = ? 
+            AND telegram_sent = 0
+            AND created_at >= ?
+          ORDER BY alert_time DESC
+        `)
+        .bind(symbol, cutoffTime)
+        .all();
+
+      return result.results.map((row: any) => ({
+        ...row,
+        triggers: JSON.parse(row.triggers || '[]'),
+        klineData: {
+          open: row.open_price || 0,
+          high: row.high_price || 0,
+          low: row.low_price || 0,
+          close: row.close_price || 0,
+          volume: row.volume || 0,
+          boll_upper: row.boll_upper || 0,
+          boll_middle: row.boll_middle || 0,
+          boll_lower: row.boll_lower || 0,
+          rsi_1h: row.rsi_1h || 0,
+          rsi_5min: row.rsi_5min || 0,
+          sar_value: row.sar_value || 0,
+          sar_direction: row.sar_direction || ''
+        },
+        data: {
+          volume: row.volume?.toString() || '0',
+          volumeLevel: row.volume_level,
+          changePercent: row.change_percent?.toFixed(2) + '%',
+          volatility: row.volatility?.toFixed(2) + '%',
+          rsi5min: row.rsi_5min?.toFixed(2),
+          sarChangePercent: row.sar_change_percent?.toFixed(2) + '%'
+        }
+      }));
+    } catch (error) {
+      console.error('获取未发送预警信号失败:', error);
+      return [];
+    }
+  }
+
+  // 🆕 标记买卖点信号为已发送
+  async markTradingSignalsAsSent(signalIds: number[]): Promise<void> {
+    if (!this.db || signalIds.length === 0) return;
+
+    try {
+      const placeholders = signalIds.map(() => '?').join(',');
+      await this.db
+        .prepare(`
+          UPDATE trading_signals 
+          SET telegram_sent = 1 
+          WHERE id IN (${placeholders})
+        `)
+        .bind(...signalIds)
+        .run();
+      
+      console.log(`✅ 标记 ${signalIds.length} 个买卖点信号为已发送`);
+    } catch (error) {
+      console.error('标记买卖点信号失败:', error);
+    }
+  }
+
+  // 🆕 标记预警信号为已发送
+  async markAlertSignalsAsSent(alertIds: number[]): Promise<void> {
+    if (!this.db || alertIds.length === 0) return;
+
+    try {
+      const placeholders = alertIds.map(() => '?').join(',');
+      await this.db
+        .prepare(`
+          UPDATE alert_signals 
+          SET telegram_sent = 1 
+          WHERE id IN (${placeholders})
+        `)
+        .bind(...alertIds)
+        .run();
+      
+      console.log(`✅ 标记 ${alertIds.length} 个预警信号为已发送`);
+    } catch (error) {
+      console.error('标记预警信号失败:', error);
+    }
+  }
 }

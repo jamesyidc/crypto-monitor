@@ -284,6 +284,7 @@ app.get('/api/okx/config/:symbol', async (c) => {
 app.get('/api/signal/all', async (c) => {
   const timeframe = c.req.query('timeframe') || '5m';
   const limit = parseInt(c.req.query('limit') || '100');
+  const sendTelegram = c.req.query('telegram') !== 'false'; // 默认发送
   
   try {
     const klineService = new KlineService(c.env.DB);
@@ -314,10 +315,56 @@ app.get('/api/signal/all', async (c) => {
       }
     }
     
+    // 🆕 发送新出现的信号到Telegram
+    let telegramStatus = { totalSent: 0, totalFailed: 0, symbols: [] as string[] };
+    if (sendTelegram) {
+      try {
+        const telegramService = new TelegramService(
+          '8437045462:AAFePnwdC21cqeWhZISMQHGGgjmroVqE2H0',
+          '-1003227444260'
+        );
+        
+        // 遍历所有币种，发送未发送的信号
+        for (const symbol of symbols) {
+          // 获取该币种未发送的买卖点信号（过去2小时内）
+          const unsentSignals = await signalService.getUnsentTradingSignals(symbol, 2);
+          
+          if (unsentSignals.length > 0) {
+            console.log(`📤 ${symbol}: 发现 ${unsentSignals.length} 个新买卖点信号`);
+            
+            // 发送买卖点信号
+            for (const signal of unsentSignals) {
+              try {
+                await telegramService.sendTradingSignal(signal);
+                telegramStatus.totalSent++;
+                
+                // 标记为已发送
+                await signalService.markTradingSignalsAsSent([signal.id]);
+              } catch (error) {
+                console.error(`❌ 发送买卖点信号失败 (${symbol}):`, error);
+                telegramStatus.totalFailed++;
+              }
+            }
+            
+            if (!telegramStatus.symbols.includes(symbol)) {
+              telegramStatus.symbols.push(symbol);
+            }
+          }
+        }
+        
+        if (telegramStatus.totalSent > 0) {
+          console.log(`✅ Telegram发送完成: ${telegramStatus.totalSent} 条新信号已发送`);
+        }
+      } catch (error: any) {
+        console.error('❌ Telegram发送失败:', error);
+      }
+    }
+    
     return c.json({
       success: true,
       summary,
-      results
+      results,
+      telegram: telegramStatus
     });
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);

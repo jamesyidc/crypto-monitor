@@ -211,4 +211,84 @@ ${isLongTop ?
 ${position.notes ? `📝 备注: ${position.notes}` : ''}
     `.trim();
   }
+
+  // 🆕 发送买卖点信号
+  async sendTradingSignal(signal: any): Promise<boolean> {
+    try {
+      const message = this.buildTradingSignalMessage(signal);
+      
+      const response = await fetch(`${this.apiUrl}/sendMessage`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          chat_id: this.chatId,
+          text: message,
+          parse_mode: 'HTML',
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (!result.ok) {
+        console.error('❌ 买卖点信号发送失败:', JSON.stringify(result));
+        return false;
+      }
+
+      console.log(`✅ 买卖点信号已发送: ${signal.symbol} ${signal.signal_type} ${signal.signal_time}`);
+      return true;
+    } catch (error) {
+      console.error('❌ 买卖点信号发送异常:', error);
+      return false;
+    }
+  }
+
+  // 🆕 构建买卖点信号消息
+  private buildTradingSignalMessage(signal: any): string {
+    const isBuy = signal.signal_type === 'BUY';
+    const emoji = isBuy ? '🟢' : '🔴';
+    const typeText = isBuy ? '做多信号' : '做空信号';
+    
+    // 解析details（可能是JSON字符串）
+    let details = signal.details;
+    if (typeof details === 'string') {
+      try {
+        details = JSON.parse(details);
+      } catch (e) {
+        details = {};
+      }
+    }
+    
+    // 判断是否是主升信号
+    const isMainRise = signal.reason && signal.reason.includes('主升信号');
+    const titleEmoji = isMainRise ? '🚀' : emoji;
+    const title = isMainRise ? '主升信号 🚀' : typeText;
+    
+    return `
+${titleEmoji} <b>${title}</b> ${titleEmoji}
+
+📊 <b>币种</b>: ${signal.symbol}
+🕒 <b>时间</b>: ${signal.signal_time}
+💰 <b>价格</b>: $${parseFloat(signal.price).toFixed(4)}
+⚡️ <b>信号强度</b>: ${signal.strength}/100
+📝 <b>原因</b>: ${signal.reason || '-'}
+
+📊 <b>技术指标</b>:
+├─ RSI(5m): ${details.rsi5min || '-'}
+├─ 波动率: ${details.volatility || '-'}
+├─ 量能: ${details.volumeLevel || '-'}
+└─ SAR变化: ${details.sarChangePercent || '-'}
+
+${isMainRise ? `
+🚀 <b>主升信号特征</b>:
+• 币种优先级: ${details.coinLevel || '-'}
+• 价格位置: ${details.pricePosition ? (details.pricePosition * 100).toFixed(1) + '%' : '-'}
+• 下跌幅度: ${details.priceDropPercent || '-'}
+• 震荡收敛: ${details.convergenceCount || '-'}
+` : ''}
+
+⏰ <b>持有观察</b>: ${signal.keep_bars || 0} 根K线
+    `.trim();
+  }
 }

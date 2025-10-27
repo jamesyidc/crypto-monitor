@@ -7,16 +7,16 @@ let currentDataMode = '24h'; // 当前数据模式：'24h' 或 'realtime'
 
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', () => {
-  // 默认加载24小时数据
+  // 默认加载24小时数据（不发送Telegram）
   load24HourSignalData();
   
   // 🆕 启动自动刷新（1分钟间隔）
   startAutoRefresh();
   
-  // 实时信号按钮
+  // 实时信号按钮（手动点击不发送Telegram）
   document.getElementById('refreshBtn').addEventListener('click', () => {
     currentDataMode = 'realtime';
-    loadSignalData();
+    loadSignalData(false); // 手动刷新不发送Telegram
   });
   
   // 24小时信号按钮
@@ -27,7 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // 加载信号数据（实时 - 默认100根K线）
-async function loadSignalData() {
+// enableTelegram: 是否启用Telegram发送（默认true，只在自动刷新时发送新信号）
+async function loadSignalData(enableTelegram = true) {
   const refreshBtn = document.getElementById('refreshBtn');
   refreshBtn.disabled = true;
   refreshBtn.innerHTML = '<i class="fas fa-spinner loading mr-2"></i>加载中...';
@@ -36,12 +37,16 @@ async function loadSignalData() {
     const response = await axios.get('/api/signal/all', {
       params: {
         timeframe: '5m',
-        limit: 100
+        limit: 100,
+        telegram: enableTelegram ? 'true' : 'false'
       }
     });
     
     if (response.data.success) {
       signalData = response.data;
+      // 保存信号数据到全局变量
+      globalSignalResults = signalData.results;
+      
       updateStatistics(signalData.summary);
       renderAlertPool(signalData.results);
       renderTopBuySignals(signalData.summary.topBuySignals);
@@ -49,6 +54,14 @@ async function loadSignalData() {
       renderAllSignals(signalData.results);
       updateLastUpdateTime();
       updateDataRange('实时数据（最近100根K线，约8小时）');
+      
+      // 显示Telegram发送状态
+      if (enableTelegram && response.data.telegram) {
+        const tg = response.data.telegram;
+        if (tg.totalSent > 0) {
+          console.log(`✅ 已发送 ${tg.totalSent} 条新信号到Telegram`);
+        }
+      }
     } else {
       showError('加载失败: ' + response.data.error);
     }
@@ -89,6 +102,9 @@ async function load24HourSignalData() {
       });
       
       signalData = formattedData;
+      
+      // 保存信号数据到全局变量
+      globalSignalResults = formattedData.results;
       
       updateStatistics(formattedData.summary);
       renderAlertPool(formattedData.results);
@@ -265,6 +281,9 @@ function updateAlertCount(count) {
 
 // 全局变量：存储所有预警数据（用于过滤）
 let globalAlerts = [];
+
+// 全局变量：存储所有信号数据（用于过滤）
+let globalSignalResults = {};
 
 // 渲染预警池（所有触发条件的K线）
 function renderAlertPool(results) {
@@ -572,13 +591,28 @@ function renderTopSellSignals(signals) {
   `).join('');
 }
 
-// 渲染所有币种信号
+// 渲染所有币种信号（支持过滤）
 function renderAllSignals(results) {
   const container = document.getElementById('allSignals');
   
+  // 检查是否启用了主升信号过滤
+  const mainRiseFilter = document.querySelector('.signal-filter[data-filter-value="main_rise"]');
+  const filterMainRise = mainRiseFilter && mainRiseFilter.checked;
+  
   // 过滤出有信号的币种
-  const symbolsWithSignals = Object.entries(results)
-    .filter(([symbol, data]) => data.success && data.signals && data.signals.length > 0)
+  let symbolsWithSignals = Object.entries(results)
+    .filter(([symbol, data]) => {
+      if (!data.success || !data.signals || data.signals.length === 0) {
+        return false;
+      }
+      
+      // 如果启用主升信号过滤，只显示有主升信号的币种
+      if (filterMainRise) {
+        return data.signals.some(s => s.reason && s.reason.includes('主升信号'));
+      }
+      
+      return true;
+    })
     .sort(([, a], [, b]) => b.signals.length - a.signals.length);
   
   if (symbolsWithSignals.length === 0) {
@@ -619,14 +653,23 @@ function renderAllSignals(results) {
         </div>
         
         <div class="space-y-2">
-          ${data.signals.map(signal => `
+          ${data.signals
+            .filter(signal => {
+              // 如果启用主升信号过滤，只显示主升信号
+              if (filterMainRise) {
+                return signal.reason && signal.reason.includes('主升信号');
+              }
+              return true;
+            })
+            .map(signal => `
             <div class="bg-gray-50 rounded p-3 text-sm">
               <div class="flex justify-between items-start mb-2">
-                <div>
+                <div class="flex items-center gap-2">
                   <span class="signal-badge ${signal.type === 'BUY' ? 'buy-signal' : 'sell-signal'}">
                     <i class="fas fa-arrow-${signal.type === 'BUY' ? 'up' : 'down'}"></i>
                     ${signal.type === 'BUY' ? '做多' : '做空'}
                   </span>
+                  ${signal.reason && signal.reason.includes('主升信号') ? '<span class="px-2 py-1 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-full text-xs font-bold animate-pulse">🚀 主升</span>' : ''}
                   <span class="ml-2 text-gray-600">${signal.time}</span>
                 </div>
                 <div class="text-right">
@@ -776,18 +819,28 @@ function applyAlertFilters() {
   renderFilteredAlerts(filtered);
 }
 
-// 清空所有过滤器
+// 清空所有过滤器（包括预警和信号）
 function clearAlertFilters() {
   document.querySelectorAll('.alert-filter').forEach(checkbox => {
     checkbox.checked = false;
   });
+  document.querySelectorAll('.signal-filter').forEach(checkbox => {
+    checkbox.checked = false;
+  });
   renderFilteredAlerts(globalAlerts);
+  applySignalFilters();
 }
 
 // 绑定过滤器事件
 document.addEventListener('DOMContentLoaded', () => {
+  // 绑定预警过滤器
   document.querySelectorAll('.alert-filter').forEach(checkbox => {
     checkbox.addEventListener('change', applyAlertFilters);
+  });
+  
+  // 绑定信号过滤器
+  document.querySelectorAll('.signal-filter').forEach(checkbox => {
+    checkbox.addEventListener('change', applySignalFilters);
   });
 });
 
@@ -804,15 +857,16 @@ function startAutoRefresh() {
       console.log('🔄 自动刷新买卖点信号数据...');
       
       // 根据当前模式自动刷新
+      // ⚠️ 自动刷新时启用Telegram发送（只发送新信号）
       if (currentDataMode === '24h') {
         load24HourSignalData();
       } else {
-        loadSignalData();
+        loadSignalData(true); // 自动刷新时发送新信号到Telegram
       }
     }
   }, 60000); // 60秒 = 1分钟
   
-  console.log('✅ 自动刷新已启动（间隔：1分钟）');
+  console.log('✅ 自动刷新已启动（间隔：1分钟，新信号将发送到Telegram）');
 }
 
 // 🆕 停止自动刷新
@@ -832,4 +886,43 @@ function toggleAutoRefresh() {
   } else {
     console.log('⏸️  自动刷新已暂停');
   }
+}
+
+// ===== 信号过滤功能 =====
+
+// 应用信号过滤器
+function applySignalFilters() {
+  // 重新渲染所有信号（根据当前过滤条件）
+  if (globalSignalResults && Object.keys(globalSignalResults).length > 0) {
+    renderAllSignals(globalSignalResults);
+    
+    // 同时更新顶级信号区域
+    if (signalData && signalData.summary) {
+      const mainRiseFilter = document.querySelector('.signal-filter[data-filter-value="main_rise"]');
+      const filterMainRise = mainRiseFilter && mainRiseFilter.checked;
+      
+      if (filterMainRise) {
+        // 过滤出主升信号
+        const filteredTopBuySignals = signalData.summary.topBuySignals.filter(s => 
+          s.reason && s.reason.includes('主升信号')
+        );
+        renderTopBuySignals(filteredTopBuySignals);
+        
+        // 主升信号只可能是做多信号，所以做空信号区域清空
+        renderTopSellSignals([]);
+      } else {
+        // 显示所有信号
+        renderTopBuySignals(signalData.summary.topBuySignals);
+        renderTopSellSignals(signalData.summary.topSellSignals);
+      }
+    }
+  }
+}
+
+// 清空信号过滤器
+function clearSignalFilters() {
+  document.querySelectorAll('.signal-filter').forEach(checkbox => {
+    checkbox.checked = false;
+  });
+  applySignalFilters();
 }
