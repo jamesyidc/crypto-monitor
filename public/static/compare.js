@@ -230,9 +230,44 @@ function renderCenterTable(data) {
             ? formatDateTime(new Date(coin.last_updated))
             : '2025-10-27 21:46:42';
         
-        // 状态判断
-        const status = coin.highRatio >= 85 ? '创新高' : (coin.lowRatio >= 110 ? '远离低' : '震荡');
-        const statusClass = coin.highRatio >= 85 ? 'green-bg' : (coin.lowRatio >= 110 ? 'yellow-bg' : '');
+        // 状态判断：只显示创新高或创新低
+        // highRatio = (currentPrice / highPrice) * 100
+        // lowRatio = (currentPrice / lowPrice) * 100
+        // 
+        // 判断逻辑：
+        // - 如果 highRatio >= 99.5%，说明当前价格接近或达到历史最高 → 创新高
+        // - 如果 lowRatio <= 100.5%，说明当前价格接近或达到历史最低 → 创新低
+        // - 否则，比较离哪个更近：highRatio 越大越接近最高，lowRatio 越小越接近最低
+        
+        const isNewHigh = coin.highRatio >= 99.5;  // 达到历史最高的99.5%
+        const isNewLow = coin.lowRatio <= 100.5;   // 接近历史最低（不超过0.5%）
+        
+        let status = '';
+        let statusClass = '';
+        
+        if (isNewHigh) {
+            // 创新高
+            status = '创新高';
+            statusClass = 'green-bg';
+        } else if (isNewLow) {
+            // 创新低
+            status = '创新低';
+            statusClass = 'red-bg';
+        } else {
+            // 判断离哪个更近
+            // highRatio 越大，离最高越近
+            // lowRatio 越小（接近100），离最低越近
+            const distanceToHigh = 100 - coin.highRatio;  // 距离最高的百分比
+            const distanceToLow = coin.lowRatio - 100;     // 距离最低的百分比
+            
+            if (distanceToHigh < distanceToLow) {
+                status = '创新高';
+                statusClass = 'green-bg';
+            } else {
+                status = '创新低';
+                statusClass = 'red-bg';
+            }
+        }
         
         // 特播列（假设数据，实际应从API获取）
         const special = '0.29887';
