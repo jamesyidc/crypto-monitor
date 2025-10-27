@@ -255,6 +255,9 @@ function updateAlertCount(count) {
   }
 }
 
+// 全局变量：存储所有预警数据（用于过滤）
+let globalAlerts = [];
+
 // 渲染预警池（所有触发条件的K线）
 function renderAlertPool(results) {
   const container = document.getElementById('alertPool');
@@ -276,34 +279,62 @@ function renderAlertPool(results) {
   
   // 按时间排序（最新的在前）
   allAlerts.sort((a, b) => {
-    // 假设时间格式是 "YYYY-MM-DD HH:mm:ss"
     return b.time.localeCompare(a.time);
   });
   
-  // 更新预警数量
-  countEl.textContent = allAlerts.length;
-  updateAlertCount(allAlerts.length);
+  // ===== 去重逻辑：同一币种同一轮（同一时间的不同index）只保留一个 =====
+  const deduplicatedAlerts = [];
+  const seenKeys = new Set();
+  
+  allAlerts.forEach(alert => {
+    // 提取时间的"分钟"级别作为轮次标识（例如：2025/10/27 17:25:00 -> 2025/10/27 17:25）
+    const roundTime = alert.time.substring(0, 16); // "2025/10/27 17:25"
+    const key = `${alert.symbol}-${roundTime}`;
+    
+    if (!seenKeys.has(key)) {
+      seenKeys.add(key);
+      deduplicatedAlerts.push(alert);
+    }
+  });
+  
+  // 保存到全局变量供过滤使用
+  globalAlerts = deduplicatedAlerts;
+  
+  // 更新预警数量（去重后）
+  countEl.textContent = deduplicatedAlerts.length;
+  updateAlertCount(deduplicatedAlerts.length);
   
   // 更新时间范围
   const timeRangeEl = document.getElementById('alertPoolTimeRange');
-  if (timeRangeEl && allAlerts.length > 0) {
-    const firstTime = allAlerts[allAlerts.length - 1].time; // 最早的
-    const lastTime = allAlerts[0].time; // 最新的
+  if (timeRangeEl && deduplicatedAlerts.length > 0) {
+    const firstTime = deduplicatedAlerts[deduplicatedAlerts.length - 1].time; // 最早的
+    const lastTime = deduplicatedAlerts[0].time; // 最新的
     timeRangeEl.innerHTML = `<i class="fas fa-clock mr-1"></i>数据范围：${firstTime} ~ ${lastTime}`;
   }
-  updateAlertCount(allAlerts.length);
   
-  if (allAlerts.length === 0) {
+  // 渲染预警池
+  renderFilteredAlerts(deduplicatedAlerts);
+}
+
+// 渲染过滤后的预警列表
+function renderFilteredAlerts(alerts) {
+  const container = document.getElementById('alertPool');
+  const countEl = document.getElementById('alertPoolCount');
+  
+  if (alerts.length === 0) {
     container.innerHTML = `
       <div class="text-center text-gray-400 py-8">
-        <i class="fas fa-check-circle text-4xl mb-2 text-green-500"></i>
-        <p class="text-gray-600">暂无触发预警条件的K线</p>
+        <i class="fas fa-filter text-4xl mb-2 text-gray-400"></i>
+        <p class="text-gray-600">没有符合筛选条件的预警</p>
       </div>
     `;
     return;
   }
   
-  container.innerHTML = allAlerts.map(alert => `
+  // 更新显示的数量
+  countEl.textContent = alerts.length;
+  
+  container.innerHTML = alerts.map(alert => `
     <div class="bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition border-l-4 ${getBorderColor(alert.triggers)}">
       <div class="flex justify-between items-start">
         <div class="flex-1">
@@ -668,3 +699,81 @@ function showError(message) {
     }
   });
 }
+
+// ===== 预警池过滤功能 =====
+
+// 应用过滤器
+function applyAlertFilters() {
+  const filters = {
+    volume: [],
+    change: []
+  };
+  
+  // 收集选中的过滤条件
+  document.querySelectorAll('.alert-filter:checked').forEach(checkbox => {
+    const filterType = checkbox.dataset.filterType;
+    const filterValue = checkbox.dataset.filterValue;
+    if (filterType && filterValue) {
+      filters[filterType].push(filterValue);
+    }
+  });
+  
+  // 如果没有选择任何过滤条件，显示全部
+  if (filters.volume.length === 0 && filters.change.length === 0) {
+    renderFilteredAlerts(globalAlerts);
+    return;
+  }
+  
+  // 过滤数据
+  const filtered = globalAlerts.filter(alert => {
+    let volumeMatch = filters.volume.length === 0; // 没有选择成交量条件时默认通过
+    let changeMatch = filters.change.length === 0; // 没有选择涨跌条件时默认通过
+    
+    // 检查成交量条件
+    if (filters.volume.length > 0) {
+      const volumeLevel = alert.data.volumeLevel || '';
+      // V1 匹配 "V1" 或 "V1+"
+      // V2 匹配 "V2" 或 "V2+"
+      if (filters.volume.includes('V1') && (volumeLevel.includes('V1'))) {
+        volumeMatch = true;
+      }
+      if (filters.volume.includes('V2') && (volumeLevel.includes('V2'))) {
+        volumeMatch = true;
+      }
+    }
+    
+    // 检查涨跌幅条件
+    if (filters.change.length > 0) {
+      const changePercent = parseFloat(alert.data.changePercent);
+      
+      if (filters.change.includes('up') && changePercent >= 1.0) {
+        changeMatch = true;
+      }
+      if (filters.change.includes('down') && changePercent <= -1.0) {
+        changeMatch = true;
+      }
+      if (filters.change.includes('flat') && Math.abs(changePercent) < 1.0) {
+        changeMatch = true;
+      }
+    }
+    
+    return volumeMatch && changeMatch;
+  });
+  
+  renderFilteredAlerts(filtered);
+}
+
+// 清空所有过滤器
+function clearAlertFilters() {
+  document.querySelectorAll('.alert-filter').forEach(checkbox => {
+    checkbox.checked = false;
+  });
+  renderFilteredAlerts(globalAlerts);
+}
+
+// 绑定过滤器事件
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.alert-filter').forEach(checkbox => {
+    checkbox.addEventListener('change', applyAlertFilters);
+  });
+});

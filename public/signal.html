@@ -162,7 +162,7 @@
                     </h2>
                     <p class="text-sm text-gray-600 mt-1">
                         <i class="fas fa-info-circle mr-1"></i>
-                        显示所有满足预警条件的K线数据
+                        显示所有满足预警条件的K线数据（同币同轮自动去重）
                     </p>
                 </div>
                 <div class="flex flex-col gap-2 text-sm items-end">
@@ -176,6 +176,60 @@
                     </span>
                 </div>
             </div>
+            
+            <!-- 过滤器 -->
+            <div class="mb-4 p-4 bg-white rounded-lg border border-yellow-300">
+                <div class="flex items-center gap-2 mb-3">
+                    <i class="fas fa-filter text-blue-600"></i>
+                    <span class="font-semibold text-gray-700">条件筛选：</span>
+                    <button onclick="clearAlertFilters()" class="ml-auto text-xs px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded-full transition">
+                        <i class="fas fa-times mr-1"></i>清空
+                    </button>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <!-- 成交量筛选 -->
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input type="checkbox" class="alert-filter" data-filter-type="volume" data-filter-value="V1" 
+                               class="form-checkbox h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                        <span class="ml-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium hover:bg-blue-200 transition">
+                            <i class="fas fa-chart-bar mr-1"></i>V1
+                        </span>
+                    </label>
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input type="checkbox" class="alert-filter" data-filter-type="volume" data-filter-value="V2" 
+                               class="form-checkbox h-4 w-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500">
+                        <span class="ml-2 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium hover:bg-purple-200 transition">
+                            <i class="fas fa-chart-bar mr-1"></i>V2
+                        </span>
+                    </label>
+                    
+                    <!-- 涨跌幅筛选 -->
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input type="checkbox" class="alert-filter" data-filter-type="change" data-filter-value="up" 
+                               class="form-checkbox h-4 w-4 text-green-600 rounded border-gray-300 focus:ring-green-500">
+                        <span class="ml-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium hover:bg-green-200 transition">
+                            <i class="fas fa-arrow-up mr-1"></i>涨幅≥1%
+                        </span>
+                    </label>
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input type="checkbox" class="alert-filter" data-filter-type="change" data-filter-value="down" 
+                               class="form-checkbox h-4 w-4 text-red-600 rounded border-gray-300 focus:ring-red-500">
+                        <span class="ml-2 px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium hover:bg-red-200 transition">
+                            <i class="fas fa-arrow-down mr-1"></i>跌幅≥1%
+                        </span>
+                    </label>
+                    
+                    <!-- 震荡筛选 -->
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input type="checkbox" class="alert-filter" data-filter-type="change" data-filter-value="flat" 
+                               class="form-checkbox h-4 w-4 text-orange-600 rounded border-gray-300 focus:ring-orange-500">
+                        <span class="ml-2 px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-medium hover:bg-orange-200 transition">
+                            <i class="fas fa-arrows-alt-h mr-1"></i>震荡±1%
+                        </span>
+                    </label>
+                </div>
+            </div>
+            
             <div id="alertPool" class="space-y-2 max-h-96 overflow-y-auto">
                 <div class="text-center text-gray-400 py-8">
                     <i class="fas fa-spinner loading text-4xl mb-2"></i>
