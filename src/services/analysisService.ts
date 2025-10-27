@@ -327,10 +327,21 @@ export class AnalysisService {
 
     // 获取优先级
     const priorities = await this.coinService.getAllCoinPriorities();
+    
+    // 增强coinDetails数据：添加当天急涨急跌累计次数
+    const enhancedCoinDetails = coinDetails.map((detail: any) => {
+      const todayStat = todayStats.find((stat: any) => stat.symbol === detail.symbol);
+      return {
+        ...detail,
+        // 当天急涨急跌累计次数
+        today_surge_count: todayStat?.total_surges || 0,
+        today_crash_count: todayStat?.total_crashes || 0
+      };
+    });
 
     return {
       latestRound,
-      coinDetails,
+      coinDetails: enhancedCoinDetails,
       todayStats,
       extremes,
       priorities

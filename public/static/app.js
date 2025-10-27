@@ -279,15 +279,17 @@ function renderCoinTable(coinDetails, extremes, priorities) {
       changeIndicator = `<span class="${changeClass} font-semibold">${changeText}</span>`;
     }
     
-    // 急涨 - 根据 is_surge_vs_prev 显示（≥1%）
-    const surgeCell = coin.is_surge_vs_prev 
-      ? '<span class="inline-block w-full py-1 px-2 bg-green-100 text-green-700 font-bold rounded">涨</span>'
-      : '<span class="text-gray-300">-</span>';
+    // 急涨 - 显示当天累计次数
+    const todaySurgeCount = coin.today_surge_count || 0;
+    const surgeCell = todaySurgeCount > 0
+      ? `<span class="inline-block w-full py-1 px-2 bg-green-100 text-green-700 font-bold rounded">${todaySurgeCount}次</span>`
+      : '<span class="text-gray-300">0次</span>';
     
-    // 急跌 - 根据 is_crash_vs_prev 显示（≤-1%）
-    const crashCell = coin.is_crash_vs_prev
-      ? '<span class="inline-block w-full py-1 px-2 bg-red-100 text-red-700 font-bold rounded">跌</span>'
-      : '<span class="text-gray-300">-</span>';
+    // 急跌 - 显示当天累计次数
+    const todayCrashCount = coin.today_crash_count || 0;
+    const crashCell = todayCrashCount > 0
+      ? `<span class="inline-block w-full py-1 px-2 bg-red-100 text-red-700 font-bold rounded">${todayCrashCount}次</span>`
+      : '<span class="text-gray-300">0次</span>';
     
     // 更新时间
     const updateTime = new Date(coin.round_time).toLocaleString('zh-CN', {
