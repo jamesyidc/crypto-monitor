@@ -294,8 +294,17 @@ function renderTable(klineData, alerts = []) {
     const hasAlert = alertMap[k.index];
     const rowClass = hasAlert ? 'bg-yellow-50 border-l-4 border-yellow-500' : '';
     
-    // 基础K线数据
-    const changeClass = k.change && k.change.includes('+') ? 'text-green-600' : 'text-red-600';
+    // 基础K线数据 - 涨跌幅颜色
+    const getChangeClass = (change) => {
+      if (!change) return 'text-gray-400';
+      // 如果包含负号 → 红色（跌）
+      if (change.includes('-')) return 'text-red-600';
+      // 如果包含加号或者是正数（不含负号） → 绿色（涨）
+      if (change.includes('+') || parseFloat(change) > 0) return 'text-green-600';
+      // 零涨跌幅 → 灰色
+      return 'text-gray-400';
+    };
+    const changeClass = getChangeClass(k.change);
     
     // 信号样式
     const signalClass = k.signal && k.signal.startsWith('多头') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
