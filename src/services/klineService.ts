@@ -207,12 +207,17 @@ export class KlineService {
 
   // 获取带技术指标的 K线数据
   async getKlineWithIndicators(symbol: string, timeframe: string = '5m', limit: number = 300) {
-    // 先尝试从数据库获取
-    const dbData: any = await this.getKlineData(symbol, timeframe, limit);
+    // 为了确保所有返回的K线都有完整的指标值，需要获取额外的历史数据
+    // BOLL 需要 20 个周期，RSI 需要 14 个周期，为安全起见，额外获取 50 根K线
+    const EXTRA_BARS = 50;
+    const fetchLimit = limit + EXTRA_BARS;
+    
+    // 先尝试从数据库获取（获取比需要更多的数据）
+    const dbData: any = await this.getKlineData(symbol, timeframe, fetchLimit);
     
     let klineData: any[];
     
-    if (dbData && dbData.length >= limit) {
+    if (dbData && dbData.length >= fetchLimit) {
       // 数据库中有足够的数据，转换格式为 OKX 格式
       // OKX 格式: [timestamp, open, high, low, close, volume, ...]
       klineData = dbData.reverse().map((k: any) => [
@@ -229,17 +234,21 @@ export class KlineService {
       if (!config) {
         throw new Error(`未找到 ${symbol} 的 OKX 配置`);
       }
-      klineData = await this.fetchKlineFromOKX(config.okx_symbol, timeframe, limit);
+      klineData = await this.fetchKlineFromOKX(config.okx_symbol, timeframe, fetchLimit);
     }
     
-    // 计算技术指标
+    // 计算技术指标（使用所有获取的数据）
     const indicators = this.indicatorService.calculateSARRSIBoll(klineData, symbol);
+
+    // 只返回用户请求的数量（最新的 limit 根K线）
+    // 这样确保返回的每一根K线都有完整的指标值
+    const trimmedIndicators = indicators.slice(-limit);
 
     return {
       symbol,
       timeframe,
-      dataCount: indicators.length,
-      data: indicators
+      dataCount: trimmedIndicators.length,
+      data: trimmedIndicators
     };
   }
 
