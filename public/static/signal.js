@@ -282,20 +282,25 @@ function renderAlertPool(results) {
     return b.time.localeCompare(a.time);
   });
   
-  // ===== 去重逻辑：同一币种同一轮（同一时间的不同index）只保留一个 =====
-  const deduplicatedAlerts = [];
-  const seenKeys = new Set();
+  // ===== 去重逻辑：同一币种同一轮（同一时间的不同index）只保留最新的一个 =====
+  // 因为K线还在形成中，每30秒抓取一次数据，同一根K线会被计算多次
+  // 我们需要按"币种-时间"分组，然后只保留index最小的（最新的计算结果）
+  const alertsByKey = new Map();
   
   allAlerts.forEach(alert => {
     // 提取时间的"分钟"级别作为轮次标识（例如：2025/10/27 17:25:00 -> 2025/10/27 17:25）
     const roundTime = alert.time.substring(0, 16); // "2025/10/27 17:25"
     const key = `${alert.symbol}-${roundTime}`;
     
-    if (!seenKeys.has(key)) {
-      seenKeys.add(key);
-      deduplicatedAlerts.push(alert);
+    // 如果这个key还没有记录，或者当前alert的index更小（更新），则更新
+    if (!alertsByKey.has(key) || alert.index < alertsByKey.get(key).index) {
+      alertsByKey.set(key, alert);
     }
   });
+  
+  // 转换为数组并按时间排序（最新的在前）
+  const deduplicatedAlerts = Array.from(alertsByKey.values());
+  deduplicatedAlerts.sort((a, b) => b.time.localeCompare(a.time));
   
   // 保存到全局变量供过滤使用
   globalAlerts = deduplicatedAlerts;
