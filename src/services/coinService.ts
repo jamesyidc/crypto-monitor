@@ -578,6 +578,19 @@ export class CoinService {
       .first();
     return result;
   }
+
+  // 🆕 获取今日创新高/新低的总次数
+  async getTodayExtremeCount(date: string, recordType: 'high' | 'low'): Promise<number> {
+    const result = await this.db
+      .prepare(`
+        SELECT COUNT(*) as count 
+        FROM extreme_records 
+        WHERE DATE(timestamp) = ? AND record_type = ?
+      `)
+      .bind(date, recordType)
+      .first();
+    return (result as any)?.count || 0;
+  }
 }
 
 // 将 CoinGecko ID 转换为符号

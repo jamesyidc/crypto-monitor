@@ -78,6 +78,8 @@ function renderDashboard(data) {
   renderMarketTrend(data.todayStats);
   renderSurgeStats(data.latestRound, data.todayStats);
   renderCoinTable(data.coinDetails, data.extremes, data.priorities);
+  // 🆕 渲染重点统计数据
+  renderSpecialStats(data.specialStats);
 }
 
 // 渲染统计卡片
@@ -597,4 +599,32 @@ function startCountdown() {
     document.getElementById('countdown').textContent = 
       `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   }, 1000); // 每秒更新
+}
+
+// 🆕 渲染重点统计数据（24h涨跌幅>10%、今日创新高/新低次数）
+function renderSpecialStats(specialStats) {
+  if (!specialStats) {
+    // 如果没有数据，显示默认值
+    document.getElementById('change24hOver10Up').textContent = '0';
+    document.getElementById('change24hOver10Down').textContent = '0';
+    document.getElementById('change24hOver10UpPercent').textContent = '0.0%';
+    document.getElementById('change24hOver10DownPercent').textContent = '0.0%';
+    document.getElementById('todayNewHighCount').textContent = '0';
+    document.getElementById('todayNewLowCount').textContent = '0';
+    return;
+  }
+  
+  // 渲染24h涨幅>10%的数量和占比
+  document.getElementById('change24hOver10Up').textContent = specialStats.change24hOver10Up;
+  document.getElementById('change24hOver10UpPercent').textContent = specialStats.change24hOver10UpPercent + '%';
+  
+  // 渲染24h跌幅>10%的数量和占比
+  document.getElementById('change24hOver10Down').textContent = specialStats.change24hOver10Down;
+  document.getElementById('change24hOver10DownPercent').textContent = specialStats.change24hOver10DownPercent + '%';
+  
+  // 渲染今日创新高次数
+  document.getElementById('todayNewHighCount').textContent = specialStats.todayNewHighCount;
+  
+  // 渲染今日创新低次数
+  document.getElementById('todayNewLowCount').textContent = specialStats.todayNewLowCount;
 }

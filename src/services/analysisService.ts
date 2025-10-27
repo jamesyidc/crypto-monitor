@@ -412,12 +412,32 @@ export class AnalysisService {
       };
     });
 
+    // 🆕 计算24小时涨跌幅超过10%的统计
+    const totalCoins = enhancedCoinDetails.length;
+    const change24hOver10Up = enhancedCoinDetails.filter((coin: any) => coin.change_24h >= 10).length;
+    const change24hOver10Down = enhancedCoinDetails.filter((coin: any) => coin.change_24h <= -10).length;
+    const change24hOver10UpPercent = totalCoins > 0 ? ((change24hOver10Up / totalCoins) * 100).toFixed(1) : '0.0';
+    const change24hOver10DownPercent = totalCoins > 0 ? ((change24hOver10Down / totalCoins) * 100).toFixed(1) : '0.0';
+
+    // 🆕 查询今日创新高/新低的总次数
+    const todayNewHighCount = await this.coinService.getTodayExtremeCount(today, 'high');
+    const todayNewLowCount = await this.coinService.getTodayExtremeCount(today, 'low');
+
     return {
       latestRound,
       coinDetails: enhancedCoinDetails,
       todayStats,
       extremes,
-      priorities
+      priorities,
+      // 🆕 新增统计数据
+      specialStats: {
+        change24hOver10Up,
+        change24hOver10Down,
+        change24hOver10UpPercent,
+        change24hOver10DownPercent,
+        todayNewHighCount,
+        todayNewLowCount
+      }
     };
   }
 

@@ -733,6 +733,54 @@ app.get('/', (c) => {
                 </div>
             </div>
 
+            <!-- 🆕 重点统计面板 - 显眼位置 -->
+            <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg shadow-lg p-6 mb-6">
+                <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
+                    <i class="fas fa-fire mr-3"></i>今日重点统计
+                </h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <!-- 24h涨幅>10% -->
+                    <div class="bg-white bg-opacity-20 backdrop-blur-sm rounded-lg p-4 text-center">
+                        <div class="text-white text-opacity-90 text-sm mb-2">
+                            <i class="fas fa-arrow-up mr-1"></i>24h涨幅>10%
+                        </div>
+                        <div class="text-3xl font-bold text-white mb-1" id="change24hOver10Up">-</div>
+                        <div class="text-white text-opacity-80 text-xs">
+                            占比 <span id="change24hOver10UpPercent" class="font-bold">-</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 24h跌幅>10% -->
+                    <div class="bg-white bg-opacity-20 backdrop-blur-sm rounded-lg p-4 text-center">
+                        <div class="text-white text-opacity-90 text-sm mb-2">
+                            <i class="fas fa-arrow-down mr-1"></i>24h跌幅>10%
+                        </div>
+                        <div class="text-3xl font-bold text-white mb-1" id="change24hOver10Down">-</div>
+                        <div class="text-white text-opacity-80 text-xs">
+                            占比 <span id="change24hOver10DownPercent" class="font-bold">-</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 今日创新高次数 -->
+                    <div class="bg-white bg-opacity-20 backdrop-blur-sm rounded-lg p-4 text-center">
+                        <div class="text-white text-opacity-90 text-sm mb-2">
+                            <i class="fas fa-trophy mr-1"></i>今日创新高
+                        </div>
+                        <div class="text-3xl font-bold text-white" id="todayNewHighCount">-</div>
+                        <div class="text-white text-opacity-80 text-xs">总次数</div>
+                    </div>
+                    
+                    <!-- 今日创新低次数 -->
+                    <div class="bg-white bg-opacity-20 backdrop-blur-sm rounded-lg p-4 text-center">
+                        <div class="text-white text-opacity-90 text-sm mb-2">
+                            <i class="fas fa-chart-line mr-1"></i>今日创新低
+                        </div>
+                        <div class="text-3xl font-bold text-white" id="todayNewLowCount">-</div>
+                        <div class="text-white text-opacity-80 text-xs">总次数</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- 统计卡片 -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
                 <!-- 基础统计 -->
