@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模式特征库 - Crypto Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50">
+    <!-- 导航栏 -->
+    <nav class="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-8">
+                    <h1 class="text-xl font-bold">
+                        <i class="fas fa-chart-line mr-2"></i>
+                        Crypto Monitor
+                    </h1>
+                    <div class="flex gap-4">
+                        <a href="/" class="hover:text-blue-200 transition">
+                            <i class="fas fa-home mr-1"></i>首页
+                        </a>
+                        <a href="/kline.html" class="hover:text-blue-200 transition">
+                            <i class="fas fa-chart-bar mr-1"></i>K线
+                        </a>
+                        <a href="/pattern.html" class="text-yellow-300 font-bold">
+                            <i class="fas fa-brain mr-1"></i>特征库
+                        </a>
+                        <a href="/correct.html" class="hover:text-blue-200 transition">
+                            <i class="fas fa-edit mr-1"></i>数据纠错
+                        </a>
+                    </div>
+                </div>
+                <button onclick="analyzePatterns()" id="analyzeBtn" class="px-4 py-2 bg-green-500 hover:bg-green-600 rounded-lg font-bold transition">
+                    <i class="fas fa-sync mr-2"></i>重新分析
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 py-6">
+        <!-- 统计卡片 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <!-- 起涨统计 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-lg font-bold text-green-600 mb-4">
+                    <i class="fas fa-arrow-trend-up mr-2"></i>起涨模式统计
+                </h2>
+                <div id="surgeStats" class="space-y-2 text-sm">
+                    <div class="flex justify-between"><span>模式总数:</span><span id="surgeTotal" class="font-bold">-</span></div>
+                    <div class="flex justify-between"><span>平均涨幅:</span><span id="surgeAvgChange" class="font-bold text-green-600">-</span></div>
+                    <div class="flex justify-between"><span>伴随V1成交量:</span><span id="surgeV1" class="font-bold">-</span></div>
+                    <div class="flex justify-between"><span>价格突破:</span><span id="surgeBreakout" class="font-bold">-</span></div>
+                    <div class="flex justify-between"><span>连续同向:</span><span id="surgeContinuous" class="font-bold">-</span></div>
+                </div>
+            </div>
+
+            <!-- 起跌统计 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-lg font-bold text-red-600 mb-4">
+                    <i class="fas fa-arrow-trend-down mr-2"></i>起跌模式统计
+                </h2>
+                <div id="crashStats" class="space-y-2 text-sm">
+                    <div class="flex justify-between"><span>模式总数:</span><span id="crashTotal" class="font-bold">-</span></div>
+                    <div class="flex justify-between"><span>平均跌幅:</span><span id="crashAvgChange" class="font-bold text-red-600">-</span></div>
+                    <div class="flex justify-between"><span>伴随V1成交量:</span><span id="crashV1" class="font-bold">-</span></div>
+                    <div class="flex justify-between"><span>价格跌破:</span><span id="crashBreakout" class="font-bold">-</span></div>
+                    <div class="flex justify-between"><span>连续同向:</span><span id="crashContinuous" class="font-bold">-</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="bg-white rounded-lg shadow-md mb-6">
+            <div class="flex border-b">
+                <button onclick="switchTab('surge')" id="tabSurge" class="px-6 py-3 font-bold text-green-600 border-b-2 border-green-600">
+                    <i class="fas fa-arrow-trend-up mr-2"></i>起涨模式
+                </button>
+                <button onclick="switchTab('crash')" id="tabCrash" class="px-6 py-3 font-bold text-gray-500 hover:text-red-600">
+                    <i class="fas fa-arrow-trend-down mr-2"></i>起跌模式
+                </button>
+            </div>
+        </div>
+
+        <!-- 起涨模式列表 -->
+        <div id="surgeContent" class="space-y-4">
+            <div class="text-center py-8 text-gray-500">
+                <i class="fas fa-spinner fa-spin text-3xl mb-4"></i>
+                <p>加载中...</p>
+            </div>
+        </div>
+
+        <!-- 起跌模式列表 -->
+        <div id="crashContent" class="space-y-4 hidden">
+            <div class="text-center py-8 text-gray-500">
+                <i class="fas fa-spinner fa-spin text-3xl mb-4"></i>
+                <p>加载中...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/pattern.js"></script>
+</body>
+</html>

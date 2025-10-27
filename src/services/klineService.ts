@@ -1,4 +1,5 @@
 import { IndicatorService } from './indicatorService';
+import { isVolumeAboveV1, isVolumeAboveV2 } from '../config/volumeThresholds';
 
 export class KlineService {
   private db: D1Database;
@@ -41,11 +42,15 @@ export class KlineService {
       // OKX K线格式: [timestamp, open, high, low, close, volume, volumeCcy, volCcyQuote, confirm]
       const [openTime, open, high, low, close, volume, volumeCcy, volCcyQuote] = kline;
       
+      const vol = parseFloat(volume);
+      const v1 = isVolumeAboveV1(symbol, vol) ? 1 : 0;
+      const v2 = isVolumeAboveV2(symbol, vol) ? 1 : 0;
+      
       return this.db.prepare(`
         INSERT OR IGNORE INTO kline_data (
           symbol, timeframe, open_time, open, high, low, close, volume,
-          quote_volume, trades_count
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          quote_volume, trades_count, volume_v1, volume_v2
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         symbol,
         timeframe,
@@ -54,9 +59,11 @@ export class KlineService {
         parseFloat(high),
         parseFloat(low),
         parseFloat(close),
-        parseFloat(volume),
+        vol,
         parseFloat(volCcyQuote || '0'),
-        0 // OKX 不提供交易次数
+        0, // OKX 不提供交易次数
+        v1,
+        v2
       );
     });
     
@@ -248,14 +255,21 @@ export class KlineService {
     if (dbData && dbData.length >= fetchLimit) {
       // 数据库中有足够的数据，转换格式为 OKX 格式
       // OKX 格式: [timestamp, open, high, low, close, volume, ...]
-      klineData = dbData.reverse().map((k: any) => [
-        k.open_time.toString(),
-        k.open.toString(),
-        k.high.toString(),
-        k.low.toString(),
-        k.close.toString(),
-        k.volume.toString()
-      ]);
+      // 同时保留 volume_v1 和 volume_v2 标注
+      klineData = dbData.reverse().map((k: any) => {
+        const arr: any = [
+          k.open_time.toString(),
+          k.open.toString(),
+          k.high.toString(),
+          k.low.toString(),
+          k.close.toString(),
+          k.volume.toString()
+        ];
+        // 将 volume_v1 和 volume_v2 附加到数组对象上
+        arr.volume_v1 = k.volume_v1;
+        arr.volume_v2 = k.volume_v2;
+        return arr;
+      });
     } else {
       // 数据库数据不足，从 OKX 获取
       const config: any = await this.getOKXConfig(symbol);

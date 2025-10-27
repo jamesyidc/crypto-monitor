@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统设置 - Crypto Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50">
+    <!-- 导航栏 -->
+    <nav class="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-8">
+                    <h1 class="text-xl font-bold">
+                        <i class="fas fa-chart-line mr-2"></i>
+                        Crypto Monitor
+                    </h1>
+                    <div class="flex gap-4">
+                        <a href="/" class="hover:text-blue-200 transition">
+                            <i class="fas fa-home mr-1"></i>首页
+                        </a>
+                        <a href="/kline.html" class="hover:text-blue-200 transition">
+                            <i class="fas fa-chart-bar mr-1"></i>K线
+                        </a>
+                        <a href="/pattern.html" class="hover:text-blue-200 transition">
+                            <i class="fas fa-brain mr-1"></i>特征库
+                        </a>
+                        <a href="/settings.html" class="text-yellow-300 font-bold">
+                            <i class="fas fa-cog mr-1"></i>设置
+                        </a>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="saveSettings()" id="saveBtn" class="px-4 py-2 bg-green-500 hover:bg-green-600 rounded-lg font-bold transition">
+                        <i class="fas fa-save mr-2"></i>保存设置
+                    </button>
+                    <button onclick="resetSettings()" id="resetBtn" class="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-lg font-bold transition">
+                        <i class="fas fa-undo mr-2"></i>恢复默认
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 py-6">
+        <!-- 提示信息 -->
+        <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+            <div class="flex items-center">
+                <i class="fas fa-info-circle text-blue-500 text-xl mr-3"></i>
+                <div>
+                    <p class="font-bold text-blue-800">参数调整说明</p>
+                    <p class="text-sm text-blue-700">修改这些参数会影响首页的急涨急跌判断、风险提示等功能。修改后请点击"保存设置"按钮。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 急涨急跌设置 -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                <i class="fas fa-arrow-trend-up text-green-600 mr-2"></i>
+                <i class="fas fa-arrow-trend-down text-red-600 mr-2"></i>
+                急涨急跌阈值
+            </h2>
+            <div id="surgeCrashSettings" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- 动态加载 -->
+            </div>
+        </div>
+
+        <!-- 极端行情设置 -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                <i class="fas fa-exclamation-triangle text-orange-600 mr-2"></i>
+                极端行情阈值
+            </h2>
+            <div id="extremesSettings" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- 动态加载 -->
+            </div>
+        </div>
+
+        <!-- 风险提示设置 -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                <i class="fas fa-shield-alt text-red-600 mr-2"></i>
+                风险提示
+            </h2>
+            <div id="riskSettings" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- 动态加载 -->
+            </div>
+        </div>
+
+        <!-- 技术指标设置 -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                <i class="fas fa-chart-line text-blue-600 mr-2"></i>
+                技术指标参数
+            </h2>
+            <div id="indicatorsSettings" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- 动态加载 -->
+            </div>
+        </div>
+
+        <!-- 系统参数设置 -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                <i class="fas fa-cogs text-gray-600 mr-2"></i>
+                系统参数
+            </h2>
+            <div id="generalSettings" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- 动态加载 -->
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/settings.js"></script>
+</body>
+</html>

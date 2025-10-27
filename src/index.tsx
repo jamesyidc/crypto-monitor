@@ -9,6 +9,8 @@ import { SignalService } from './services/signalService'
 import { TelegramService } from './services/telegramService'
 import { PositionService } from './services/positionService'
 import { SimulatedTradingService } from './services/simulatedTradingService'
+import { PatternService } from './services/patternService'
+import { SettingsService } from './services/settingsService'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
@@ -815,6 +817,12 @@ app.get('/', (c) => {
                         <a href="/kline.html" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition">
                             <i class="fas fa-chart-candlestick mr-2"></i>K线查询
                         </a>
+                        <a href="/pattern.html" class="bg-pink-600 hover:bg-pink-700 text-white px-6 py-2 rounded-lg transition">
+                            <i class="fas fa-brain mr-2"></i>特征库
+                        </a>
+                        <a href="/correct.html" class="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2 rounded-lg transition">
+                            <i class="fas fa-edit mr-2"></i>数据纠错
+                        </a>
                         <button id="analyzeBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition">
                             <i class="fas fa-play mr-2"></i>执行分析
                         </button>
@@ -1362,6 +1370,311 @@ app.get('/api/convergence/:symbol/today', async (c) => {
     return c.json({ success: true, symbol, count });
   } catch (error: any) {
     console.error('获取今日震荡收敛次数失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// ========================================
+// 模式特征分析 API
+// ========================================
+
+// API: 分析所有币种的起涨起跌模式
+app.post('/api/pattern/analyze', async (c) => {
+  try {
+    const patternService = new PatternService(c.env.DB);
+    const coinService = new CoinService(c.env.DB);
+    
+    // 获取所有币种
+    const coins = await coinService.getAllCoins();
+    const symbols = coins.map((coin: any) => coin.symbol);
+    
+    const results = {
+      surge: 0,
+      crash: 0,
+      processed: [] as string[]
+    };
+    
+    // 逐个分析币种
+    for (const symbol of symbols) {
+      // 分析起涨模式
+      const surgePatterns = await patternService.analyzeSurgePatterns(symbol);
+      for (const pattern of surgePatterns) {
+        await patternService.savePattern('surge', pattern);
+        results.surge++;
+      }
+      
+      // 分析起跌模式
+      const crashPatterns = await patternService.analyzeCrashPatterns(symbol);
+      for (const pattern of crashPatterns) {
+        await patternService.savePattern('crash', pattern);
+        results.crash++;
+      }
+      
+      results.processed.push(symbol);
+    }
+    
+    return c.json({
+      success: true,
+      message: '特征分析完成',
+      results
+    });
+  } catch (error: any) {
+    console.error('特征分析失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 获取起涨模式
+app.get('/api/pattern/surge', async (c) => {
+  try {
+    const patternService = new PatternService(c.env.DB);
+    const limit = parseInt(c.req.query('limit') || '100');
+    const patterns = await patternService.getSurgePatterns(limit);
+    
+    return c.json({ success: true, patterns });
+  } catch (error: any) {
+    console.error('获取起涨模式失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 获取起跌模式
+app.get('/api/pattern/crash', async (c) => {
+  try {
+    const patternService = new PatternService(c.env.DB);
+    const limit = parseInt(c.req.query('limit') || '100');
+    const patterns = await patternService.getCrashPatterns(limit);
+    
+    return c.json({ success: true, patterns });
+  } catch (error: any) {
+    console.error('获取起跌模式失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 获取特征统计
+app.get('/api/pattern/stats', async (c) => {
+  try {
+    const patternService = new PatternService(c.env.DB);
+    const stats = await patternService.getPatternStats();
+    
+    return c.json({ success: true, stats });
+  } catch (error: any) {
+    console.error('获取特征统计失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// ========================================
+// 数据纠错 API
+// ========================================
+
+// API: 获取指定日期的数据
+app.get('/api/correct/data', async (c) => {
+  try {
+    const date = c.req.query('date') || '';
+    if (!date) {
+      return c.json({ success: false, error: '请提供日期参数' }, 400);
+    }
+    
+    const coinService = new CoinService(c.env.DB);
+    const data = await coinService.getTodayStats(date);
+    
+    return c.json({ success: true, data });
+  } catch (error: any) {
+    console.error('获取数据失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 保存修改后的数据
+app.post('/api/correct/save', async (c) => {
+  try {
+    const { date, updates } = await c.req.json();
+    
+    if (!date || !updates || !Array.isArray(updates)) {
+      return c.json({ success: false, error: '参数错误' }, 400);
+    }
+    
+    // 直接使用SQL更新，避免复杂的参数传递
+    const statements = updates.map((update: any) => 
+      c.env.DB
+        .prepare(`
+          UPDATE daily_stats 
+          SET total_surges = ?, 
+              total_crashes = ?, 
+              new_high_count = ?, 
+              new_low_count = ?
+          WHERE date = ? AND symbol = ?
+        `)
+        .bind(
+          update.total_surges || 0,
+          update.total_crashes || 0,
+          update.new_high_count || 0,
+          update.new_low_count || 0,
+          date,
+          update.symbol
+        )
+    );
+    
+    await c.env.DB.batch(statements);
+    
+    return c.json({ success: true, message: '数据已保存' });
+  } catch (error: any) {
+    console.error('保存数据失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 清空指定日期的数据
+app.post('/api/correct/reset', async (c) => {
+  try {
+    const { date } = await c.req.json();
+    
+    if (!date) {
+      return c.json({ success: false, error: '请提供日期参数' }, 400);
+    }
+    
+    // 清空该日期的daily_stats数据（将所有计数重置为0）
+    await c.env.DB
+      .prepare(`
+        UPDATE daily_stats 
+        SET total_surges = 0, 
+            total_crashes = 0, 
+            new_high_count = 0, 
+            new_low_count = 0
+        WHERE date = ?
+      `)
+      .bind(date)
+      .run();
+    
+    return c.json({ success: true, message: '数据已清空' });
+  } catch (error: any) {
+    console.error('清空数据失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 获取指定日期的轮次统计（包含风险提示次数）
+app.get('/api/correct/rounds', async (c) => {
+  try {
+    const date = c.req.query('date') || '';
+    if (!date) {
+      return c.json({ success: false, error: '请提供日期参数' }, 400);
+    }
+    
+    const coinService = new CoinService(c.env.DB);
+    const rounds = await coinService.getRoundStatsByDate(date);
+    
+    return c.json({ success: true, rounds });
+  } catch (error: any) {
+    console.error('获取轮次数据失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 更新轮次的风险提示次数
+app.post('/api/correct/rounds/save', async (c) => {
+  try {
+    const { updates } = await c.req.json();
+    
+    if (!updates || !Array.isArray(updates)) {
+      return c.json({ success: false, error: '参数错误' }, 400);
+    }
+    
+    const statements = updates.map((update: any) => 
+      c.env.DB
+        .prepare(`
+          UPDATE round_stats 
+          SET risk_alert_count = ?
+          WHERE round_time = ?
+        `)
+        .bind(
+          update.risk_alert_count || 0,
+          update.round_time
+        )
+    );
+    
+    await c.env.DB.batch(statements);
+    
+    return c.json({ success: true, message: '风险提示数据已保存' });
+  } catch (error: any) {
+    console.error('保存风险提示数据失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// ========================================
+// 系统设置 API
+// ========================================
+
+// API: 获取所有设置
+app.get('/api/settings', async (c) => {
+  try {
+    const settingsService = new SettingsService(c.env.DB);
+    const settings = await settingsService.getAllSettings();
+    
+    return c.json({ success: true, settings });
+  } catch (error: any) {
+    console.error('获取设置失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 按分类获取设置
+app.get('/api/settings/category/:category', async (c) => {
+  try {
+    const category = c.req.param('category');
+    const settingsService = new SettingsService(c.env.DB);
+    const settings = await settingsService.getSettingsByCategory(category);
+    
+    return c.json({ success: true, settings });
+  } catch (error: any) {
+    console.error('获取设置失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 更新单个设置
+app.put('/api/settings/:key', async (c) => {
+  try {
+    const key = c.req.param('key');
+    const { value } = await c.req.json();
+    
+    const settingsService = new SettingsService(c.env.DB);
+    await settingsService.updateSetting(key, value);
+    
+    return c.json({ success: true, message: '设置已更新' });
+  } catch (error: any) {
+    console.error('更新设置失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 批量更新设置
+app.put('/api/settings', async (c) => {
+  try {
+    const { settings } = await c.req.json();
+    
+    const settingsService = new SettingsService(c.env.DB);
+    await settingsService.updateSettings(settings);
+    
+    return c.json({ success: true, message: '设置已批量更新' });
+  } catch (error: any) {
+    console.error('批量更新设置失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 重置设置为默认值
+app.post('/api/settings/reset', async (c) => {
+  try {
+    const settingsService = new SettingsService(c.env.DB);
+    await settingsService.resetToDefaults();
+    
+    return c.json({ success: true, message: '设置已重置为默认值' });
+  } catch (error: any) {
+    console.error('重置设置失败:', error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });

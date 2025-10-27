@@ -292,13 +292,10 @@ function renderTable(klineData, alerts = []) {
   tbody.innerHTML = klineData.map((k) => {
     // 检查是否有预警
     const hasAlert = alertMap[k.index];
-    // 🆕 V1行背景色（橙色边框高亮 - 成交量大于1.5倍均量）
-    const isV1Row = k.is_v1 === true;
+    // 行背景色（预警优先）
     const rowClass = hasAlert 
       ? 'bg-yellow-50 border-l-4 border-yellow-500' 
-      : isV1Row 
-        ? 'bg-orange-50 border-l-4 border-orange-500' 
-        : '';
+      : '';
     
     // 基础K线数据 - 涨跌幅颜色
     const getChangeClass = (change) => {
@@ -312,10 +309,11 @@ function renderTable(klineData, alerts = []) {
     };
     const changeClass = getChangeClass(k.change);
     
-    // 🆕 V1标记 - 成交量大于1.5倍均量
-    const isV1 = k.is_v1 === true;
-    const volumeClass = isV1 ? 'bg-orange-200 text-orange-900 font-bold' : 'text-gray-600';
-    const v1Badge = isV1 ? '<span class="inline-block px-2 py-1 bg-orange-600 text-white text-xs rounded-full font-bold ml-1 shadow-sm">V1</span>' : '';
+    // V1/V2 标记（使用固定阈值）
+    const volumeV1 = k.volume_v1 === 1;
+    const volumeV2 = k.volume_v2 === 1;
+    const v1Badge = volumeV1 ? '<span class="text-red-600 font-bold">V1</span>' : '<span class="text-gray-400">-</span>';
+    const v2Badge = volumeV2 ? '<span class="text-orange-600 font-bold">V2</span>' : '<span class="text-gray-400">-</span>';
     
     // 信号样式
     const signalClass = k.signal && k.signal.startsWith('多头') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
@@ -349,7 +347,9 @@ function renderTable(klineData, alerts = []) {
         <td class="py-2 px-1 text-right font-mono text-red-600">${k.low ? k.low.toFixed(4) : '-'}</td>
         <td class="py-2 px-1 text-right font-mono font-bold">${k.close ? k.close.toFixed(4) : '-'}</td>
         <td class="py-2 px-1 text-right font-bold ${changeClass}">${k.change || '-'}</td>
-        <td class="py-2 px-1 text-right font-mono ${volumeClass}">${k.volume ? formatVolume(k.volume) : '-'}${v1Badge}</td>
+        <td class="py-2 px-1 text-right font-mono text-gray-600">${k.volume ? formatVolume(k.volume) : '-'}</td>
+        <td class="py-2 px-1 text-center">${v1Badge}</td>
+        <td class="py-2 px-1 text-center">${v2Badge}</td>
         <!-- 技术指标列（默认显示） -->
         <td class="py-2 px-1 text-center indicator-col">
           <span class="inline-block px-2 py-0.5 rounded ${signalClass} text-xs font-semibold">

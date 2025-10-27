@@ -21,6 +21,7 @@
     "scheduler:logs": "pm2 logs kline-scheduler --nostream"
   },
   "dependencies": {
+    "better-sqlite3": "^12.4.1",
     "hono": "^4.10.3"
   },
   "devDependencies": {

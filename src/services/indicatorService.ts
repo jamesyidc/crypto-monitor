@@ -253,21 +253,21 @@ export class IndicatorService {
       });
     }
 
-    // 🆕 计算均量（avgVolume）和 V1/V2 阈值
-    const volumes = result.map(k => parseFloat(k.volume || '0'));
-    const avgVolume = volumes.reduce((a, b) => a + b, 0) / volumes.length;
-    const v1Threshold = avgVolume * 1.5; // V1 = 1.5倍平均量
-    const v2Threshold = avgVolume * 1.0; // V2 = 1倍平均量
-    
-    // 🆕 为每根K线添加 avg_volume、v1_threshold、is_v1、is_v2 字段
-    result.forEach(k => {
-      const currentVolume = parseFloat(k.volume || '0');
-      (k as any).avg_volume = parseFloat(avgVolume.toFixed(2));
-      (k as any).v1_threshold = parseFloat(v1Threshold.toFixed(2));
-      (k as any).v2_threshold = parseFloat(v2Threshold.toFixed(2));
-      (k as any).is_v1 = currentVolume >= v1Threshold;
-      (k as any).is_v2 = currentVolume >= v2Threshold && currentVolume < v1Threshold;
-      (k as any).volume_level = currentVolume >= v1Threshold ? 'V1+' : currentVolume >= v2Threshold ? 'V2+' : 'Normal';
+    // 🆕 使用数据库中的固定V1/V2阈值标注（严格按用户提供的标准）
+    // 从原始K线数据中读取 volume_v1 和 volume_v2 标注
+    result.forEach((k, idx) => {
+      // data数组中第idx+1个元素对应result中第idx个元素（因为result从i=1开始）
+      const dataIndex = idx + 1;
+      const klineArray = data[dataIndex];
+      // 如果K线数据中有 volume_v1/v2 标注，使用它；否则默认为0
+      const volumeV1 = klineArray?.volume_v1 !== undefined ? klineArray.volume_v1 : 0;
+      const volumeV2 = klineArray?.volume_v2 !== undefined ? klineArray.volume_v2 : 0;
+      
+      (k as any).volume_v1 = volumeV1;
+      (k as any).volume_v2 = volumeV2;
+      (k as any).is_v1 = volumeV1 === 1;
+      (k as any).is_v2 = volumeV2 === 1;
+      (k as any).volume_level = volumeV1 === 1 ? 'V1' : volumeV2 === 1 ? 'V2' : 'Normal';
     });
 
     return result;

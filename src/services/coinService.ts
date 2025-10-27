@@ -423,8 +423,12 @@ export class CoinService {
       .run();
     console.log('  ✅ 已清零 price_extremes 计数器（创新高/低计次）');
     
-    // 2. ⚠️ daily_stats 永久保留，不删除（用于历史回看和趋势分析）
-    console.log('  ℹ️  daily_stats 表永久保留，每天自动创建新记录');
+    // 2. 🔥 删除今天的 daily_stats 数据（让它重新从0开始累计）
+    await this.db
+      .prepare(`DELETE FROM daily_stats WHERE date = ?`)
+      .bind(todayBeijing)
+      .run();
+    console.log(`  ✅ 已清理今天的 daily_stats 数据（${todayBeijing}），重新开始累计`);
     
     // 3. ⚠️ round_stats 永久保留，不删除（用于历史回看）
     console.log('  ℹ️  round_stats 表永久保留，每轮统计实时计算非累计值');
@@ -541,7 +545,7 @@ export class CoinService {
       .run();
   }
 
-  // 更新或创建日统计
+  // 更新或创建日统计（支持部分字段更新）
   async updateDailyStat(date: string, symbol: string, updates: any) {
     const existing = await this.db
       .prepare('SELECT * FROM daily_stats WHERE date = ? AND symbol = ?')
@@ -549,6 +553,18 @@ export class CoinService {
       .first();
 
     if (existing) {
+      // 只更新提供的字段，保留其他字段的原值
+      const updatedData = {
+        total_surges: updates.total_surges !== undefined ? updates.total_surges : (existing as any).total_surges,
+        total_crashes: updates.total_crashes !== undefined ? updates.total_crashes : (existing as any).total_crashes,
+        new_high_count: updates.new_high_count !== undefined ? updates.new_high_count : (existing as any).new_high_count,
+        new_low_count: updates.new_low_count !== undefined ? updates.new_low_count : (existing as any).new_low_count,
+        market_trend: updates.market_trend !== undefined ? updates.market_trend : (existing as any).market_trend,
+        trend_strength: updates.trend_strength !== undefined ? updates.trend_strength : (existing as any).trend_strength,
+        star_rating: updates.star_rating !== undefined ? updates.star_rating : (existing as any).star_rating,
+        star_type: updates.star_type !== undefined ? updates.star_type : (existing as any).star_type
+      };
+
       await this.db
         .prepare(`
           UPDATE daily_stats 
@@ -557,19 +573,20 @@ export class CoinService {
           WHERE date = ? AND symbol = ?
         `)
         .bind(
-          updates.total_surges,
-          updates.total_crashes,
-          updates.new_high_count,
-          updates.new_low_count,
-          updates.market_trend,
-          updates.trend_strength,
-          updates.star_rating,
-          updates.star_type,
+          updatedData.total_surges,
+          updatedData.total_crashes,
+          updatedData.new_high_count,
+          updatedData.new_low_count,
+          updatedData.market_trend,
+          updatedData.trend_strength,
+          updatedData.star_rating,
+          updatedData.star_type,
           date,
           symbol
         )
         .run();
     } else {
+      // 创建新记录，未提供的字段使用默认值
       await this.db
         .prepare(`
           INSERT INTO daily_stats (
@@ -580,14 +597,14 @@ export class CoinService {
         .bind(
           date,
           symbol,
-          updates.total_surges,
-          updates.total_crashes,
-          updates.new_high_count,
-          updates.new_low_count,
-          updates.market_trend,
-          updates.trend_strength,
-          updates.star_rating,
-          updates.star_type
+          updates.total_surges || 0,
+          updates.total_crashes || 0,
+          updates.new_high_count || 0,
+          updates.new_low_count || 0,
+          updates.market_trend || 'neutral',
+          updates.trend_strength || 0,
+          updates.star_rating || 0,
+          updates.star_type || 'none'
         )
         .run();
     }
@@ -600,6 +617,37 @@ export class CoinService {
       .bind(date)
       .all();
     return result.results;
+  }
+
+  // 获取指定日期的所有轮次统计（用于修正）
+  async getRoundStatsByDate(date: string) {
+    // 北京时间日期转换为UTC时间范围
+    // 例如: 2025-10-27 北京时间 -> 2025-10-26T16:00:00.000Z ~ 2025-10-27T15:59:59.999Z UTC
+    const bjDate = new Date(`${date}T00:00:00+08:00`);
+    const startTime = new Date(bjDate.getTime()).toISOString();
+    const endTime = new Date(bjDate.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString();
+    
+    const result = await this.db
+      .prepare(`
+        SELECT * FROM round_stats 
+        WHERE round_time >= ? AND round_time <= ?
+        ORDER BY round_time DESC
+      `)
+      .bind(startTime, endTime)
+      .all();
+    return result.results;
+  }
+
+  // 更新轮次统计的风险提示次数
+  async updateRoundRiskAlert(roundTime: string, riskAlertCount: number) {
+    await this.db
+      .prepare(`
+        UPDATE round_stats 
+        SET risk_alert_count = ?
+        WHERE round_time = ?
+      `)
+      .bind(riskAlertCount, roundTime)
+      .run();
   }
 
   // 更新币种优先级
