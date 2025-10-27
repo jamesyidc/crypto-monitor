@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K线数据查询 - 加密货币监控</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .timeframe-btn { transition: all 0.3s; }
+        .timeframe-btn.active { background: #2563eb; color: white; }
+        .coin-btn { transition: all 0.3s; }
+        .coin-btn.active { background: #10b981; color: white; border-color: #10b981; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        <!-- 导航 -->
+        <div class="bg-white rounded-lg shadow-md p-4 mb-6 flex items-center justify-between">
+            <div>
+                <a href="/" class="text-blue-600 hover:text-blue-700">
+                    <i class="fas fa-arrow-left mr-2"></i>返回首页
+                </a>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-800">
+                <i class="fas fa-chart-candlestick mr-2"></i>K线数据查询
+            </h1>
+            <button id="syncBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition">
+                <i class="fas fa-sync mr-2"></i>同步数据
+            </button>
+        </div>
+
+        <!-- 币种选择 -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">选择币种</h2>
+            <div id="coinSelector" class="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-2">
+                <!-- 币种按钮将在这里生成 -->
+            </div>
+        </div>
+
+        <!-- 时间周期选择 -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">时间周期</h2>
+            <div class="flex flex-wrap gap-2">
+                <button class="timeframe-btn px-4 py-2 rounded-lg border border-gray-300" data-tf="5m">5分钟</button>
+                <button class="timeframe-btn px-4 py-2 rounded-lg border border-gray-300 active" data-tf="15m">15分钟</button>
+                <button class="timeframe-btn px-4 py-2 rounded-lg border border-gray-300" data-tf="1H">1小时</button>
+                <button class="timeframe-btn px-4 py-2 rounded-lg border border-gray-300" data-tf="4H">4小时</button>
+                <button class="timeframe-btn px-4 py-2 rounded-lg border border-gray-300" data-tf="1D">1天</button>
+            </div>
+        </div>
+
+        <!-- 统计信息 -->
+        <div id="statsPanel" class="bg-white rounded-lg shadow-md p-6 mb-6 hidden">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">统计信息</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="text-center p-4 bg-blue-50 rounded-lg">
+                    <div class="text-sm text-gray-600 mb-1">最新价格</div>
+                    <div id="statPrice" class="text-2xl font-bold text-blue-600">-</div>
+                </div>
+                <div class="text-center p-4 bg-green-50 rounded-lg">
+                    <div class="text-sm text-gray-600 mb-1">涨跌幅</div>
+                    <div id="statChange" class="text-2xl font-bold text-green-600">-</div>
+                </div>
+                <div class="text-center p-4 bg-yellow-50 rounded-lg">
+                    <div class="text-sm text-gray-600 mb-1">最高价</div>
+                    <div id="statHigh" class="text-2xl font-bold text-yellow-600">-</div>
+                </div>
+                <div class="text-center p-4 bg-red-50 rounded-lg">
+                    <div class="text-sm text-gray-600 mb-1">最低价</div>
+                    <div id="statLow" class="text-2xl font-bold text-red-600">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- K线图表 -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">K线图</h2>
+            <div class="relative h-96">
+                <canvas id="klineChart"></canvas>
+            </div>
+        </div>
+
+        <!-- K线数据表格 -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">K线数据</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b-2 border-gray-200">
+                            <th class="text-left py-3 px-2">时间</th>
+                            <th class="text-right py-3 px-2">开盘</th>
+                            <th class="text-right py-3 px-2">最高</th>
+                            <th class="text-right py-3 px-2">最低</th>
+                            <th class="text-right py-3 px-2">收盘</th>
+                            <th class="text-right py-3 px-2">涨跌幅</th>
+                            <th class="text-right py-3 px-2">成交量</th>
+                        </tr>
+                    </thead>
+                    <tbody id="klineTableBody">
+                        <tr>
+                            <td colspan="7" class="text-center py-8 text-gray-500">
+                                请选择币种查看数据
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script src="/static/kline.js"></script>
+</body>
+</html>

@@ -4,6 +4,7 @@ import { serveStatic } from 'hono/cloudflare-workers'
 import type { Bindings } from './types'
 import { CoinService } from './services/coinService'
 import { AnalysisService } from './services/analysisService'
+import { KlineService } from './services/klineService'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
@@ -44,6 +45,64 @@ app.get('/api/rounds', async (c) => {
   const coinService = new CoinService(c.env.DB);
   const rounds = await coinService.getLatestRoundStats(limit);
   return c.json(rounds);
+});
+
+// ========== K线数据 API ==========
+
+// API: 同步所有币种的 K线数据
+app.post('/api/kline/sync', async (c) => {
+  const klineService = new KlineService(c.env.DB);
+  const timeframe = c.req.query('timeframe') || '5m';
+  const limit = parseInt(c.req.query('limit') || '300');
+  
+  const results = await klineService.syncAllKlineData(timeframe, limit);
+  return c.json({ success: true, results });
+});
+
+// API: 获取单个币种的 K线数据
+app.get('/api/kline/:symbol', async (c) => {
+  const symbol = c.req.param('symbol');
+  const timeframe = c.req.query('timeframe') || '5m';
+  const limit = parseInt(c.req.query('limit') || '100');
+  
+  const klineService = new KlineService(c.env.DB);
+  const data = await klineService.getKlineData(symbol, timeframe, limit);
+  return c.json(data);
+});
+
+// API: 获取 K线统计信息
+app.get('/api/kline/:symbol/stats', async (c) => {
+  const symbol = c.req.param('symbol');
+  const timeframe = c.req.query('timeframe') || '5m';
+  const limit = parseInt(c.req.query('limit') || '100');
+  
+  const klineService = new KlineService(c.env.DB);
+  const stats = await klineService.getKlineStats(symbol, timeframe, limit);
+  return c.json(stats);
+});
+
+// API: 获取多时间周期数据
+app.get('/api/kline/:symbol/multi', async (c) => {
+  const symbol = c.req.param('symbol');
+  
+  const klineService = new KlineService(c.env.DB);
+  const data = await klineService.getMultiTimeframeData(symbol);
+  return c.json(data);
+});
+
+// API: 获取 OKX 配置
+app.get('/api/okx/config', async (c) => {
+  const klineService = new KlineService(c.env.DB);
+  const configs = await klineService.getAllOKXConfigs();
+  return c.json(configs);
+});
+
+// API: 获取单个币种的 OKX 配置
+app.get('/api/okx/config/:symbol', async (c) => {
+  const symbol = c.req.param('symbol');
+  const klineService = new KlineService(c.env.DB);
+  const config = await klineService.getOKXConfig(symbol);
+  return c.json(config);
 });
 
 // 首页
@@ -91,14 +150,19 @@ app.get('/', (c) => {
                     <h2 class="text-xl font-bold text-gray-800">
                         <i class="fas fa-cog mr-2"></i>控制中心
                     </h2>
-                    <button id="analyzeBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition">
-                        <i class="fas fa-play mr-2"></i>执行分析
-                    </button>
+                    <div class="flex gap-2">
+                        <a href="/kline.html" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition">
+                            <i class="fas fa-chart-candlestick mr-2"></i>K线查询
+                        </a>
+                        <button id="analyzeBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition">
+                            <i class="fas fa-play mr-2"></i>执行分析
+                        </button>
+                    </div>
                 </div>
                 <div id="statusMessage" class="hidden p-4 rounded-lg mb-4"></div>
                 <div class="text-sm text-gray-600">
                     <i class="fas fa-info-circle mr-2"></i>
-                    数据源: CoinGecko API · 点击"执行分析"开始第一次数据采集
+                    数据源: CoinGecko API · 点击"执行分析"开始第一次数据采集 · 点击"K线查询"查看OKX历史K线
                 </div>
             </div>
 

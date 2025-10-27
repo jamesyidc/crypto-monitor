@@ -1,0 +1,4240 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        1040
+      ],
+      "id": "eba1494a-2b88-44bc-b313-4e0749761b46",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "33d1b523-4c50-4f33-84e5-c1caee840d11",
+              "name": "symbols",
+              "value": "[\n  { \"symbol\": \"BTC-USDT-SWAP\", \"V1\": 200000, \"V2\": 100000 },\n  { \"symbol\": \"ETH-USDT-SWAP\", \"V1\": 1300000, \"V2\": 500000 },\n  { \"symbol\": \"XRP-USDT-SWAP\", \"V1\": 200000, \"V2\": 87000 },\n  { \"symbol\": \"SOL-USDT-SWAP\", \"V1\": 351620, \"V2\": 246380 },\n  { \"symbol\": \"BNB-USDT-SWAP\", \"V1\": 2388300, \"V2\": 1737500 },\n  { \"symbol\": \"LTC-USDT-SWAP\", \"V1\": 50000, \"V2\": 15000 },\n  { \"symbol\": \"DOGE-USDT-SWAP\", \"V1\": 150000, \"V2\": 60000 },\n  { \"symbol\": \"SUI-USDT-SWAP\", \"V1\": 2000000, \"V2\": 800000 },\n  { \"symbol\": \"TRX-USDT-SWAP\", \"V1\": 13280, \"V2\": 6022 },\n  { \"symbol\": \"TON-USDT-SWAP\", \"V1\": 350000, \"V2\": 200000 },\n  { \"symbol\": \"ETC-USDT-SWAP\", \"V1\": 12000, \"V2\": 2000 },\n  { \"symbol\": \"BCH-USDT-SWAP\", \"V1\": 103500, \"V2\": 50000 },\n  { \"symbol\": \"HBAR-USDT-SWAP\", \"V1\": 103500, \"V2\": 40000 },\n  { \"symbol\": \"XLM-USDT-SWAP\", \"V1\": 103500, \"V2\": 30000 },\n  { \"symbol\": \"FIL-USDT-SWAP\", \"V1\": 5003500, \"V2\": 3700000 },\n  { \"symbol\": \"ADA-USDT-SWAP\", \"V1\": 67210, \"V2\": 44230 },\n  { \"symbol\": \"LINK-USDT-SWAP\", \"V1\": 280000, \"V2\": 200000 },\n  { \"symbol\": \"CRO-USDT-SWAP\", \"V1\": 100000, \"V2\": 40000 },\n  { \"symbol\": \"DOT-USDT-SWAP\", \"V1\": 300000, \"V2\": 250000 },\n  { \"symbol\": \"UNI-USDT-SWAP\", \"V1\": 140000, \"V2\": 100000 },\n  { \"symbol\": \"NEAR-USDT-SWAP\", \"V1\": 100000, \"V2\": 50000 },\n  { \"symbol\": \"APT-USDT-SWAP\", \"V1\": 300000, \"V2\": 200000 },\n  { \"symbol\": \"CFX-USDT-SWAP\", \"V1\": 300000, \"V2\": 250000 },\n  { \"symbol\": \"CRV-USDT-SWAP\", \"V1\": 1500000, \"V2\": 1000000 },\n  { \"symbol\": \"STX-USDT-SWAP\", \"V1\": 50000, \"V2\": 30000 },\n  { \"symbol\": \"LDO-USDT-SWAP\", \"V1\": 1000000, \"V2\": 600000 },\n  { \"symbol\": \"TAO-USDT-SWAP\", \"V1\": 300000, \"V2\": 180000 }\n]\n",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1536,
+        1040
+      ],
+      "id": "f4f96c79-b668-4a91-abf0-c95984079bbd",
+      "name": "币种设置"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "symbols",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1744,
+        1040
+      ],
+      "id": "7213010f-913f-4f92-b13c-4629c183f360",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1952,
+        1040
+      ],
+      "id": "cc707ba3-2e0a-45d6-aab3-7b138ce334e1",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.okx.com/api/v5/market/candles?instId={{ $json.symbol }}&bar=5m&limit=300",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2224,
+        1056
+      ],
+      "id": "954a145a-6e09-4388-ae84-1675fb6d43b9",
+      "name": "获取K线"
+    },
+    {
+      "parameters": {
+        "url": "https://www.okx.com/api/v5/market/history-candles?instId=BTC-USDT&bar=1H&limit=100",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        944,
+        -1568
+      ],
+      "id": "f6944e42-49de-46fa-ba52-9f822fc4c4f8",
+      "name": "BTC 1H 100"
+    },
+    {
+      "parameters": {
+        "url": "https://www.okx.com/api/v5/market/candles?instId=BTC-USDT-SWAP&bar=5m&limit=300",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        944,
+        -1392
+      ],
+      "id": "8774fb96-e7dc-4420-983e-8f95bd46e948",
+      "name": "BTC 5min"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ----------------------------\n// 确认输入数据\n// ----------------------------\nif (!items || !items[0] || !items[0].json || !items[0].json.data) {\n    throw new Error(\"输入数据不存在或格式不正确！\");\n}\n\nconst rawData = items[0].json.data;\n\nif (!Array.isArray(rawData) || rawData.length === 0) {\n    throw new Error(\"rawData 为空或不是数组！\");\n}\n\n// ----------------------------\n// 提取收盘价\n// ----------------------------\nconst closes = rawData.map(candle => parseFloat(candle[4]));\nconst period = 6; // RSI 周期改成 6\n\nif (closes.length <= period) {\n    throw new Error(\"数据长度不足以计算 RSI\");\n}\n\n// ----------------------------\n// 计算 RSI\n// ----------------------------\nlet gains = [], losses = [];\n\nfor (let i = 1; i <= period; i++) {\n    const diff = closes[i] - closes[i-1];\n    gains.push(diff > 0 ? diff : 0);\n    losses.push(diff < 0 ? -diff : 0);\n}\n\nlet avgGain = gains.reduce((a,b)=>a+b,0)/period;\nlet avgLoss = losses.reduce((a,b)=>a+b,0);\n\nlet rsiArray = [];\nrsiArray[period] = 100 - (100 / (1 + avgGain/avgLoss));\n\nfor (let i = period+1; i < closes.length; i++) {\n    const diff = closes[i] - closes[i-1];\n    const gain = diff > 0 ? diff : 0;\n    const loss = diff < 0 ? -diff : 0;\n    avgGain = (avgGain*(period-1) + gain)/period;\n    avgLoss = (avgLoss*(period-1) + loss)/period;\n    rsiArray[i] = 100 - (100 / (1 + avgGain/avgLoss));\n}\n\n// ----------------------------\n// 输出最近一条 RSI\n// ----------------------------\nconst lastRSI = rsiArray[rsiArray.length - 1];\n\nreturn [{ json: { rsi_1h_6: parseFloat(lastRSI.toFixed(2)) } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        -1568
+      ],
+      "id": "957d3434-f44a-407b-9137-6c92d6b7be92",
+      "name": "1h rsi"
+    },
+    {
+      "parameters": {
+        "jsCode": "let rawData = items[0].json.data;\n\nif (!rawData || rawData.length === 0) {\n    throw new Error(\"K线数据为空！\");\n}\n\nrawData.sort((a,b) => parseInt(a[0]) - parseInt(b[0]));\n\nconst af = 0.02;\nconst maxAf = 0.2;\nconst PERIOD_MS = 5 * 60 * 1000; // 5分钟K线周期\nconst MAX_SIGNAL = 100;\nconst RSI_PERIOD = 14;\nconst BOLL_PERIOD = 20;  // 布林带周期\nconst BOLL_K = 2;\n\n// 币种名称\nconst SYMBOL = 'LINK';\n\nfunction formatTime(ms) {\n    const date = new Date(parseInt(ms) + PERIOD_MS);\n    return date.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });\n}\n\n// 计算 RSI\nfunction calculateRSI(closes, period=RSI_PERIOD) {\n    let rsiArray = [];\n    let gains = [], losses = [];\n\n    for (let i = 1; i <= period; i++) {\n        const diff = closes[i] - closes[i-1];\n        gains.push(diff > 0 ? diff : 0);\n        losses.push(diff < 0 ? -diff : 0);\n    }\n\n    let avgGain = gains.reduce((a,b)=>a+b,0)/period;\n    let avgLoss = losses.reduce((a,b)=>a+b,0);\n\n    rsiArray[period] = 100 - (100 / (1 + avgGain/avgLoss));\n\n    for (let i = period+1; i < closes.length; i++) {\n        const diff = closes[i] - closes[i-1];\n        const gain = diff > 0 ? diff : 0;\n        const loss = diff < 0 ? -diff : 0;\n        avgGain = (avgGain*(period-1) + gain)/period;\n        avgLoss = (avgLoss*(period-1) + loss)/period;\n        rsiArray[i] = 100 - (100 / (1 + avgGain/avgLoss));\n    }\n\n    for (let i = 0; i < period; i++) rsiArray[i] = null;\n\n    return rsiArray;\n}\n\n// 计算布林带\nfunction calculateBollingerBands(closes, period=BOLL_PERIOD, k=BOLL_K) {\n    let bands = [];\n    for (let i = 0; i < closes.length; i++) {\n        if (i < period - 1) {\n            bands.push({ MB: null, UB: null, LB: null });\n            continue;\n        }\n\n        const window = closes.slice(i - period + 1, i + 1);\n        const sum = window.reduce((a,b) => a+b, 0);\n        const MB = sum / period;\n        const variance = window.reduce((a,b) => a + Math.pow(b-MB,2), 0) / period;\n        const stdDev = Math.sqrt(variance);\n\n        bands.push({\n            MB: MB,\n            UB: MB + k*stdDev,\n            LB: MB - k*stdDev\n        });\n    }\n    return bands;\n}\n\n// 计算 SAR + RSI + Boll MB-SAR\nfunction calculateSARRSIBollMB(data) {\n    let result = [];\n\n    let uptrend = true;\n    let sar = parseFloat(data[0][3]);\n    let afCurr = af;\n    let ep = parseFloat(data[0][2]);\n    let currentTrend = null;\n    let trendCount = 0;\n\n    const closes = data.map(d => parseFloat(d[4]));\n    const rsiValues = calculateRSI(closes, RSI_PERIOD);\n    const bb = calculateBollingerBands(closes, BOLL_PERIOD, BOLL_K);\n\n    for (let i = 1; i < data.length; i++) {\n        const open = parseFloat(data[i][1]);\n        const high = parseFloat(data[i][2]);\n        const low = parseFloat(data[i][3]);\n        const close = parseFloat(data[i][4]);\n\n        let newTrend = currentTrend;\n\n        if (uptrend) {\n            sar = sar + afCurr * (ep - sar);\n            if (low < sar) {\n                uptrend = false;\n                sar = ep;\n                ep = low;\n                afCurr = af;\n                newTrend = '空头';\n                trendCount = 0;\n            } else {\n                if (high > ep) ep = high;\n                afCurr = Math.min(afCurr + af, maxAf);\n                if (currentTrend !== '多头') trendCount = 0;\n                newTrend = '多头';\n            }\n        } else {\n            sar = sar + afCurr * (ep - sar);\n            if (high > sar) {\n                uptrend = true;\n                sar = ep;\n                ep = high;\n                afCurr = af;\n                newTrend = '多头';\n                trendCount = 0;\n            } else {\n                if (low < ep) ep = low;\n                afCurr = Math.min(afCurr + af, maxAf);\n                if (currentTrend !== '空头') trendCount = 0;\n                newTrend = '空头';\n            }\n        }\n\n        if (currentTrend === newTrend) trendCount = (trendCount + 1) % (MAX_SIGNAL + 1);\n        currentTrend = newTrend;\n\n        // SAR 差值\n        let sarDiff = null;\n        if (currentTrend === '多头') sarDiff = low - sar;\n        else if (currentTrend === '空头') sarDiff = sar - high;\n\n        // 涨跌幅\n        const change = ((close - open)/open*100).toFixed(2) + '%';\n\n        // Boll MB - SAR\n        let bollSarDiff = null;\n        const bbItem = bb[i] || { MB: null };\n        if (bbItem.MB !== null) {\n            bollSarDiff = bbItem.MB - sar;\n        }\n\n        result.push({\n            symbol: SYMBOL,\n            index: i,\n            time: formatTime(data[i][0]),\n            timestamp: data[i][0],\n            open: open,\n            high: high,\n            low: low,\n            close: close,\n            volume: data[i][5],\n            sar: sar,\n            signal: `${currentTrend}${trendCount.toString().padStart(2,'0')}`,\n            rsi_5min: rsiValues[i] !== null ? parseFloat(rsiValues[i].toFixed(2)) : null,\n            sar差值: sarDiff !== null ? parseFloat(sarDiff.toFixed(4)) : null,\n            change: change,\n            boll_sar_diff: bollSarDiff !== null ? parseFloat(bollSarDiff.toFixed(4)) : null\n        });\n    }\n\n    return result;\n}\n\nreturn calculateSARRSIBollMB(rawData).map(x => ({ json: x }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        -1200
+      ],
+      "id": "e519b6be-7317-4884-923e-8ce09e70626c",
+      "name": "计算1h1"
+    },
+    {
+      "parameters": {
+        "jsCode": "let rawData = items[0].json.data;\n\nif (!rawData || rawData.length === 0) {\n    throw new Error(\"K线数据为空！\");\n}\n\nrawData.sort((a,b) => parseInt(a[0]) - parseInt(b[0]));\n\nconst af = 0.02;\nconst maxAf = 0.2;\nconst PERIOD_MS = 5 * 60 * 1000; // 5分钟K线周期\nconst MAX_SIGNAL = 100;\nconst RSI_PERIOD = 14;\nconst BOLL_PERIOD = 20;  // 布林带周期\nconst BOLL_K = 2;\n\n// 币种名称\nconst SYMBOL = 'BTC';\n\nfunction formatTime(ms) {\n    const date = new Date(parseInt(ms) + PERIOD_MS);\n    return date.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });\n}\n\n// 计算 RSI\nfunction calculateRSI(closes, period=RSI_PERIOD) {\n    let rsiArray = [];\n    let gains = [], losses = [];\n\n    for (let i = 1; i <= period; i++) {\n        const diff = closes[i] - closes[i-1];\n        gains.push(diff > 0 ? diff : 0);\n        losses.push(diff < 0 ? -diff : 0);\n    }\n\n    let avgGain = gains.reduce((a,b)=>a+b,0)/period;\n    let avgLoss = losses.reduce((a,b)=>a+b,0);\n\n    rsiArray[period] = 100 - (100 / (1 + avgGain/avgLoss));\n\n    for (let i = period+1; i < closes.length; i++) {\n        const diff = closes[i] - closes[i-1];\n        const gain = diff > 0 ? diff : 0;\n        const loss = diff < 0 ? -diff : 0;\n        avgGain = (avgGain*(period-1) + gain)/period;\n        avgLoss = (avgLoss*(period-1) + loss)/period;\n        rsiArray[i] = 100 - (100 / (1 + avgGain/avgLoss));\n    }\n\n    for (let i = 0; i < period; i++) rsiArray[i] = null;\n\n    return rsiArray;\n}\n\n// 计算布林带\nfunction calculateBollingerBands(closes, period=BOLL_PERIOD, k=BOLL_K) {\n    let bands = [];\n    for (let i = 0; i < closes.length; i++) {\n        if (i < period - 1) {\n            bands.push({ MB: null, UB: null, LB: null });\n            continue;\n        }\n\n        const window = closes.slice(i - period + 1, i + 1);\n        const sum = window.reduce((a,b) => a+b, 0);\n        const MB = sum / period;\n        const variance = window.reduce((a,b) => a + Math.pow(b-MB,2), 0) / period;\n        const stdDev = Math.sqrt(variance);\n\n        bands.push({\n            MB: MB,\n            UB: MB + k*stdDev,\n            LB: MB - k*stdDev\n        });\n    }\n    return bands;\n}\n\n// 计算 SAR + RSI + Boll MB-SAR\nfunction calculateSARRSIBollMB(data) {\n    let result = [];\n\n    let uptrend = true;\n    let sar = parseFloat(data[0][3]);\n    let afCurr = af;\n    let ep = parseFloat(data[0][2]);\n    let currentTrend = null;\n    let trendCount = 0;\n\n    const closes = data.map(d => parseFloat(d[4]));\n    const rsiValues = calculateRSI(closes, RSI_PERIOD);\n    const bb = calculateBollingerBands(closes, BOLL_PERIOD, BOLL_K);\n\n    for (let i = 1; i < data.length; i++) {\n        const open = parseFloat(data[i][1]);\n        const high = parseFloat(data[i][2]);\n        const low = parseFloat(data[i][3]);\n        const close = parseFloat(data[i][4]);\n\n        let newTrend = currentTrend;\n\n        if (uptrend) {\n            sar = sar + afCurr * (ep - sar);\n            if (low < sar) {\n                uptrend = false;\n                sar = ep;\n                ep = low;\n                afCurr = af;\n                newTrend = '空头';\n                trendCount = 0;\n            } else {\n                if (high > ep) ep = high;\n                afCurr = Math.min(afCurr + af, maxAf);\n                if (currentTrend !== '多头') trendCount = 0;\n                newTrend = '多头';\n            }\n        } else {\n            sar = sar + afCurr * (ep - sar);\n            if (high > sar) {\n                uptrend = true;\n                sar = ep;\n                ep = high;\n                afCurr = af;\n                newTrend = '多头';\n                trendCount = 0;\n            } else {\n                if (low < ep) ep = low;\n                afCurr = Math.min(afCurr + af, maxAf);\n                if (currentTrend !== '空头') trendCount = 0;\n                newTrend = '空头';\n            }\n        }\n\n        if (currentTrend === newTrend) trendCount = (trendCount + 1) % (MAX_SIGNAL + 1);\n        currentTrend = newTrend;\n\n        // SAR 差值\n        let sarDiff = null;\n        if (currentTrend === '多头') sarDiff = low - sar;\n        else if (currentTrend === '空头') sarDiff = sar - high;\n\n        // 涨跌幅\n        const change = ((close - open)/open*100).toFixed(2) + '%';\n\n        // Boll MB - SAR\n        let bollSarDiff = null;\n        const bbItem = bb[i] || { MB: null };\n        if (bbItem.MB !== null) {\n            bollSarDiff = bbItem.MB - sar;\n        }\n\n        result.push({\n            symbol: SYMBOL,\n            index: i,\n            time: formatTime(data[i][0]),\n            timestamp: data[i][0],\n            open: open,\n            high: high,\n            low: low,\n            close: close,\n            volume: data[i][5],\n            sar: sar,\n            signal: `${currentTrend}${trendCount.toString().padStart(2,'0')}`,\n            rsi_5min: rsiValues[i] !== null ? parseFloat(rsiValues[i].toFixed(2)) : null,\n            sar差值: sarDiff !== null ? parseFloat(sarDiff.toFixed(4)) : null,\n            change: change,\n            boll_sar_diff: bollSarDiff !== null ? parseFloat(bollSarDiff.toFixed(4)) : null\n        });\n    }\n\n    return result;\n}\n\nreturn calculateSARRSIBollMB(rawData).map(x => ({ json: x }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        -1392
+      ],
+      "id": "a88416b8-c322-4806-b55e-0c68f591a7c6",
+      "name": "计算1h2"
+    },
+    {
+      "parameters": {
+        "url": "https://www.okx.com/api/v5/market/candles?instId=LINK-USDT-SWAP&bar=5m&limit=1000",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        944,
+        -1216
+      ],
+      "id": "e55e902a-f4b3-4403-ac0c-f07024e2d6bc",
+      "name": "LINK 5min 300"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 假设 items 是前一个节点传入的数据\nlet rawData = items.map(item => item.json);\n\nconst V1 = 280000;\nconst V2 = 200000;\n\nlet filtered = rawData.filter(d => {\n    const volume = parseFloat(d.volume);\n    const changeNum = parseFloat(d.change.replace('%',''));\n\n    // 状态字段\n    let status = [];\n\n    // 判断成交量状态\n    if (volume > V1) {\n        status.push(`大于V1`);\n    } else if (volume > V2) {\n        status.push(`大于V2`);\n    }\n\n    // 判断涨跌幅状态\n    if (changeNum >= 1) {\n        status.push(`涨幅>=1%`);\n    } else if (changeNum <= -1) {\n        status.push(`跌幅<=-1%`);\n    }\n\n    // 添加状态到数据\n    d.status = status.join('; ');\n\n    // 过滤条件：只保留成交量大于V2 或 涨跌幅 >=1% 或 <=-1%\n    return volume > V2 || changeNum >= 1 || changeNum <= -1;\n});\n\n// 返回给下一个节点\nreturn filtered.map(d => ({ json: d }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        -1200
+      ],
+      "id": "0891455b-1a8f-4b1b-94d2-8987f5b47610",
+      "name": "查询LINK"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 假设 items 是前一个节点传入的数据\nlet rawData = items.map(item => item.json);\n\nconst V1 = 200000;\nconst V2 = 100000;\n\nlet filtered = rawData.filter(d => {\n    const volume = parseFloat(d.volume);\n    const changeNum = parseFloat(d.change.replace('%',''));\n\n    // 状态字段\n    let status = [];\n\n    // 判断成交量状态\n    if (volume > V1) {\n        status.push(`大于V1`);\n    } else if (volume > V2) {\n        status.push(`大于V2`);\n    }\n\n    // 判断涨跌幅状态\n    if (changeNum >= 1) {\n        status.push(`涨幅>=1%`);\n    } else if (changeNum <= -1) {\n        status.push(`跌幅<=-1%`);\n    }\n\n    // 添加状态到数据\n    d.status = status.join('; ');\n\n    // 过滤条件：只保留成交量大于V2 或 涨跌幅 >=1% 或 <=-1%\n    return volume > V2 || changeNum >= 1 || changeNum <= -1;\n});\n\n// 返回给下一个节点\nreturn filtered.map(d => ({ json: d }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        -1392
+      ],
+      "id": "78f93435-f23e-4f3d-8aef-80617b0a7273",
+      "name": "查询BTC"
+    },
+    {
+      "parameters": {
+        "url": "https://www.okx.com/api/v5/market/candles?instId=SOL-USDT-SWAP&bar=5m&limit=300",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        928,
+        -1040
+      ],
+      "id": "bbb9abd2-0a68-4c00-ac03-9ba5c2a3931f",
+      "name": "SOL 5MIN300"
+    },
+    {
+      "parameters": {
+        "jsCode": "let rawData = items[0].json.data;\n\nif (!rawData || rawData.length === 0) {\n    throw new Error(\"K线数据为空！\");\n}\n\nrawData.sort((a,b) => parseInt(a[0]) - parseInt(b[0]));\n\nconst af = 0.02;\nconst maxAf = 0.2;\nconst PERIOD_MS = 5 * 60 * 1000; // 5分钟K线周期\nconst MAX_SIGNAL = 100;\nconst RSI_PERIOD = 14;\nconst BOLL_PERIOD = 20;  // 布林带周期\nconst BOLL_K = 2;\n\n// 币种名称\nconst SYMBOL = 'SOL';\n\nfunction formatTime(ms) {\n    const date = new Date(parseInt(ms) + PERIOD_MS);\n    return date.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });\n}\n\n// 计算 RSI\nfunction calculateRSI(closes, period=RSI_PERIOD) {\n    let rsiArray = [];\n    let gains = [], losses = [];\n\n    for (let i = 1; i <= period; i++) {\n        const diff = closes[i] - closes[i-1];\n        gains.push(diff > 0 ? diff : 0);\n        losses.push(diff < 0 ? -diff : 0);\n    }\n\n    let avgGain = gains.reduce((a,b)=>a+b,0)/period;\n    let avgLoss = losses.reduce((a,b)=>a+b,0);\n\n    rsiArray[period] = 100 - (100 / (1 + avgGain/avgLoss));\n\n    for (let i = period+1; i < closes.length; i++) {\n        const diff = closes[i] - closes[i-1];\n        const gain = diff > 0 ? diff : 0;\n        const loss = diff < 0 ? -diff : 0;\n        avgGain = (avgGain*(period-1) + gain)/period;\n        avgLoss = (avgLoss*(period-1) + loss)/period;\n        rsiArray[i] = 100 - (100 / (1 + avgGain/avgLoss));\n    }\n\n    for (let i = 0; i < period; i++) rsiArray[i] = null;\n\n    return rsiArray;\n}\n\n// 计算布林带\nfunction calculateBollingerBands(closes, period=BOLL_PERIOD, k=BOLL_K) {\n    let bands = [];\n    for (let i = 0; i < closes.length; i++) {\n        if (i < period - 1) {\n            bands.push({ MB: null, UB: null, LB: null });\n            continue;\n        }\n\n        const window = closes.slice(i - period + 1, i + 1);\n        const sum = window.reduce((a,b) => a+b, 0);\n        const MB = sum / period;\n        const variance = window.reduce((a,b) => a + Math.pow(b-MB,2), 0) / period;\n        const stdDev = Math.sqrt(variance);\n\n        bands.push({\n            MB: MB,\n            UB: MB + k*stdDev,\n            LB: MB - k*stdDev\n        });\n    }\n    return bands;\n}\n\n// 计算 SAR + RSI + Boll MB-SAR\nfunction calculateSARRSIBollMB(data) {\n    let result = [];\n\n    let uptrend = true;\n    let sar = parseFloat(data[0][3]);\n    let afCurr = af;\n    let ep = parseFloat(data[0][2]);\n    let currentTrend = null;\n    let trendCount = 0;\n\n    const closes = data.map(d => parseFloat(d[4]));\n    const rsiValues = calculateRSI(closes, RSI_PERIOD);\n    const bb = calculateBollingerBands(closes, BOLL_PERIOD, BOLL_K);\n\n    for (let i = 1; i < data.length; i++) {\n        const open = parseFloat(data[i][1]);\n        const high = parseFloat(data[i][2]);\n        const low = parseFloat(data[i][3]);\n        const close = parseFloat(data[i][4]);\n\n        let newTrend = currentTrend;\n\n        if (uptrend) {\n            sar = sar + afCurr * (ep - sar);\n            if (low < sar) {\n                uptrend = false;\n                sar = ep;\n                ep = low;\n                afCurr = af;\n                newTrend = '空头';\n                trendCount = 0;\n            } else {\n                if (high > ep) ep = high;\n                afCurr = Math.min(afCurr + af, maxAf);\n                if (currentTrend !== '多头') trendCount = 0;\n                newTrend = '多头';\n            }\n        } else {\n            sar = sar + afCurr * (ep - sar);\n            if (high > sar) {\n                uptrend = true;\n                sar = ep;\n                ep = high;\n                afCurr = af;\n                newTrend = '多头';\n                trendCount = 0;\n            } else {\n                if (low < ep) ep = low;\n                afCurr = Math.min(afCurr + af, maxAf);\n                if (currentTrend !== '空头') trendCount = 0;\n                newTrend = '空头';\n            }\n        }\n\n        if (currentTrend === newTrend) trendCount = (trendCount + 1) % (MAX_SIGNAL + 1);\n        currentTrend = newTrend;\n\n        // SAR 差值\n        let sarDiff = null;\n        if (currentTrend === '多头') sarDiff = low - sar;\n        else if (currentTrend === '空头') sarDiff = sar - high;\n\n        // 涨跌幅\n        const change = ((close - open)/open*100).toFixed(2) + '%';\n\n        // Boll MB - SAR\n        let bollSarDiff = null;\n        const bbItem = bb[i] || { MB: null };\n        if (bbItem.MB !== null) {\n            bollSarDiff = bbItem.MB - sar;\n        }\n\n        result.push({\n            symbol: SYMBOL,\n            index: i,\n            time: formatTime(data[i][0]),\n            timestamp: data[i][0],\n            open: open,\n            high: high,\n            low: low,\n            close: close,\n            volume: data[i][5],\n            sar: sar,\n            signal: `${currentTrend}${trendCount.toString().padStart(2,'0')}`,\n            rsi_5min: rsiValues[i] !== null ? parseFloat(rsiValues[i].toFixed(2)) : null,\n            sar差值: sarDiff !== null ? parseFloat(sarDiff.toFixed(4)) : null,\n            change: change,\n            boll_sar_diff: bollSarDiff !== null ? parseFloat(bollSarDiff.toFixed(4)) : null\n        });\n    }\n\n    return result;\n}\n\nreturn calculateSARRSIBollMB(rawData).map(x => ({ json: x }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        -1040
+      ],
+      "id": "92d54264-7dab-4d66-a88e-d6819b12ab86",
+      "name": "计算1h"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 假设 items 是前一个节点传入的数据\nlet rawData = items.map(item => item.json);\n\nconst V1 = 351620;\nconst V2 = 246380;\n\nlet filtered = rawData.filter(d => {\n    const volume = parseFloat(d.volume);\n    const changeNum = parseFloat(d.change.replace('%',''));\n\n    // 状态字段\n    let status = [];\n\n    // 判断成交量状态\n    if (volume > V1) {\n        status.push(`大于V1`);\n    } else if (volume > V2) {\n        status.push(`大于V2`);\n    }\n\n    // 判断涨跌幅状态\n    if (changeNum >= 1) {\n        status.push(`涨幅>=1%`);\n    } else if (changeNum <= -1) {\n        status.push(`跌幅<=-1%`);\n    }\n\n    // 添加状态到数据\n    d.status = status.join('; ');\n\n    // 过滤条件：只保留成交量大于V2 或 涨跌幅 >=1% 或 <=-1%\n    return volume > V2 || changeNum >= 1 || changeNum <= -1;\n});\n\n// 返回给下一个节点\nreturn filtered.map(d => ({ json: d }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        -1040
+      ],
+      "id": "f2b3782d-fa82-4f7f-b6ca-eaa67a7ad315",
+      "name": "查询SOL"
+    },
+    {
+      "parameters": {
+        "url": "https://www.okx.com/api/v5/market/candles?instId=TRX-USDT-SWAP&bar=5m&limit=300",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        928,
+        -880
+      ],
+      "id": "aa87f73f-725b-4851-9316-1e78a294c698",
+      "name": "TRX 5MIN300"
+    },
+    {
+      "parameters": {
+        "jsCode": "let rawData = items[0].json.data;\n\nif (!rawData || rawData.length === 0) {\n    throw new Error(\"K线数据为空！\");\n}\n\nrawData.sort((a,b) => parseInt(a[0]) - parseInt(b[0]));\n\nconst af = 0.02;\nconst maxAf = 0.2;\nconst PERIOD_MS = 5 * 60 * 1000; // 5分钟K线周期\nconst MAX_SIGNAL = 100;\nconst RSI_PERIOD = 14;\nconst RSI_1H_PERIOD = 6;\nconst BOLL_PERIOD = 20;\nconst BOLL_K = 2;\n\nconst SYMBOL = 'TRX';\n\nfunction formatTime(ms) {\n    const date = new Date(parseInt(ms) + PERIOD_MS);\n    return date.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });\n}\n\n// === RSI计算函数 ===\nfunction calculateRSI(closes, period=14) {\n    let rsiArray = [];\n    if (closes.length <= period) return closes.map(_ => null);\n\n    let gains = [], losses = [];\n    for (let i = 1; i <= period; i++) {\n        const diff = closes[i] - closes[i - 1];\n        gains.push(diff > 0 ? diff : 0);\n        losses.push(diff < 0 ? -diff : 0);\n    }\n\n    let avgGain = gains.reduce((a, b) => a + b, 0) / period;\n    let avgLoss = losses.reduce((a, b) => a + b, 0) / period;\n    rsiArray[period] = 100 - (100 / (1 + avgGain / avgLoss));\n\n    for (let i = period + 1; i < closes.length; i++) {\n        const diff = closes[i] - closes[i - 1];\n        const gain = diff > 0 ? diff : 0;\n        const loss = diff < 0 ? -diff : 0;\n        avgGain = (avgGain * (period - 1) + gain) / period;\n        avgLoss = (avgLoss * (period - 1) + loss) / period;\n        rsiArray[i] = 100 - (100 / (1 + avgGain / avgLoss));\n    }\n\n    for (let i = 0; i < period; i++) rsiArray[i] = null;\n    return rsiArray;\n}\n\n// === 布林带 ===\nfunction calculateBollingerBands(closes, period = BOLL_PERIOD, k = BOLL_K) {\n    let bands = [];\n    for (let i = 0; i < closes.length; i++) {\n        if (i < period - 1) {\n            bands.push({ MB: null, UB: null, LB: null });\n            continue;\n        }\n        const window = closes.slice(i - period + 1, i + 1);\n        const MB = window.reduce((a, b) => a + b, 0) / period;\n        const variance = window.reduce((a, b) => a + Math.pow(b - MB, 2), 0) / period;\n        const stdDev = Math.sqrt(variance);\n        bands.push({ MB: MB, UB: MB + k * stdDev, LB: MB - k * stdDev });\n    }\n    return bands;\n}\n\n// === 聚合为1小时K线 ===\nfunction aggregateTo1h(data) {\n    const groupSize = 12;\n    let result = [];\n    for (let i = 0; i < data.length; i += groupSize) {\n        const group = data.slice(i, i + groupSize);\n        if (group.length < groupSize) continue;\n        const open = parseFloat(group[0][1]);\n        const close = parseFloat(group[group.length - 1][4]);\n        const high = Math.max(...group.map(d => parseFloat(d[2])));\n        const low = Math.min(...group.map(d => parseFloat(d[3])));\n        const time = group[0][0];\n        result.push({ open, high, low, close, time });\n    }\n    return result;\n}\n\n// === 主计算逻辑 ===\nfunction calculateSARRSIBollMB(data) {\n    let result = [];\n\n    let uptrend = true;\n    let sar = parseFloat(data[0][3]);\n    let afCurr = af;\n    let ep = parseFloat(data[0][2]);\n    let currentTrend = null;\n    let trendCount = 0;\n\n    const closes = data.map(d => parseFloat(d[4]));\n    const rsiValues5m = calculateRSI(closes, RSI_PERIOD);\n    const bb = calculateBollingerBands(closes, BOLL_PERIOD, BOLL_K);\n\n    // === 聚合为1小时并计算RSI(6) ===\n    const oneHourData = aggregateTo1h(data);\n    const rsiValues1hAll = calculateRSI(oneHourData.map(d => d.close), RSI_1H_PERIOD);\n    // 用每12个5m周期的对应RSI填回5m数据\n    let rsiValues1h = Array(data.length).fill(null);\n    for (let i = 0; i < oneHourData.length; i++) {\n        const rsiVal = rsiValues1hAll[i];\n        for (let j = i * 12; j < (i + 1) * 12 && j < data.length; j++) {\n            rsiValues1h[j] = rsiVal;\n        }\n    }\n\n    for (let i = 1; i < data.length; i++) {\n        const open = parseFloat(data[i][1]);\n        const high = parseFloat(data[i][2]);\n        const low = parseFloat(data[i][3]);\n        const close = parseFloat(data[i][4]);\n\n        let newTrend = currentTrend;\n\n        if (uptrend) {\n            sar = sar + afCurr * (ep - sar);\n            if (low < sar) {\n                uptrend = false;\n                sar = ep;\n                ep = low;\n                afCurr = af;\n                newTrend = '空头';\n                trendCount = 0;\n            } else {\n                if (high > ep) ep = high;\n                afCurr = Math.min(afCurr + af, maxAf);\n                if (currentTrend !== '多头') trendCount = 0;\n                newTrend = '多头';\n            }\n        } else {\n            sar = sar + afCurr * (ep - sar);\n            if (high > sar) {\n                uptrend = true;\n                sar = ep;\n                ep = high;\n                afCurr = af;\n                newTrend = '多头';\n                trendCount = 0;\n            } else {\n                if (low < ep) ep = low;\n                afCurr = Math.min(afCurr + af, maxAf);\n                if (currentTrend !== '空头') trendCount = 0;\n                newTrend = '空头';\n            }\n        }\n\n        if (currentTrend === newTrend) trendCount = (trendCount + 1) % (MAX_SIGNAL + 1);\n        currentTrend = newTrend;\n\n        let sarDiff = currentTrend === '多头' ? low - sar : sar - high;\n        const change = ((close - open) / open * 100).toFixed(2) + '%';\n\n        const bbItem = bb[i] || { MB: null };\n        const bollSarDiff = bbItem.MB !== null ? bbItem.MB - sar : null;\n\n        result.push({\n            symbol: SYMBOL,\n            index: i,\n            time: formatTime(data[i][0]),\n            timestamp: data[i][0],\n            open, high, low, close,\n            volume: data[i][5],\n            sar,\n            signal: `${currentTrend}${trendCount.toString().padStart(2, '0')}`,\n            rsi_5min: rsiValues5m[i] !== null ? parseFloat(rsiValues5m[i].toFixed(2)) : null,\n            rsi_1h: rsiValues1h[i] !== null ? parseFloat(rsiValues1h[i].toFixed(2)) : null,\n            sar差值: sarDiff !== null ? parseFloat(sarDiff.toFixed(4)) : null,\n            change,\n            boll_sar_diff: bollSarDiff !== null ? parseFloat(bollSarDiff.toFixed(4)) : null\n        });\n    }\n\n    return result;\n}\n\nreturn calculateSARRSIBollMB(rawData).map(x => ({ json: x }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        -880
+      ],
+      "id": "e8a93d14-802d-4147-b546-10d9d0d11ab0",
+      "name": "计算1h3"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 假设 items 是前一个节点传入的数据\nlet rawData = items.map(item => item.json);\n\nconst V1 = 13280;\nconst V2 = 6022;\n\nlet filtered = rawData.filter(d => {\n    const volume = parseFloat(d.volume);\n    const changeNum = parseFloat(d.change.replace('%',''));\n\n    // 状态字段\n    let status = [];\n\n    // 判断成交量状态\n    if (volume > V1) {\n        status.push(`大于V1`);\n    } else if (volume > V2) {\n        status.push(`大于V2`);\n    }\n\n    // 判断涨跌幅状态\n    if (changeNum >= 1) {\n        status.push(`涨幅>=1%`);\n    } else if (changeNum <= -1) {\n        status.push(`跌幅<=-1%`);\n    }\n\n    // 添加状态到数据\n    d.status = status.join('; ');\n\n    // 过滤条件：只保留成交量大于V2 或 涨跌幅 >=1% 或 <=-1%\n    return volume > V2 || changeNum >= 1 || changeNum <= -1;\n});\n\n// 返回给下一个节点\nreturn filtered.map(d => ({ json: d }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        -880
+      ],
+      "id": "a54fe132-eb80-45b4-bf0e-ee070254c2e3",
+      "name": "查询TRX"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ================================\n// ✅ 多币种 K 线数据整合 Function 节点\n// ================================\n\n// 初始化合并数组\nconst merged = [];\n\n// 遍历每个输入节点（每个币种）\nfor (let i = 0; i < items.length; i++) {\n    const item = items[i];\n    const json = item.json || {};\n    const symbol = json.symbol || item.node?.name || 'UNKNOWN';\n\n    // 自动识别 K 线数据数组\n    let rows = [];\n    if (Array.isArray(json)) {\n        rows = json;\n    } else if (Array.isArray(json.data)) {\n        rows = json.data;\n    } else if (Array.isArray(json.candles)) {\n        rows = json.candles;\n    } else if (json?.data?.data && Array.isArray(json.data.data)) {\n        rows = json.data.data;\n    } else {\n        console.warn(`⚠️ ${symbol} 节点未检测到有效数据结构`);\n        continue;\n    }\n\n    // 遍历每条 K 线\n    for (const row of rows) {\n        if (!row) continue;\n\n        let kline = {};\n\n        // row 为数组格式\n        if (Array.isArray(row)) {\n            kline = {\n                symbol,\n                timestamp: parseInt(row[0]),\n                open: parseFloat(row[1]),\n                high: parseFloat(row[2]),\n                low: parseFloat(row[3]),\n                close: parseFloat(row[4]),\n                volume: parseFloat(row[5])\n            };\n        }\n        // row 为对象格式\n        else if (typeof row === 'object') {\n            kline = {\n                symbol,\n                timestamp: parseInt(row.timestamp || row.ts || 0),\n                open: parseFloat(row.open || row.o || 0),\n                high: parseFloat(row.high || row.h || 0),\n                low: parseFloat(row.low || row.l || 0),\n                close: parseFloat(row.close || row.c || 0),\n                volume: parseFloat(row.volume || row.v || 0)\n            };\n        }\n\n        // 计算涨跌幅（百分比）\n        if (kline.open > 0) {\n            kline.change = ((kline.close - kline.open) / kline.open * 100).toFixed(2);\n        } else {\n            kline.change = 0;\n        }\n\n        merged.push({ data: kline, sourceIndex: i });\n    }\n}\n\n// ================================\n// 🔁 排序 + 去重\n// ================================\nmerged.sort((a, b) => a.data.timestamp - b.data.timestamp);\nconst seen = new Set();\nconst deduped = merged.filter(m => {\n    const key = `${m.data.symbol}_${m.data.timestamp}`;\n    if (seen.has(key)) return false;\n    seen.add(key);\n    return true;\n});\n\n// ================================\n// 📊 筛选涨跌幅 ≥1% 或 ≤ -1%\n// ================================\nconst filtered = deduped.filter(m => Math.abs(parseFloat(m.data.change)) >= 1);\n\n// ================================\n// ✅ 输出最终干净数据，并保留 pairedItem\n// ================================\nreturn filtered.map(m => ({\n  json: {\n    symbol: m.data.symbol,\n    time: new Date(m.data.timestamp).toISOString(),\n    open: m.data.open,\n    close: m.data.close,\n    change: `${m.data.change}%`,\n    volume: m.data.volume\n  },\n  pairedItem: { item: m.sourceIndex }\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2288,
+        -1216
+      ],
+      "id": "b531860c-4247-4564-bedf-9434b7f98838",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "url": "https://www.okx.com/api/v5/market/candles?instId=BNB-USDT-SWAP&bar=5m&limit=30",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        928,
+        -720
+      ],
+      "id": "ea46d481-5b12-461d-aced-8731294c0e1b",
+      "name": "BNB 5MIN300"
+    },
+    {
+      "parameters": {
+        "jsCode": "let rawData = items[0].json.data;\n\nif (!rawData || rawData.length === 0) {\n    throw new Error(\"K线数据为空！\");\n}\n\nrawData.sort((a,b) => parseInt(a[0]) - parseInt(b[0]));\n\nconst af = 0.02;\nconst maxAf = 0.2;\nconst PERIOD_MS = 5 * 60 * 1000; // 5分钟K线周期\nconst MAX_SIGNAL = 100;\nconst RSI_PERIOD = 14;\nconst BOLL_PERIOD = 20;  // 布林带周期\nconst BOLL_K = 2;\n\n// 币种名称\nconst SYMBOL = 'BNB';\n\nfunction formatTime(ms) {\n    const date = new Date(parseInt(ms) + PERIOD_MS);\n    return date.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });\n}\n\n// 计算 RSI\nfunction calculateRSI(closes, period=RSI_PERIOD) {\n    let rsiArray = [];\n    let gains = [], losses = [];\n\n    for (let i = 1; i <= period; i++) {\n        const diff = closes[i] - closes[i-1];\n        gains.push(diff > 0 ? diff : 0);\n        losses.push(diff < 0 ? -diff : 0);\n    }\n\n    let avgGain = gains.reduce((a,b)=>a+b,0)/period;\n    let avgLoss = losses.reduce((a,b)=>a+b,0);\n\n    rsiArray[period] = 100 - (100 / (1 + avgGain/avgLoss));\n\n    for (let i = period+1; i < closes.length; i++) {\n        const diff = closes[i] - closes[i-1];\n        const gain = diff > 0 ? diff : 0;\n        const loss = diff < 0 ? -diff : 0;\n        avgGain = (avgGain*(period-1) + gain)/period;\n        avgLoss = (avgLoss*(period-1) + loss)/period;\n        rsiArray[i] = 100 - (100 / (1 + avgGain/avgLoss));\n    }\n\n    for (let i = 0; i < period; i++) rsiArray[i] = null;\n\n    return rsiArray;\n}\n\n// 计算布林带\nfunction calculateBollingerBands(closes, period=BOLL_PERIOD, k=BOLL_K) {\n    let bands = [];\n    for (let i = 0; i < closes.length; i++) {\n        if (i < period - 1) {\n            bands.push({ MB: null, UB: null, LB: null });\n            continue;\n        }\n\n        const window = closes.slice(i - period + 1, i + 1);\n        const sum = window.reduce((a,b) => a+b, 0);\n        const MB = sum / period;\n        const variance = window.reduce((a,b) => a + Math.pow(b-MB,2), 0) / period;\n        const stdDev = Math.sqrt(variance);\n\n        bands.push({\n            MB: MB,\n            UB: MB + k*stdDev,\n            LB: MB - k*stdDev\n        });\n    }\n    return bands;\n}\n\n// 计算 SAR + RSI + Boll MB-SAR\nfunction calculateSARRSIBollMB(data) {\n    let result = [];\n\n    let uptrend = true;\n    let sar = parseFloat(data[0][3]);\n    let afCurr = af;\n    let ep = parseFloat(data[0][2]);\n    let currentTrend = null;\n    let trendCount = 0;\n\n    const closes = data.map(d => parseFloat(d[4]));\n    const rsiValues = calculateRSI(closes, RSI_PERIOD);\n    const bb = calculateBollingerBands(closes, BOLL_PERIOD, BOLL_K);\n\n    for (let i = 1; i < data.length; i++) {\n        const open = parseFloat(data[i][1]);\n        const high = parseFloat(data[i][2]);\n        const low = parseFloat(data[i][3]);\n        const close = parseFloat(data[i][4]);\n\n        let newTrend = currentTrend;\n\n        if (uptrend) {\n            sar = sar + afCurr * (ep - sar);\n            if (low < sar) {\n                uptrend = false;\n                sar = ep;\n                ep = low;\n                afCurr = af;\n                newTrend = '空头';\n                trendCount = 0;\n            } else {\n                if (high > ep) ep = high;\n                afCurr = Math.min(afCurr + af, maxAf);\n                if (currentTrend !== '多头') trendCount = 0;\n                newTrend = '多头';\n            }\n        } else {\n            sar = sar + afCurr * (ep - sar);\n            if (high > sar) {\n                uptrend = true;\n                sar = ep;\n                ep = high;\n                afCurr = af;\n                newTrend = '多头';\n                trendCount = 0;\n            } else {\n                if (low < ep) ep = low;\n                afCurr = Math.min(afCurr + af, maxAf);\n                if (currentTrend !== '空头') trendCount = 0;\n                newTrend = '空头';\n            }\n        }\n\n        if (currentTrend === newTrend) trendCount = (trendCount + 1) % (MAX_SIGNAL + 1);\n        currentTrend = newTrend;\n\n        // SAR 差值\n        let sarDiff = null;\n        if (currentTrend === '多头') sarDiff = low - sar;\n        else if (currentTrend === '空头') sarDiff = sar - high;\n\n        // 涨跌幅\n        const change = ((close - open)/open*100).toFixed(2) + '%';\n\n        // Boll MB - SAR\n        let bollSarDiff = null;\n        const bbItem = bb[i] || { MB: null };\n        if (bbItem.MB !== null) {\n            bollSarDiff = bbItem.MB - sar;\n        }\n\n        result.push({\n            symbol: SYMBOL,\n            index: i,\n            time: formatTime(data[i][0]),\n            timestamp: data[i][0],\n            open: open,\n            high: high,\n            low: low,\n            close: close,\n            volume: data[i][5],\n            sar: sar,\n            signal: `${currentTrend}${trendCount.toString().padStart(2,'0')}`,\n            rsi_5min: rsiValues[i] !== null ? parseFloat(rsiValues[i].toFixed(2)) : null,\n            sar差值: sarDiff !== null ? parseFloat(sarDiff.toFixed(4)) : null,\n            change: change,\n            boll_sar_diff: bollSarDiff !== null ? parseFloat(bollSarDiff.toFixed(4)) : null\n        });\n    }\n\n    return result;\n}\n\nreturn calculateSARRSIBollMB(rawData).map(x => ({ json: x }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        -720
+      ],
+      "id": "83086a7a-5409-4479-adf3-b375e64f6119",
+      "name": "计算1h4"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 假设 items 是前一个节点传入的数据\nlet rawData = items.map(item => item.json);\n\nconst V1 = 2388300;\nconst V2 = 1737500;\n\nlet filtered = rawData.filter(d => {\n    const volume = parseFloat(d.volume);\n    const changeNum = parseFloat(d.change.replace('%',''));\n\n    // 状态字段\n    let status = [];\n\n    // 判断成交量状态\n    if (volume > V1) {\n        status.push(`大于V1`);\n    } else if (volume > V2) {\n        status.push(`大于V2`);\n    }\n\n    // 判断涨跌幅状态\n    if (changeNum >= 1) {\n        status.push(`涨幅>=1%`);\n    } else if (changeNum <= -1) {\n        status.push(`跌幅<=-1%`);\n    }\n\n    // 添加状态到数据\n    d.status = status.join('; ');\n\n    // 过滤条件：只保留成交量大于V2 或 涨跌幅 >=1% 或 <=-1%\n    return volume > V2 || changeNum >= 1 || changeNum <= -1;\n});\n\n// 返回给下一个节点\nreturn filtered.map(d => ({ json: d }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        -720
+      ],
+      "id": "c5998a40-bf05-4560-8713-93002bfb9be1",
+      "name": "查询BNB"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 假设 items 是前一个节点传入的数据\nlet rawData = items.map(item => item.json);\n\nconst V1 = 200000;\nconst V2 = 100000;\n\nlet filtered = rawData.filter(d => {\n    const volume = parseFloat(d.volume);\n    const changeNum = parseFloat(d.change.replace('%',''));\n\n    // 状态字段\n    let status = [];\n\n    // 判断成交量状态\n    if (volume > V1) {\n        status.push(`大于V1`);\n    } else if (volume > V2) {\n        status.push(`大于V2`);\n    }\n\n    // 判断涨跌幅状态\n    if (changeNum >= 1) {\n        status.push(`涨幅>=1%`);\n    } else if (changeNum <= -1) {\n        status.push(`跌幅<=-1%`);\n    }\n\n    // 添加状态到数据\n    d.status = status.join('; ');\n\n    // 过滤条件：只保留成交量大于V2 或 涨跌幅 >=1% 或 <=-1%\n    return volume > V2 || changeNum >= 1 || changeNum <= -1;\n});\n\n// 返回给下一个节点\nreturn filtered.map(d => ({ json: d }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        -736
+      ],
+      "id": "66995edb-b519-4873-8262-01d7c50db366",
+      "name": "收集查询数据"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 假设 items 是前一个节点传入的数据\nlet rawData = items.map(item => item.json);\n\nconst V1 = $('Loop Over Items').first().json.V1;\nconst V2 = $('Loop Over Items').first().json.V2;\n\nlet filtered = rawData.filter(d => {\n  const volume = parseFloat(d.volume);\n\n  // 兼容：change 可能是 \"1.23%\" 或 -0.01（数字）\n  let changeNum;\n  if (typeof d.change === 'string') {\n    // 去掉可能存在的百分号并转为数值\n    changeNum = parseFloat(d.change.replace('%', ''));\n  } else {\n    changeNum = Number(d.change); // 已是数值\n  }\n\n  // 状态字段\n  let status = [];\n\n  // 成交量状态\n  if (volume > V1) {\n    status.push(`大于V1`);\n  } else if (volume > V2) {\n    status.push(`大于V2`);\n  }\n\n  // 涨跌幅状态（按百分比数值判断）\n  if (changeNum >= 1) {\n    status.push(`涨幅>=1%`);\n  } else if (changeNum <= -1) {\n    status.push(`跌幅<=-1%`);\n  }\n\n  // 写回状态\n  d.status = status.join('; ');\n\n  // 过滤条件：成交量大于 V2 或 涨跌幅绝对值 >= 1%\n  return volume > V2 || changeNum >= 1 || changeNum <= -1;\n});\n\n// 返回给下一个节点\nreturn filtered.map(d => ({ json: d }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2592,
+        1056
+      ],
+      "id": "2415be6e-b9cc-4e1a-a536-f1b6839fdd79",
+      "name": "查询"
+    },
+    {
+      "parameters": {
+        "jsCode": "let rawData = items[0].json.data;\n\nif (!rawData || rawData.length === 0) {\n    throw new Error(\"K线数据为空！\");\n}\n\nrawData.sort((a,b) => parseInt(a[0]) - parseInt(b[0]));\n\nconst af = 0.02;\nconst maxAf = 0.2;\nconst PERIOD_MS = 5 * 60 * 1000; // 5分钟K线周期\nconst MAX_SIGNAL = 100;\nconst RSI_PERIOD = 14;\nconst RSI_1H_PERIOD = 6;\nconst BOLL_PERIOD = 20;\nconst BOLL_K = 2;\nconst HIGH_LOW_LOOKBACK = 10; // 最近10根K线窗口\n\nconst SYMBOL = $('Loop Over Items').first().json.symbol;\n\nfunction formatTime(ms) {\n    const date = new Date(parseInt(ms) + PERIOD_MS);\n    return date.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });\n}\n\n// === RSI计算函数 ===\nfunction calculateRSI(closes, period=14) {\n    let rsiArray = [];\n    if (closes.length <= period) return closes.map(_ => null);\n\n    let gains = [], losses = [];\n    for (let i = 1; i <= period; i++) {\n        const diff = closes[i] - closes[i - 1];\n        gains.push(diff > 0 ? diff : 0);\n        losses.push(diff < 0 ? -diff : 0);\n    }\n\n    let avgGain = gains.reduce((a, b) => a + b, 0) / period;\n    let avgLoss = losses.reduce((a, b) => a + b, 0) / period;\n    rsiArray[period] = 100 - (100 / (1 + avgGain / avgLoss));\n\n    for (let i = period + 1; i < closes.length; i++) {\n        const diff = closes[i] - closes[i - 1];\n        const gain = diff > 0 ? diff : 0;\n        const loss = diff < 0 ? -diff : 0;\n        avgGain = (avgGain * (period - 1) + gain) / period;\n        avgLoss = (avgLoss * (period - 1) + loss) / period;\n        rsiArray[i] = 100 - (100 / (1 + avgGain / avgLoss));\n    }\n\n    for (let i = 0; i < period; i++) rsiArray[i] = null;\n    return rsiArray;\n}\n\n// === 布林带 ===\nfunction calculateBollingerBands(closes, period = BOLL_PERIOD, k = BOLL_K) {\n    let bands = [];\n    for (let i = 0; i < closes.length; i++) {\n        if (i < period - 1) {\n            bands.push({ MB: null, UB: null, LB: null });\n            continue;\n        }\n        const window = closes.slice(i - period + 1, i + 1);\n        const MB = window.reduce((a, b) => a + b, 0) / period;\n        const variance = window.reduce((a, b) => a + Math.pow(b - MB, 2), 0) / period;\n        const stdDev = Math.sqrt(variance);\n        bands.push({ MB: MB, UB: MB + k * stdDev, LB: MB - k * stdDev });\n    }\n    return bands;\n}\n\n// === 聚合为1小时K线 ===\nfunction aggregateTo1h(data) {\n    const groupSize = 12;\n    let result = [];\n    for (let i = 0; i < data.length; i += groupSize) {\n        const group = data.slice(i, i + groupSize);\n        if (group.length < groupSize) continue;\n        const open = parseFloat(group[0][1]);\n        const close = parseFloat(group[group.length - 1][4]);\n        const high = Math.max(...group.map(d => parseFloat(d[2])));\n        const low = Math.min(...group.map(d => parseFloat(d[3])));\n        const time = group[0][0];\n        result.push({ open, high, low, close, time });\n    }\n    return result;\n}\n\n// === 主计算逻辑 ===\nfunction calculateSARRSIBollMB(data) {\n    let result = [];\n\n    let uptrend = true;\n    let sar = parseFloat(data[0][3]);\n    let afCurr = af;\n    let ep = parseFloat(data[0][2]);\n    let currentTrend = null;\n    let trendCount = 0;\n\n    const closes = data.map(d => parseFloat(d[4]));\n    const highs = data.map(d => parseFloat(d[2]));\n    const lows = data.map(d => parseFloat(d[3]));\n\n    const rsiValues5m = calculateRSI(closes, RSI_PERIOD);\n    const bb = calculateBollingerBands(closes, BOLL_PERIOD, BOLL_K);\n\n    // === 聚合为1小时并计算RSI(6) ===\n    const oneHourData = aggregateTo1h(data);\n    const rsiValues1hAll = calculateRSI(oneHourData.map(d => d.close), RSI_1H_PERIOD);\n\n    let rsiValues1h = Array(data.length).fill(null);\n    for (let i = 0; i < oneHourData.length; i++) {\n        const rsiVal = rsiValues1hAll[i];\n        for (let j = i * 12; j < (i + 1) * 12 && j < data.length; j++) {\n            rsiValues1h[j] = rsiVal;\n        }\n    }\n\n    for (let i = 1; i < data.length; i++) {\n        const open = parseFloat(data[i][1]);\n        const high = highs[i];\n        const low = lows[i];\n        const close = closes[i];\n\n        let newTrend = currentTrend;\n\n        if (uptrend) {\n            sar = sar + afCurr * (ep - sar);\n            if (low < sar) {\n                uptrend = false;\n                sar = ep;\n                ep = low;\n                afCurr = af;\n                newTrend = '空头';\n                trendCount = 0;\n            } else {\n                if (high > ep) ep = high;\n                afCurr = Math.min(afCurr + af, maxAf);\n                if (currentTrend !== '多头') trendCount = 0;\n                newTrend = '多头';\n            }\n        } else {\n            sar = sar + afCurr * (ep - sar);\n            if (high > sar) {\n                uptrend = true;\n                sar = ep;\n                ep = high;\n                afCurr = af;\n                newTrend = '多头';\n                trendCount = 0;\n            } else {\n                if (low < ep) ep = low;\n                afCurr = Math.min(afCurr + af, maxAf);\n                if (currentTrend !== '空头') trendCount = 0;\n                newTrend = '空头';\n            }\n        }\n\n        if (currentTrend === newTrend) trendCount = (trendCount + 1) % (MAX_SIGNAL + 1);\n        currentTrend = newTrend;\n\n        let sarDiff = currentTrend === '多头' ? low - sar : sar - high;\n\n// === 涨跌幅（数值） ===\nconst change = parseFloat(((close - open) / open * 100).toFixed(2));\n\n// === 波动百分比（数值） ===\nconst 波动百分比 = parseFloat(((high - low) / open * 100).toFixed(2));\n\nconst bbItem = bb[i] || { MB: null };\nconst bollSarDiff = bbItem.MB !== null ? bbItem.MB - sar : null;\n\n\n        // === 新高 / 新低 检测 ===\n        let highFlag = 0, lowFlag = 0;\n        if (i >= HIGH_LOW_LOOKBACK) {\n            const prevHighs = highs.slice(i - HIGH_LOW_LOOKBACK, i);\n            const prevLows = lows.slice(i - HIGH_LOW_LOOKBACK, i);\n            if (high > Math.max(...prevHighs)) highFlag = 1;\n            if (low < Math.min(...prevLows)) lowFlag = 1;\n        }\n\n        result.push({\n    symbol: SYMBOL,\n    idx: i,\n    time: formatTime(data[i][0]),\n    timestamp: data[i][0],\n    波动百分比,   // ✅ 已经是数值\n    open, high, low, close,\n    volume: data[i][5],\n    sar,\n    signal: `${currentTrend}${trendCount.toString().padStart(2, '0')}`,\n    rsi_5min: rsiValues5m[i] !== null ? parseFloat(rsiValues5m[i].toFixed(2)) : null,\n    rsi_1h: rsiValues1h[i] !== null ? parseFloat(rsiValues1h[i].toFixed(2)) : null,\n    sar差值: sarDiff !== null ? parseFloat(sarDiff.toFixed(4)) : null,\n    change,  // ✅ 已经是数值\n    boll_sar_diff: bollSarDiff !== null ? parseFloat(bollSarDiff.toFixed(4)) : null,\n    新高: highFlag,\n    新低: lowFlag\n});\n\n    }\n\n    return result;\n}\n\nreturn calculateSARRSIBollMB(rawData).map(x => ({ json: x }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2416,
+        1056
+      ],
+      "id": "40d982a0-ca48-49e3-a6b3-aab3fca01f7c",
+      "name": "计算1h5"
+    },
+    {
+      "parameters": {
+        "chatId": "=-1003227444260",
+        "text": "=⚡️交易提醒⚡️\n\n📌 币种: {{ $json.symbol }}\n🕒 时间: {{ $json.time }}\n📊 信号: {{ $json.signal }}\n\n💹 开盘: {{ $json.open }}\n📈 最高: {{ $json.high }}\n📉 最低: {{ $json.low }}\n🔔 收盘: {{ $json.close }}\n\n📦 成交量: {{ $json.volume }}\n📐 波动: {{ $json['波动百分比'] }}%  \n📉 涨跌幅: {{ $json.change }}%  \n📍 SAR: {{ $json.sar }} (差值:{{ $json['sar差值'] }})  \n📊 RSI(5m): {{ $json.rsi_5min }}  \n📊 RSI(1h): {{ $json.rsi_1h }}\n\n📌 状态:  {{ $json.status }}\n🚨 新高:  {{ $json['新高'] }}\n🚨 新低: {{ $json['新低'] }}\n",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3216,
+        1040
+      ],
+      "id": "edc192d9-28b5-48cf-99a1-7805addf5da9",
+      "name": "Send a text message",
+      "webhookId": "f038a268-c361-4dd6-9707-a077f7b511c8",
+      "credentials": {
+        "telegramApi": {
+          "id": "o7PPCLl6sNe4q0zB",
+          "name": "mrj2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "table": {
+          "__rl": true,
+          "value": "kline_signals",
+          "mode": "list",
+          "cachedResultName": "kline_signals"
+        },
+        "dataMode": "defineBelow",
+        "valuesToSend": {
+          "values": [
+            {
+              "column": "symbol",
+              "value": "={{ $json.symbol }}"
+            },
+            {
+              "column": "idx",
+              "value": "={{ $json.idx }}"
+            },
+            {
+              "column": "time",
+              "value": "={{ $json.time }}"
+            },
+            {
+              "column": "timestamp",
+              "value": "={{ $json.timestamp }}"
+            },
+            {
+              "column": "open",
+              "value": "={{ $json.open }}"
+            },
+            {
+              "column": "high",
+              "value": "={{ $json.high }}"
+            },
+            {
+              "column": "low",
+              "value": "={{ $json.low }}"
+            },
+            {
+              "column": "close",
+              "value": "={{ $json.close }}"
+            },
+            {
+              "column": "volume",
+              "value": "={{ $json.volume }}"
+            },
+            {
+              "column": "sar",
+              "value": "={{ $json.sar }}"
+            },
+            {
+              "column": "signal",
+              "value": "={{ $json.signal }}"
+            },
+            {
+              "column": "rsi_5min",
+              "value": "={{ $json.rsi_5min }}"
+            },
+            {
+              "column": "sar_diff",
+              "value": "={{ $json['sar差值'] }}"
+            },
+            {
+              "column": "change",
+              "value": "={{ $json.change }}"
+            },
+            {
+              "column": "boll_sar_diff",
+              "value": "={{ $json.boll_sar_diff }}"
+            },
+            {
+              "column": "change_diff",
+              "value": "={{ $json[\"波动百分比\"] }}"
+            },
+            {
+              "column": "status",
+              "value": "={{ $json.status }}"
+            },
+            {
+              "column": "newhigh",
+              "value": "={{ $json[\"新高\"] }}"
+            },
+            {
+              "column": "newlow",
+              "value": "={{ $json[\"新低\"] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        2992,
+        912
+      ],
+      "id": "c2ac9eff-1aa6-4723-ab77-c23d488b3abe",
+      "name": "Insert rows in a table",
+      "credentials": {
+        "mySql": {
+          "id": "z4772eUEOd34iH79",
+          "name": "BTC数据库"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b3437e14-3805-4b85-bbcf-948c990e09f3",
+              "leftValue": "={{ $json.change }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            },
+            {
+              "id": "834b6528-8537-4a63-8125-13d09ffbf6ed",
+              "leftValue": "={{ $json.change }}",
+              "rightValue": -1,
+              "operator": {
+                "type": "number",
+                "operation": "lte"
+              }
+            },
+            {
+              "id": "44f948ab-f095-4d61-8f6e-2dc65510b103",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "大于V2",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "17dc6d0e-da05-4280-8bde-2a915d15afea",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "大于V1",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "0d5f535e-7a87-44da-8cd9-71ad8ffc53cb",
+              "leftValue": "={{ $json[\"波动百分比\"] }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            },
+            {
+              "id": "73b5866a-f840-45d5-ab46-929e80826840",
+              "leftValue": "={{ $json[\"波动百分比\"] }}",
+              "rightValue": -1,
+              "operator": {
+                "type": "number",
+                "operation": "lte"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2992,
+        1056
+      ],
+      "id": "f1f8c601-7e85-44ce-a785-b76e087435c4",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "=7725551680",
+        "text": "=⚡️交易提醒⚡️\n\n📌 币种: {{ $json.symbol }}\n🕒 时间: {{ $json.time }}\n📊 信号: {{ $json.signal }}\n\n💹 开盘: {{ $json.open }}\n📈 最高: {{ $json.high }}\n📉 最低: {{ $json.low }}\n🔔 收盘: {{ $json.close }}\n\n📦 成交量: {{ $json.volume }}\n📐 波动: {{ $json['波动百分比'] }}%  \n📉 涨跌幅: {{ $json.change }}%  \n📍 SAR: {{ $json.sar }} (差值:{{ $json['sar差值'] }})  \n📊 RSI(5m): {{ $json.rsi_5min }}  \n📊 RSI(1h): {{ $json.rsi_1h }}\n\n📌 状态:  {{ $json.status }}\n🚨 新高:  {{ $json['新高'] }}\n🚨 新低: {{ $json['新低'] }}\n",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3600,
+        1008
+      ],
+      "id": "f9b88c01-7503-467e-bb7f-29b6cbbbbd85",
+      "name": "Send a text message1",
+      "webhookId": "f038a268-c361-4dd6-9707-a077f7b511c8",
+      "credentials": {
+        "telegramApi": {
+          "id": "NaUkbkYmiIrehIoc",
+          "name": "mrj"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 15
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2816,
+        1152
+      ],
+      "id": "a7bf633b-11cb-452d-925c-3ca334e5b511",
+      "name": "Wait",
+      "webhookId": "fe4b3f71-e73f-404b-84cd-b55e1e0b3fe8"
+    }
+  ],
+  "pinData": {
+    "获取K线": [
+      {
+        "json": {
+          "code": "0",
+          "msg": "",
+          "data": [
+            [
+              "1761386700000",
+              "111470.1",
+              "111470.1",
+              "111468",
+              "111468",
+              "361.26",
+              "3.6126",
+              "402692.2321",
+              "0"
+            ],
+            [
+              "1761386400000",
+              "111468.1",
+              "111552.2",
+              "111468",
+              "111470.1",
+              "20472.63",
+              "204.7263",
+              "22831041.55022",
+              "1"
+            ],
+            [
+              "1761386100000",
+              "111466.1",
+              "111478",
+              "111432.2",
+              "111468",
+              "6415.49",
+              "64.1549",
+              "7150619.7148",
+              "1"
+            ],
+            [
+              "1761385800000",
+              "111549.7",
+              "111549.8",
+              "111405.9",
+              "111466",
+              "32315.53",
+              "323.1553",
+              "36024743.77467",
+              "1"
+            ],
+            [
+              "1761385500000",
+              "111675.8",
+              "111686.6",
+              "111549.7",
+              "111549.7",
+              "8687.42",
+              "86.8742",
+              "9696270.42453",
+              "1"
+            ],
+            [
+              "1761385200000",
+              "111680.2",
+              "111680.3",
+              "111595.4",
+              "111675.9",
+              "4471.5",
+              "44.715",
+              "4991888.00457",
+              "1"
+            ],
+            [
+              "1761384900000",
+              "111564.1",
+              "111700",
+              "111564.1",
+              "111680.3",
+              "18652.33",
+              "186.5233",
+              "20820360.6956",
+              "1"
+            ],
+            [
+              "1761384600000",
+              "111625",
+              "111637",
+              "111559",
+              "111564",
+              "4525.86",
+              "45.2586",
+              "5050709.83323",
+              "1"
+            ],
+            [
+              "1761384300000",
+              "111625.9",
+              "111625.9",
+              "111540",
+              "111625",
+              "12604.57",
+              "126.0457",
+              "14062410.61504",
+              "1"
+            ],
+            [
+              "1761384000000",
+              "111631.3",
+              "111660",
+              "111598.4",
+              "111625.8",
+              "6548.42",
+              "65.4842",
+              "7309668.45433",
+              "1"
+            ],
+            [
+              "1761383700000",
+              "111746.7",
+              "111746.7",
+              "111601",
+              "111631.2",
+              "23717.32",
+              "237.1732",
+              "26489482.0978",
+              "1"
+            ],
+            [
+              "1761383400000",
+              "111774.3",
+              "111794.5",
+              "111697",
+              "111746.7",
+              "13717.25",
+              "137.1725",
+              "15329147.64842",
+              "1"
+            ],
+            [
+              "1761383100000",
+              "111637.2",
+              "111785.3",
+              "111637.2",
+              "111774.2",
+              "8561.05",
+              "85.6105",
+              "9563043.30361",
+              "1"
+            ],
+            [
+              "1761382800000",
+              "111714",
+              "111797.7",
+              "111637.2",
+              "111637.2",
+              "21937.6",
+              "219.376",
+              "24507727.25246",
+              "1"
+            ],
+            [
+              "1761382500000",
+              "111690.9",
+              "111746.9",
+              "111667.2",
+              "111714",
+              "9744.65",
+              "97.4465",
+              "10885193.34348",
+              "1"
+            ],
+            [
+              "1761382200000",
+              "111584.1",
+              "111750",
+              "111580.9",
+              "111690.9",
+              "16712.85",
+              "167.1285",
+              "18660443.1205",
+              "1"
+            ],
+            [
+              "1761381900000",
+              "111570.8",
+              "111636.5",
+              "111570.8",
+              "111584.1",
+              "7332.03",
+              "73.3203",
+              "8182629.46009",
+              "1"
+            ],
+            [
+              "1761381600000",
+              "111533.6",
+              "111570.8",
+              "111500",
+              "111570.8",
+              "8939.68",
+              "89.3968",
+              "9970541.27248",
+              "1"
+            ],
+            [
+              "1761381300000",
+              "111624.5",
+              "111630.2",
+              "111525",
+              "111533.6",
+              "6191.58",
+              "61.9158",
+              "6909166.61267",
+              "1"
+            ],
+            [
+              "1761381000000",
+              "111621.9",
+              "111643.9",
+              "111572",
+              "111624.4",
+              "9989.04",
+              "99.8904",
+              "11148576.53703",
+              "1"
+            ],
+            [
+              "1761380700000",
+              "111661.1",
+              "111673.1",
+              "111557.7",
+              "111621.9",
+              "7989.25",
+              "79.8925",
+              "8917239.98428",
+              "1"
+            ],
+            [
+              "1761380400000",
+              "111547.1",
+              "111662",
+              "111543.3",
+              "111661.2",
+              "10884.78",
+              "108.8478",
+              "12148310.01954",
+              "1"
+            ],
+            [
+              "1761380100000",
+              "111558",
+              "111576.3",
+              "111502.1",
+              "111547.2",
+              "7124.72",
+              "71.2472",
+              "7947916.5034",
+              "1"
+            ],
+            [
+              "1761379800000",
+              "111524.9",
+              "111558.9",
+              "111491.8",
+              "111558.1",
+              "8638.66",
+              "86.3866",
+              "9634935.97148",
+              "1"
+            ],
+            [
+              "1761379500000",
+              "111486.9",
+              "111535",
+              "111478.4",
+              "111525",
+              "6714.31",
+              "67.1431",
+              "7487258.93649",
+              "1"
+            ],
+            [
+              "1761379200000",
+              "111462.9",
+              "111486.9",
+              "111437.9",
+              "111486.9",
+              "8174.5",
+              "81.745",
+              "9111762.69065",
+              "1"
+            ],
+            [
+              "1761378900000",
+              "111476.9",
+              "111486",
+              "111438.3",
+              "111462.9",
+              "8884.4",
+              "88.844",
+              "9902929.92207",
+              "1"
+            ],
+            [
+              "1761378600000",
+              "111396.9",
+              "111489.5",
+              "111396.8",
+              "111476.9",
+              "11523.64",
+              "115.2364",
+              "12842599.63219",
+              "1"
+            ],
+            [
+              "1761378300000",
+              "111489",
+              "111489",
+              "111396.8",
+              "111396.9",
+              "15216.69",
+              "152.1669",
+              "16957431.69152",
+              "1"
+            ],
+            [
+              "1761378000000",
+              "111619.8",
+              "111619.8",
+              "111468.2",
+              "111488.9",
+              "16106.54",
+              "161.0654",
+              "17962687.85165",
+              "1"
+            ],
+            [
+              "1761377700000",
+              "111544.6",
+              "111684.8",
+              "111431.6",
+              "111619.8",
+              "27403.76",
+              "274.0376",
+              "30566537.11455",
+              "1"
+            ],
+            [
+              "1761377400000",
+              "111591.3",
+              "111779.6",
+              "111530.1",
+              "111544.7",
+              "27693.05",
+              "276.9305",
+              "30919808.24992",
+              "1"
+            ],
+            [
+              "1761377100000",
+              "111636.4",
+              "111636.4",
+              "111515.5",
+              "111591.4",
+              "21143.27",
+              "211.4327",
+              "23588918.69706",
+              "1"
+            ],
+            [
+              "1761376800000",
+              "111493.4",
+              "111675.3",
+              "111493.3",
+              "111636.5",
+              "26458.28",
+              "264.5828",
+              "29523174.98984",
+              "1"
+            ],
+            [
+              "1761376500000",
+              "111395.6",
+              "111580",
+              "111392.5",
+              "111493.3",
+              "36538.97",
+              "365.3897",
+              "40747455.70981",
+              "1"
+            ],
+            [
+              "1761376200000",
+              "111387.2",
+              "111395.6",
+              "111358.5",
+              "111395.6",
+              "3745.76",
+              "37.4576",
+              "4171727.64846",
+              "1"
+            ],
+            [
+              "1761375900000",
+              "111414.1",
+              "111414.1",
+              "111370.2",
+              "111387.1",
+              "5748.12",
+              "57.4812",
+              "6403142.85169",
+              "1"
+            ],
+            [
+              "1761375600000",
+              "111307.1",
+              "111429.9",
+              "111307.1",
+              "111414.1",
+              "12714.77",
+              "127.1477",
+              "14159294.09335",
+              "1"
+            ],
+            [
+              "1761375300000",
+              "111336",
+              "111336",
+              "111304.4",
+              "111307",
+              "2037.73",
+              "20.3773",
+              "2268365.18254",
+              "1"
+            ],
+            [
+              "1761375000000",
+              "111373.7",
+              "111373.8",
+              "111336",
+              "111336",
+              "4372.08",
+              "43.7208",
+              "4868483.14614",
+              "1"
+            ],
+            [
+              "1761374700000",
+              "111309.4",
+              "111376.4",
+              "111309.4",
+              "111373.8",
+              "5780.16",
+              "57.8016",
+              "6435779.26708",
+              "1"
+            ],
+            [
+              "1761374400000",
+              "111226.5",
+              "111310",
+              "111226.5",
+              "111309.4",
+              "6076.75",
+              "60.7675",
+              "6761621.2918",
+              "1"
+            ],
+            [
+              "1761374100000",
+              "111233.1",
+              "111276.9",
+              "111200",
+              "111226.6",
+              "15137.24",
+              "151.3724",
+              "16838318.26841",
+              "1"
+            ],
+            [
+              "1761373800000",
+              "111263.2",
+              "111291.3",
+              "111200.6",
+              "111233.1",
+              "16575.21",
+              "165.7521",
+              "18437802.98714",
+              "1"
+            ],
+            [
+              "1761373500000",
+              "111260.8",
+              "111292.4",
+              "111242.6",
+              "111263.2",
+              "4556.71",
+              "45.5671",
+              "5070129.5966",
+              "1"
+            ],
+            [
+              "1761373200000",
+              "111349.7",
+              "111349.8",
+              "111255.6",
+              "111260.8",
+              "6759.65",
+              "67.5965",
+              "7523765.26858",
+              "1"
+            ],
+            [
+              "1761372900000",
+              "111343.5",
+              "111349.8",
+              "111327.9",
+              "111349.8",
+              "5274.7",
+              "52.747",
+              "5872801.52588",
+              "1"
+            ],
+            [
+              "1761372600000",
+              "111349.9",
+              "111383.3",
+              "111328",
+              "111343.4",
+              "8066.05",
+              "80.6605",
+              "8981667.03752",
+              "1"
+            ],
+            [
+              "1761372300000",
+              "111340.9",
+              "111350",
+              "111265",
+              "111350",
+              "7199.06",
+              "71.9906",
+              "8012124.59445",
+              "1"
+            ],
+            [
+              "1761372000000",
+              "111325.6",
+              "111450",
+              "111325.6",
+              "111341",
+              "24880.5",
+              "248.805",
+              "27716143.56443",
+              "1"
+            ],
+            [
+              "1761371700000",
+              "111262.2",
+              "111325.6",
+              "111223",
+              "111325.6",
+              "8587.72",
+              "85.8772",
+              "9556772.67107",
+              "1"
+            ],
+            [
+              "1761371400000",
+              "111254.3",
+              "111290.1",
+              "111247.4",
+              "111262.2",
+              "3262.98",
+              "32.6298",
+              "3630709.36344",
+              "1"
+            ],
+            [
+              "1761371100000",
+              "111231.8",
+              "111369",
+              "111231.8",
+              "111254.3",
+              "9511.05",
+              "95.1105",
+              "10585984.3566",
+              "1"
+            ],
+            [
+              "1761370800000",
+              "111223.9",
+              "111233.6",
+              "111188.7",
+              "111231.8",
+              "5025.11",
+              "50.2511",
+              "5588916.19348",
+              "1"
+            ],
+            [
+              "1761370500000",
+              "111216",
+              "111224",
+              "111202.7",
+              "111224",
+              "4396.9",
+              "43.969",
+              "4889875.05193",
+              "1"
+            ],
+            [
+              "1761370200000",
+              "111117.3",
+              "111221.9",
+              "111117.3",
+              "111216",
+              "15812.36",
+              "158.1236",
+              "17576147.71558",
+              "1"
+            ],
+            [
+              "1761369900000",
+              "111120.5",
+              "111125.5",
+              "111090.4",
+              "111117.3",
+              "3746.44",
+              "37.4644",
+              "4162612.18291",
+              "1"
+            ],
+            [
+              "1761369600000",
+              "111080",
+              "111164.6",
+              "111079.9",
+              "111120.6",
+              "4643.6",
+              "46.436",
+              "5160250.07974",
+              "1"
+            ],
+            [
+              "1761369300000",
+              "111088.3",
+              "111088.3",
+              "111026.1",
+              "111079.9",
+              "5743.95",
+              "57.4395",
+              "6378817.64057",
+              "1"
+            ],
+            [
+              "1761369000000",
+              "111100.4",
+              "111100.5",
+              "111023.2",
+              "111088.2",
+              "12466.12",
+              "124.6612",
+              "13844225.16935",
+              "1"
+            ],
+            [
+              "1761368700000",
+              "111127.5",
+              "111197.6",
+              "111100.4",
+              "111100.4",
+              "5738.31",
+              "57.3831",
+              "6378159.49279",
+              "1"
+            ],
+            [
+              "1761368400000",
+              "111175.7",
+              "111178.8",
+              "111093",
+              "111127.5",
+              "11008.09",
+              "110.0809",
+              "12234439.97808",
+              "1"
+            ],
+            [
+              "1761368100000",
+              "111248.1",
+              "111248.1",
+              "111167.5",
+              "111175.7",
+              "6355.42",
+              "63.5542",
+              "7067321.63698",
+              "1"
+            ],
+            [
+              "1761367800000",
+              "111251.9",
+              "111270.5",
+              "111225.8",
+              "111248.1",
+              "2943.49",
+              "29.4349",
+              "3274557.78304",
+              "1"
+            ],
+            [
+              "1761367500000",
+              "111225.8",
+              "111255.4",
+              "111225.8",
+              "111251.8",
+              "4789.98",
+              "47.8998",
+              "5328469.88751",
+              "1"
+            ],
+            [
+              "1761367200000",
+              "111293.3",
+              "111330",
+              "111225.8",
+              "111225.9",
+              "9275.36",
+              "92.7536",
+              "10322877.88501",
+              "1"
+            ],
+            [
+              "1761366900000",
+              "111226",
+              "111293.3",
+              "111225.8",
+              "111293.2",
+              "4957.38",
+              "49.5738",
+              "5515111.86426",
+              "1"
+            ],
+            [
+              "1761366600000",
+              "111250",
+              "111259",
+              "111175.3",
+              "111226",
+              "11410.68",
+              "114.1068",
+              "12691498.64222",
+              "1"
+            ],
+            [
+              "1761366300000",
+              "111309.9",
+              "111313.5",
+              "111250",
+              "111250",
+              "9988.25",
+              "99.8825",
+              "11115400.65968",
+              "1"
+            ],
+            [
+              "1761366000000",
+              "111365.8",
+              "111365.9",
+              "111261.1",
+              "111309.9",
+              "15693.82",
+              "156.9382",
+              "17467280.50779",
+              "1"
+            ],
+            [
+              "1761365700000",
+              "111141",
+              "111396.6",
+              "111119.3",
+              "111365.8",
+              "54174.17",
+              "541.7417",
+              "60295768.58673",
+              "1"
+            ],
+            [
+              "1761365400000",
+              "111092.9",
+              "111141",
+              "111055.3",
+              "111141",
+              "11704.38",
+              "117.0438",
+              "13002185.231",
+              "1"
+            ],
+            [
+              "1761365100000",
+              "111015.2",
+              "111093",
+              "111015.2",
+              "111092.9",
+              "10279.45",
+              "102.7945",
+              "11416764.95237",
+              "1"
+            ],
+            [
+              "1761364800000",
+              "110969.3",
+              "111015.3",
+              "110969.3",
+              "111015.2",
+              "5336.45",
+              "53.3645",
+              "5923352.44568",
+              "1"
+            ],
+            [
+              "1761364500000",
+              "110950",
+              "110990.2",
+              "110950",
+              "110969.3",
+              "3888.65",
+              "38.8865",
+              "4315453.00625",
+              "1"
+            ],
+            [
+              "1761364200000",
+              "111026.2",
+              "111044.7",
+              "110950",
+              "110950",
+              "5029.84",
+              "50.2984",
+              "5583265.82952",
+              "1"
+            ],
+            [
+              "1761363900000",
+              "111049.9",
+              "111050",
+              "110983.4",
+              "111026.2",
+              "3788.33",
+              "37.8833",
+              "4205222.4632",
+              "1"
+            ],
+            [
+              "1761363600000",
+              "111016.7",
+              "111050",
+              "111000.3",
+              "111049.9",
+              "2911.06",
+              "29.1106",
+              "3231795.06055",
+              "1"
+            ],
+            [
+              "1761363300000",
+              "111037.6",
+              "111059.2",
+              "110990.5",
+              "111016.7",
+              "5660.33",
+              "56.6033",
+              "6284813.75871",
+              "1"
+            ],
+            [
+              "1761363000000",
+              "111044.1",
+              "111066.4",
+              "111029",
+              "111037.6",
+              "3445.29",
+              "34.4529",
+              "3825929.33015",
+              "1"
+            ],
+            [
+              "1761362700000",
+              "111008.1",
+              "111044.1",
+              "111008.1",
+              "111044",
+              "3778.01",
+              "37.7801",
+              "4194403.76713",
+              "1"
+            ],
+            [
+              "1761362400000",
+              "111096.3",
+              "111096.4",
+              "111008",
+              "111008.1",
+              "9024.32",
+              "90.2432",
+              "10023114.22636",
+              "1"
+            ],
+            [
+              "1761362100000",
+              "111012.2",
+              "111096.4",
+              "111012.2",
+              "111096.3",
+              "6759.93",
+              "67.5993",
+              "7507121.23831",
+              "1"
+            ],
+            [
+              "1761361800000",
+              "111028.9",
+              "111029",
+              "110974.9",
+              "111012.2",
+              "9621.46",
+              "96.2146",
+              "10679784.77682",
+              "1"
+            ],
+            [
+              "1761361500000",
+              "111051.5",
+              "111056.8",
+              "111015.7",
+              "111029",
+              "6522.19",
+              "65.2219",
+              "7242159.11502",
+              "1"
+            ],
+            [
+              "1761361200000",
+              "110991.2",
+              "111086",
+              "110991.1",
+              "111051.4",
+              "8623",
+              "86.23",
+              "9575608.62949",
+              "1"
+            ],
+            [
+              "1761360900000",
+              "111036.2",
+              "111036.3",
+              "110972.3",
+              "110991.1",
+              "6984.82",
+              "69.8482",
+              "7753603.25529",
+              "1"
+            ],
+            [
+              "1761360600000",
+              "111013.1",
+              "111091",
+              "111013",
+              "111036.3",
+              "13838.07",
+              "138.3807",
+              "15368847.40159",
+              "1"
+            ],
+            [
+              "1761360300000",
+              "110958.6",
+              "111013.1",
+              "110952.6",
+              "111013",
+              "7743.31",
+              "77.4331",
+              "8593094.05493",
+              "1"
+            ],
+            [
+              "1761360000000",
+              "110951.8",
+              "110993.2",
+              "110951.8",
+              "110958.6",
+              "5588.3",
+              "55.883",
+              "6201825.63543",
+              "1"
+            ],
+            [
+              "1761359700000",
+              "110956.6",
+              "110971",
+              "110940.7",
+              "110951.8",
+              "6670.98",
+              "66.7098",
+              "7401448.92563",
+              "1"
+            ],
+            [
+              "1761359400000",
+              "110963.9",
+              "110990.1",
+              "110918.1",
+              "110956.6",
+              "8485.23",
+              "84.8523",
+              "9415373.94247",
+              "1"
+            ],
+            [
+              "1761359100000",
+              "110952.5",
+              "110970",
+              "110938.2",
+              "110963.9",
+              "4550.38",
+              "45.5038",
+              "5048835.40018",
+              "1"
+            ],
+            [
+              "1761358800000",
+              "110972",
+              "110974.5",
+              "110952.5",
+              "110952.5",
+              "3624.58",
+              "36.2458",
+              "4022144.16414",
+              "1"
+            ],
+            [
+              "1761358500000",
+              "110938.6",
+              "110979.4",
+              "110938.5",
+              "110971.9",
+              "4402.16",
+              "44.0216",
+              "4884935.21462",
+              "1"
+            ],
+            [
+              "1761358200000",
+              "110966.5",
+              "110966.6",
+              "110892",
+              "110938.6",
+              "11558.66",
+              "115.5866",
+              "12821329.22837",
+              "1"
+            ],
+            [
+              "1761357900000",
+              "111036.6",
+              "111036.7",
+              "110966.5",
+              "110966.5",
+              "8858.14",
+              "88.5814",
+              "9832716.21677",
+              "1"
+            ],
+            [
+              "1761357600000",
+              "111034.5",
+              "111055.3",
+              "111016",
+              "111036.7",
+              "8927.64",
+              "89.2764",
+              "9913214.23689",
+              "1"
+            ],
+            [
+              "1761357300000",
+              "110997.3",
+              "111034.5",
+              "110990.5",
+              "111034.5",
+              "4746.37",
+              "47.4637",
+              "5268870.87981",
+              "1"
+            ],
+            [
+              "1761357000000",
+              "110983.2",
+              "110997.4",
+              "110961.5",
+              "110997.4",
+              "4273.58",
+              "42.7358",
+              "4742509.58753",
+              "1"
+            ],
+            [
+              "1761356700000",
+              "110917.1",
+              "110988.8",
+              "110917.1",
+              "110983.3",
+              "5674.87",
+              "56.7487",
+              "6296650.04815",
+              "1"
+            ],
+            [
+              "1761356400000",
+              "110941.5",
+              "110941.5",
+              "110917.1",
+              "110917.1",
+              "4100.2",
+              "41.002",
+              "4548324.49657",
+              "1"
+            ],
+            [
+              "1761356100000",
+              "110952.3",
+              "111000",
+              "110879.5",
+              "110941.5",
+              "17227.54",
+              "172.2754",
+              "19111451.11933",
+              "1"
+            ],
+            [
+              "1761355800000",
+              "111065.8",
+              "111199.9",
+              "110943.1",
+              "110952.3",
+              "31454.85",
+              "314.5485",
+              "34944049.93877",
+              "1"
+            ],
+            [
+              "1761355500000",
+              "110996.7",
+              "111130.2",
+              "110996.6",
+              "111065.8",
+              "27930.82",
+              "279.3082",
+              "31022747.83741",
+              "1"
+            ],
+            [
+              "1761355200000",
+              "110858.9",
+              "110996.7",
+              "110858.7",
+              "110996.7",
+              "9385.26",
+              "93.8526",
+              "10409620.28171",
+              "1"
+            ],
+            [
+              "1761354900000",
+              "110850",
+              "110859",
+              "110808.6",
+              "110859",
+              "5704.79",
+              "57.0479",
+              "6322941.85612",
+              "1"
+            ],
+            [
+              "1761354600000",
+              "110737",
+              "110850",
+              "110737",
+              "110850",
+              "4130.97",
+              "41.3097",
+              "4576946.25916",
+              "1"
+            ],
+            [
+              "1761354300000",
+              "110778",
+              "110781.7",
+              "110700",
+              "110737",
+              "7005.51",
+              "70.0551",
+              "7758405.00021",
+              "1"
+            ],
+            [
+              "1761354000000",
+              "110719.9",
+              "110778.1",
+              "110717.6",
+              "110778.1",
+              "8105.64",
+              "81.0564",
+              "8977248.77358",
+              "1"
+            ],
+            [
+              "1761353700000",
+              "110641.8",
+              "110720",
+              "110641.8",
+              "110720",
+              "5262.47",
+              "52.6247",
+              "5824435.91569",
+              "1"
+            ],
+            [
+              "1761353400000",
+              "110879.9",
+              "110905.5",
+              "110603.3",
+              "110641.9",
+              "14273.48",
+              "142.7348",
+              "15803916.73007",
+              "1"
+            ],
+            [
+              "1761353100000",
+              "110749.5",
+              "110880",
+              "110749.4",
+              "110879.9",
+              "6626.12",
+              "66.2612",
+              "7343397.23129",
+              "1"
+            ],
+            [
+              "1761352800000",
+              "110736.9",
+              "110770.3",
+              "110690.6",
+              "110749.5",
+              "4297.05",
+              "42.9705",
+              "4758257.18751",
+              "1"
+            ],
+            [
+              "1761352500000",
+              "110673.3",
+              "110771.9",
+              "110673.3",
+              "110736.9",
+              "7707.86",
+              "77.0786",
+              "8534864.63088",
+              "1"
+            ],
+            [
+              "1761352200000",
+              "110802",
+              "110802.1",
+              "110648.2",
+              "110673.4",
+              "10949.34",
+              "109.4934",
+              "12120729.00774",
+              "1"
+            ],
+            [
+              "1761351900000",
+              "110792.9",
+              "110837.1",
+              "110792.9",
+              "110802.1",
+              "5367.14",
+              "53.6714",
+              "5947594.87638",
+              "1"
+            ],
+            [
+              "1761351600000",
+              "110783",
+              "110822",
+              "110783",
+              "110793",
+              "3804.18",
+              "38.0418",
+              "4215161.61946",
+              "1"
+            ],
+            [
+              "1761351300000",
+              "110801.4",
+              "110801.4",
+              "110737.1",
+              "110783.1",
+              "6746.71",
+              "67.4671",
+              "7473749.30917",
+              "1"
+            ],
+            [
+              "1761351000000",
+              "110866.7",
+              "110866.8",
+              "110800.9",
+              "110801.3",
+              "5646.76",
+              "56.4676",
+              "6258364.35546",
+              "1"
+            ],
+            [
+              "1761350700000",
+              "110939.9",
+              "110939.9",
+              "110856.2",
+              "110866.7",
+              "8240.48",
+              "82.4048",
+              "9138090.04351",
+              "1"
+            ],
+            [
+              "1761350400000",
+              "110961.5",
+              "110993.6",
+              "110939.9",
+              "110939.9",
+              "5516.11",
+              "55.1611",
+              "6120794.52774",
+              "1"
+            ],
+            [
+              "1761350100000",
+              "110925.7",
+              "110962.2",
+              "110897.5",
+              "110961.5",
+              "3684.47",
+              "36.8447",
+              "4086892.44219",
+              "1"
+            ],
+            [
+              "1761349800000",
+              "110925.4",
+              "110935.1",
+              "110925.3",
+              "110925.7",
+              "1777.1",
+              "17.771",
+              "1971413.15501",
+              "1"
+            ],
+            [
+              "1761349500000",
+              "110909",
+              "110944",
+              "110885.6",
+              "110925.3",
+              "3805.9",
+              "38.059",
+              "4221330.95048",
+              "1"
+            ],
+            [
+              "1761349200000",
+              "110906.7",
+              "110924",
+              "110894.5",
+              "110908.9",
+              "2927.03",
+              "29.2703",
+              "3246424.29425",
+              "1"
+            ],
+            [
+              "1761348900000",
+              "110959.4",
+              "111011.7",
+              "110889.9",
+              "110906.7",
+              "4993.46",
+              "49.9346",
+              "5540351.28464",
+              "1"
+            ],
+            [
+              "1761348600000",
+              "110975.9",
+              "111074.7",
+              "110959.4",
+              "110959.4",
+              "7629.44",
+              "76.2944",
+              "8470878.64186",
+              "1"
+            ],
+            [
+              "1761348300000",
+              "110938.2",
+              "111030.2",
+              "110938.2",
+              "110975.9",
+              "7239.66",
+              "72.3966",
+              "8034634.69902",
+              "1"
+            ],
+            [
+              "1761348000000",
+              "110864.5",
+              "110950",
+              "110864.4",
+              "110938.3",
+              "3735.16",
+              "37.3516",
+              "4142983.31864",
+              "1"
+            ],
+            [
+              "1761347700000",
+              "110837.3",
+              "110870",
+              "110818.1",
+              "110864.4",
+              "7470.13",
+              "74.7013",
+              "8280233.81521",
+              "1"
+            ],
+            [
+              "1761347400000",
+              "110837.7",
+              "110877.9",
+              "110837.3",
+              "110837.4",
+              "3254.53",
+              "32.5453",
+              "3607544.55162",
+              "1"
+            ],
+            [
+              "1761347100000",
+              "110869.5",
+              "110874.6",
+              "110837.6",
+              "110837.7",
+              "3870.88",
+              "38.7088",
+              "4291480.82456",
+              "1"
+            ],
+            [
+              "1761346800000",
+              "110968.1",
+              "110968.1",
+              "110854.1",
+              "110869.5",
+              "7708.28",
+              "77.0828",
+              "8548517.23111",
+              "1"
+            ],
+            [
+              "1761346500000",
+              "110914",
+              "111008.9",
+              "110913.7",
+              "110968",
+              "6258.38",
+              "62.5838",
+              "6944866.55694",
+              "1"
+            ],
+            [
+              "1761346200000",
+              "110988",
+              "110988",
+              "110901.7",
+              "110913.9",
+              "8370.18",
+              "83.7018",
+              "9285035.75587",
+              "1"
+            ],
+            [
+              "1761345900000",
+              "110973.9",
+              "110989.3",
+              "110913.6",
+              "110988",
+              "6728.74",
+              "67.2874",
+              "7465453.49743",
+              "1"
+            ],
+            [
+              "1761345600000",
+              "111001.9",
+              "111015",
+              "110939.2",
+              "110973.8",
+              "3385.28",
+              "33.8528",
+              "3756851.1654",
+              "1"
+            ],
+            [
+              "1761345300000",
+              "111077.9",
+              "111078",
+              "110968.4",
+              "111002",
+              "8468.19",
+              "84.6819",
+              "9400086.99195",
+              "1"
+            ],
+            [
+              "1761345000000",
+              "111000.3",
+              "111078",
+              "110985.4",
+              "111077.9",
+              "6858.98",
+              "68.5898",
+              "7615322.56245",
+              "1"
+            ],
+            [
+              "1761344700000",
+              "110993.4",
+              "111003.2",
+              "110984",
+              "111000.3",
+              "3604.72",
+              "36.0472",
+              "4001077.12845",
+              "1"
+            ],
+            [
+              "1761344400000",
+              "110986.3",
+              "110993.6",
+              "110970.6",
+              "110993.4",
+              "3439.7",
+              "34.397",
+              "3817567.63402",
+              "1"
+            ],
+            [
+              "1761344100000",
+              "110899.8",
+              "110986.4",
+              "110899.8",
+              "110986.3",
+              "3365.54",
+              "33.6554",
+              "3733888.69164",
+              "1"
+            ],
+            [
+              "1761343800000",
+              "110948.2",
+              "110991.1",
+              "110863.6",
+              "110899.9",
+              "10930.42",
+              "109.3042",
+              "12125893.23265",
+              "1"
+            ],
+            [
+              "1761343500000",
+              "110885.7",
+              "110960",
+              "110885.7",
+              "110948.2",
+              "4351.76",
+              "43.5176",
+              "4827487.1102",
+              "1"
+            ],
+            [
+              "1761343200000",
+              "111024.2",
+              "111044",
+              "110854.6",
+              "110885.8",
+              "19740.93",
+              "197.4093",
+              "21903743.44485",
+              "1"
+            ],
+            [
+              "1761342900000",
+              "110988",
+              "111059.6",
+              "110977.4",
+              "111024.2",
+              "7008.46",
+              "70.0846",
+              "7780499.25369",
+              "1"
+            ],
+            [
+              "1761342600000",
+              "111026",
+              "111041.4",
+              "110893.6",
+              "110988",
+              "5322.6",
+              "53.226",
+              "5906182.51585",
+              "1"
+            ],
+            [
+              "1761342300000",
+              "110970",
+              "111058.8",
+              "110894.3",
+              "111026",
+              "12845.52",
+              "128.4552",
+              "14256231.11634",
+              "1"
+            ],
+            [
+              "1761342000000",
+              "110874.3",
+              "110979.8",
+              "110817.4",
+              "110970",
+              "10306.43",
+              "103.0643",
+              "11432034.46306",
+              "1"
+            ],
+            [
+              "1761341700000",
+              "110872",
+              "110880",
+              "110845.9",
+              "110874.4",
+              "3352.94",
+              "33.5294",
+              "3717309.7756",
+              "1"
+            ],
+            [
+              "1761341400000",
+              "110831.7",
+              "110927.7",
+              "110782.5",
+              "110872.1",
+              "6363.22",
+              "63.6322",
+              "7053663.29286",
+              "1"
+            ],
+            [
+              "1761341100000",
+              "110885.8",
+              "110885.8",
+              "110747.2",
+              "110831.8",
+              "8505.69",
+              "85.0569",
+              "9426289.58823",
+              "1"
+            ],
+            [
+              "1761340800000",
+              "110958.2",
+              "110975.7",
+              "110852.6",
+              "110885.8",
+              "9800.43",
+              "98.0043",
+              "10872077.05641",
+              "1"
+            ],
+            [
+              "1761340500000",
+              "110584.3",
+              "111017.3",
+              "110572.2",
+              "110958.3",
+              "34194.58",
+              "341.9458",
+              "37908527.93164",
+              "1"
+            ],
+            [
+              "1761340200000",
+              "110806.7",
+              "110806.7",
+              "110499.8",
+              "110584.3",
+              "34443.97",
+              "344.4397",
+              "38105504.88502",
+              "1"
+            ],
+            [
+              "1761339900000",
+              "110820.9",
+              "110907.2",
+              "110807.5",
+              "110807.5",
+              "6185.2",
+              "61.852",
+              "6857615.95934",
+              "1"
+            ],
+            [
+              "1761339600000",
+              "110840.5",
+              "110966.6",
+              "110784",
+              "110820.8",
+              "14291.71",
+              "142.9171",
+              "15847184.94327",
+              "1"
+            ],
+            [
+              "1761339300000",
+              "110849.3",
+              "110961.1",
+              "110759.6",
+              "110840.5",
+              "15952.33",
+              "159.5233",
+              "17688443.58956",
+              "1"
+            ],
+            [
+              "1761339000000",
+              "110788.6",
+              "110849.3",
+              "110696.2",
+              "110849.2",
+              "6365.13",
+              "63.6513",
+              "7048945.43008",
+              "1"
+            ],
+            [
+              "1761338700000",
+              "110732.4",
+              "110835.1",
+              "110732.4",
+              "110788.6",
+              "9502.09",
+              "95.0209",
+              "10528298.27215",
+              "1"
+            ],
+            [
+              "1761338400000",
+              "110658.8",
+              "110732.4",
+              "110658.8",
+              "110732.4",
+              "4705.04",
+              "47.0504",
+              "5208779.72481",
+              "1"
+            ],
+            [
+              "1761338100000",
+              "110657.8",
+              "110700",
+              "110591",
+              "110658.5",
+              "4063.89",
+              "40.6389",
+              "4496196.30482",
+              "1"
+            ],
+            [
+              "1761337800000",
+              "110678.3",
+              "110689.3",
+              "110609.4",
+              "110657.8",
+              "5419.27",
+              "54.1927",
+              "5996360.66138",
+              "1"
+            ],
+            [
+              "1761337500000",
+              "110691.7",
+              "110718.1",
+              "110678.2",
+              "110678.2",
+              "9274.83",
+              "92.7483",
+              "10266415.07397",
+              "1"
+            ],
+            [
+              "1761337200000",
+              "110671.7",
+              "110730",
+              "110671.6",
+              "110691.7",
+              "5299.94",
+              "52.9994",
+              "5867458.58548",
+              "1"
+            ],
+            [
+              "1761336900000",
+              "110597.9",
+              "110683.7",
+              "110584.6",
+              "110671.7",
+              "9493.7",
+              "94.937",
+              "10504164.506",
+              "1"
+            ],
+            [
+              "1761336600000",
+              "110475",
+              "110614.8",
+              "110475",
+              "110597.9",
+              "5006.18",
+              "50.0618",
+              "5535809.85156",
+              "1"
+            ],
+            [
+              "1761336300000",
+              "110482.5",
+              "110522.5",
+              "110457.4",
+              "110475",
+              "4176.68",
+              "41.7668",
+              "4614877.10141",
+              "1"
+            ],
+            [
+              "1761336000000",
+              "110560",
+              "110560.1",
+              "110421.9",
+              "110482.5",
+              "16679.57",
+              "166.7957",
+              "18428022.69648",
+              "1"
+            ],
+            [
+              "1761335700000",
+              "110595.1",
+              "110597.1",
+              "110497.7",
+              "110560.1",
+              "6985.58",
+              "69.8558",
+              "7722419.64609",
+              "1"
+            ],
+            [
+              "1761335400000",
+              "110604.3",
+              "110661.7",
+              "110464",
+              "110595.2",
+              "15205.49",
+              "152.0549",
+              "16809013.30426",
+              "1"
+            ],
+            [
+              "1761335100000",
+              "110680",
+              "110696",
+              "110604.3",
+              "110604.4",
+              "6948.78",
+              "69.4878",
+              "7688136.22375",
+              "1"
+            ],
+            [
+              "1761334800000",
+              "110627.9",
+              "110688",
+              "110600",
+              "110680",
+              "4070.34",
+              "40.7034",
+              "4503245.14923",
+              "1"
+            ],
+            [
+              "1761334500000",
+              "110684.9",
+              "110721.5",
+              "110584.8",
+              "110627.9",
+              "11830.1",
+              "118.301",
+              "13089864.78316",
+              "1"
+            ],
+            [
+              "1761334200000",
+              "110880.5",
+              "110888",
+              "110685",
+              "110685",
+              "9513.01",
+              "95.1301",
+              "10538434.05356",
+              "1"
+            ],
+            [
+              "1761333900000",
+              "110765.9",
+              "110888",
+              "110676.3",
+              "110880.5",
+              "19615.98",
+              "196.1598",
+              "21736540.26317",
+              "1"
+            ],
+            [
+              "1761333600000",
+              "110750.7",
+              "110821.7",
+              "110741.5",
+              "110765.8",
+              "7931.21",
+              "79.3121",
+              "8785003.92773",
+              "1"
+            ],
+            [
+              "1761333300000",
+              "110655.2",
+              "110781.9",
+              "110655.2",
+              "110750.6",
+              "5327.27",
+              "53.2727",
+              "5898273.29206",
+              "1"
+            ],
+            [
+              "1761333000000",
+              "110734.4",
+              "110737.2",
+              "110654.2",
+              "110655.2",
+              "8561.95",
+              "85.6195",
+              "9477355.27369",
+              "1"
+            ],
+            [
+              "1761332700000",
+              "110710.9",
+              "110837.2",
+              "110656.5",
+              "110734.4",
+              "19823.09",
+              "198.2309",
+              "21954564.31367",
+              "1"
+            ],
+            [
+              "1761332400000",
+              "110544",
+              "110738.5",
+              "110544",
+              "110710.8",
+              "16939.7",
+              "169.397",
+              "18742371.23274",
+              "1"
+            ],
+            [
+              "1761332100000",
+              "110514.1",
+              "110572.1",
+              "110474.8",
+              "110544.1",
+              "7087.1",
+              "70.871",
+              "7832951.68443",
+              "1"
+            ],
+            [
+              "1761331800000",
+              "110514.8",
+              "110574.3",
+              "110427.8",
+              "110514",
+              "5937.03",
+              "59.3703",
+              "6560736.95252",
+              "1"
+            ],
+            [
+              "1761331500000",
+              "110536.1",
+              "110558.2",
+              "110452.4",
+              "110514.8",
+              "8262.51",
+              "82.6251",
+              "9130021.44866",
+              "1"
+            ],
+            [
+              "1761331200000",
+              "110451.2",
+              "110536",
+              "110405.7",
+              "110536",
+              "6100.03",
+              "61.0003",
+              "6737187.39837",
+              "1"
+            ],
+            [
+              "1761330900000",
+              "110460.2",
+              "110511.8",
+              "110350",
+              "110451.2",
+              "7293.69",
+              "72.9369",
+              "8054996.09216",
+              "1"
+            ],
+            [
+              "1761330600000",
+              "110454.2",
+              "110545.5",
+              "110425.8",
+              "110460.1",
+              "4936.72",
+              "49.3672",
+              "5454433.20053",
+              "1"
+            ],
+            [
+              "1761330300000",
+              "110468.1",
+              "110599.7",
+              "110408.6",
+              "110454.2",
+              "17518.91",
+              "175.1891",
+              "19364272.32656",
+              "1"
+            ],
+            [
+              "1761330000000",
+              "110462.3",
+              "110515.4",
+              "110430.8",
+              "110468.1",
+              "9000.97",
+              "90.0097",
+              "9943759.30961",
+              "1"
+            ],
+            [
+              "1761329700000",
+              "110423.3",
+              "110521.2",
+              "110423.3",
+              "110462.3",
+              "11504.18",
+              "115.0418",
+              "12708742.70567",
+              "1"
+            ],
+            [
+              "1761329400000",
+              "110411.5",
+              "110446",
+              "110292.1",
+              "110423.4",
+              "10345.01",
+              "103.4501",
+              "11419367.56964",
+              "1"
+            ],
+            [
+              "1761329100000",
+              "110315.9",
+              "110445.9",
+              "110312.2",
+              "110411.4",
+              "8263.86",
+              "82.6386",
+              "9120886.68666",
+              "1"
+            ],
+            [
+              "1761328800000",
+              "110154.5",
+              "110333.3",
+              "110091.9",
+              "110315.9",
+              "17959.98",
+              "179.5998",
+              "19786109.89132",
+              "1"
+            ],
+            [
+              "1761328500000",
+              "110269.9",
+              "110288",
+              "110154.5",
+              "110154.5",
+              "7183.07",
+              "71.8307",
+              "7917286.18748",
+              "1"
+            ],
+            [
+              "1761328200000",
+              "110225.6",
+              "110270",
+              "110174.9",
+              "110269.9",
+              "8546.29",
+              "85.4629",
+              "9420339.65156",
+              "1"
+            ],
+            [
+              "1761327900000",
+              "110284",
+              "110380.7",
+              "110183.3",
+              "110225.5",
+              "11933.98",
+              "119.3398",
+              "13160559.9173",
+              "1"
+            ],
+            [
+              "1761327600000",
+              "110319.2",
+              "110325.3",
+              "110255.8",
+              "110284",
+              "7341.51",
+              "73.4151",
+              "8097541.66364",
+              "1"
+            ],
+            [
+              "1761327300000",
+              "110363.5",
+              "110367.5",
+              "110253.7",
+              "110319.3",
+              "14091.73",
+              "140.9173",
+              "15541496.98654",
+              "1"
+            ],
+            [
+              "1761327000000",
+              "110439.7",
+              "110443.6",
+              "110339.3",
+              "110363.6",
+              "12368.59",
+              "123.6859",
+              "13652067.86005",
+              "1"
+            ],
+            [
+              "1761326700000",
+              "110481",
+              "110521",
+              "110388.8",
+              "110439.7",
+              "14878.35",
+              "148.7835",
+              "16434687.88047",
+              "1"
+            ],
+            [
+              "1761326400000",
+              "110338",
+              "110481.5",
+              "110310.1",
+              "110481",
+              "18872.33",
+              "188.7233",
+              "20838445.08718",
+              "1"
+            ],
+            [
+              "1761326100000",
+              "110182.4",
+              "110388.5",
+              "110129.9",
+              "110338",
+              "14171.27",
+              "141.7127",
+              "15627010.14395",
+              "1"
+            ],
+            [
+              "1761325800000",
+              "110279.5",
+              "110311.7",
+              "110123.2",
+              "110182.4",
+              "13055.82",
+              "130.5582",
+              "14387945.60904",
+              "1"
+            ],
+            [
+              "1761325500000",
+              "110368.1",
+              "110386",
+              "110257.8",
+              "110279.5",
+              "14438.23",
+              "144.3823",
+              "15928506.12027",
+              "1"
+            ],
+            [
+              "1761325200000",
+              "110210",
+              "110399.8",
+              "110192",
+              "110368",
+              "15134.52",
+              "151.3452",
+              "16696854.90075",
+              "1"
+            ],
+            [
+              "1761324900000",
+              "110126.8",
+              "110250",
+              "110117.9",
+              "110209.9",
+              "11138.17",
+              "111.3817",
+              "12272723.28639",
+              "1"
+            ],
+            [
+              "1761324600000",
+              "110041.7",
+              "110147.5",
+              "110037.6",
+              "110126.8",
+              "7320.21",
+              "73.2021",
+              "8059172.17713",
+              "1"
+            ],
+            [
+              "1761324300000",
+              "109947.6",
+              "110100",
+              "109896.8",
+              "110041.7",
+              "18234.91",
+              "182.3491",
+              "20056368.47869",
+              "1"
+            ],
+            [
+              "1761324000000",
+              "109986",
+              "110013.3",
+              "109854.5",
+              "109947.6",
+              "18639.95",
+              "186.3995",
+              "20487597.69045",
+              "1"
+            ],
+            [
+              "1761323700000",
+              "110088.2",
+              "110088.3",
+              "109935.4",
+              "109986.1",
+              "15348.54",
+              "153.4854",
+              "16882621.71518",
+              "1"
+            ],
+            [
+              "1761323400000",
+              "110302.6",
+              "110312",
+              "110016.6",
+              "110088.2",
+              "16100.9",
+              "161.009",
+              "17732521.19758",
+              "1"
+            ],
+            [
+              "1761323100000",
+              "110144.9",
+              "110341.2",
+              "110134",
+              "110302.6",
+              "14115.44",
+              "141.1544",
+              "15557926.7811",
+              "1"
+            ],
+            [
+              "1761322800000",
+              "110163",
+              "110281.7",
+              "110136.9",
+              "110145",
+              "18122.96",
+              "181.2296",
+              "19972761.06147",
+              "1"
+            ],
+            [
+              "1761322500000",
+              "109977",
+              "110233",
+              "109977",
+              "110163",
+              "22384.2",
+              "223.842",
+              "24653125.20873",
+              "1"
+            ],
+            [
+              "1761322200000",
+              "109851.6",
+              "110010",
+              "109850",
+              "109977.1",
+              "16581.01",
+              "165.8101",
+              "18227430.92631",
+              "1"
+            ],
+            [
+              "1761321900000",
+              "109888.6",
+              "109945.6",
+              "109750",
+              "109851.7",
+              "26610.06",
+              "266.1006",
+              "29226719.62183",
+              "1"
+            ],
+            [
+              "1761321600000",
+              "110003.6",
+              "110059.8",
+              "109808.6",
+              "109888.7",
+              "23466.52",
+              "234.6652",
+              "25792261.36257",
+              "1"
+            ],
+            [
+              "1761321300000",
+              "110062.3",
+              "110064",
+              "109898.7",
+              "110003.6",
+              "19104.56",
+              "191.0456",
+              "21008140.63492",
+              "1"
+            ],
+            [
+              "1761321000000",
+              "109957.5",
+              "110176.7",
+              "109950",
+              "110062.2",
+              "28730.5",
+              "287.305",
+              "31628366.83978",
+              "1"
+            ],
+            [
+              "1761320700000",
+              "110078.4",
+              "110078.5",
+              "109825.3",
+              "109957.5",
+              "34880.45",
+              "348.8045",
+              "38347499.09874",
+              "1"
+            ],
+            [
+              "1761320400000",
+              "110299.9",
+              "110300",
+              "110004.1",
+              "110078.5",
+              "29419.46",
+              "294.1946",
+              "32390411.66527",
+              "1"
+            ],
+            [
+              "1761320100000",
+              "110288",
+              "110377.9",
+              "110224.1",
+              "110299.9",
+              "18805.84",
+              "188.0584",
+              "20741134.74963",
+              "1"
+            ],
+            [
+              "1761319800000",
+              "110532.5",
+              "110550",
+              "110286.1",
+              "110288",
+              "26966.35",
+              "269.6635",
+              "29782635.47491",
+              "1"
+            ],
+            [
+              "1761319500000",
+              "110428.2",
+              "110532.7",
+              "110408.4",
+              "110532.6",
+              "14659.23",
+              "146.5923",
+              "16193140.02145",
+              "1"
+            ],
+            [
+              "1761319200000",
+              "110431.9",
+              "110562.7",
+              "110351",
+              "110428.1",
+              "22551.11",
+              "225.5111",
+              "24914967.78531",
+              "1"
+            ],
+            [
+              "1761318900000",
+              "110389",
+              "110450",
+              "110253.2",
+              "110431.9",
+              "32593.39",
+              "325.9339",
+              "35965731.35971",
+              "1"
+            ],
+            [
+              "1761318600000",
+              "110103.9",
+              "110532.1",
+              "110096.3",
+              "110389.2",
+              "82956.83",
+              "829.5683",
+              "91578573.38389",
+              "1"
+            ],
+            [
+              "1761318300000",
+              "110079.1",
+              "110149.2",
+              "109967",
+              "110103.9",
+              "14439.07",
+              "144.3907",
+              "15889296.55468",
+              "1"
+            ],
+            [
+              "1761318000000",
+              "110168.8",
+              "110220",
+              "110079.1",
+              "110079.2",
+              "27869.91",
+              "278.6991",
+              "30699731.32247",
+              "1"
+            ],
+            [
+              "1761317700000",
+              "109924.6",
+              "110168.8",
+              "109888.9",
+              "110168.7",
+              "48300.54",
+              "483.0054",
+              "53147072.4793",
+              "1"
+            ],
+            [
+              "1761317400000",
+              "109984.9",
+              "110016.6",
+              "109808.5",
+              "109924.7",
+              "43902",
+              "439.02",
+              "48256269.47953",
+              "1"
+            ],
+            [
+              "1761317100000",
+              "110011.6",
+              "110034.3",
+              "109875",
+              "109984.9",
+              "26313.62",
+              "263.1362",
+              "28933203.12654",
+              "1"
+            ],
+            [
+              "1761316800000",
+              "110040.6",
+              "110071.6",
+              "109900",
+              "110011.6",
+              "25647.94",
+              "256.4794",
+              "28214836.22604",
+              "1"
+            ],
+            [
+              "1761316500000",
+              "110138.9",
+              "110139",
+              "109708.3",
+              "110040.6",
+              "51531.79",
+              "515.3179",
+              "56621855.46837",
+              "1"
+            ],
+            [
+              "1761316200000",
+              "109957.2",
+              "110146",
+              "109751.4",
+              "110138.9",
+              "55714",
+              "557.14",
+              "61278577.20547",
+              "1"
+            ],
+            [
+              "1761315900000",
+              "110004.2",
+              "110033.3",
+              "109641.7",
+              "109957.3",
+              "106928.7",
+              "1069.287",
+              "117427805.90986",
+              "1"
+            ],
+            [
+              "1761315600000",
+              "110114.8",
+              "110257.3",
+              "109822.3",
+              "110004.2",
+              "93442.27",
+              "934.4227",
+              "102811327.23375",
+              "1"
+            ],
+            [
+              "1761315300000",
+              "110535.4",
+              "110535.5",
+              "109950",
+              "110114.9",
+              "79455.2",
+              "794.552",
+              "87495224.63669",
+              "1"
+            ],
+            [
+              "1761315000000",
+              "110430.9",
+              "110595.5",
+              "110398.6",
+              "110535.4",
+              "24002.27",
+              "240.0227",
+              "26517115.99592",
+              "1"
+            ],
+            [
+              "1761314700000",
+              "110377.1",
+              "110497",
+              "110132.1",
+              "110430.9",
+              "77080.62",
+              "770.8062",
+              "85057325.00156",
+              "1"
+            ],
+            [
+              "1761314400000",
+              "110883.8",
+              "110883.8",
+              "110355",
+              "110377.1",
+              "49254.71",
+              "492.5471",
+              "54481899.97888",
+              "1"
+            ],
+            [
+              "1761314100000",
+              "110791.3",
+              "110914",
+              "110737.5",
+              "110883.8",
+              "34099.71",
+              "340.9971",
+              "37794258.35841",
+              "1"
+            ],
+            [
+              "1761313800000",
+              "110488.5",
+              "110823.8",
+              "110410",
+              "110791.3",
+              "47193.23",
+              "471.9323",
+              "52203058.24249",
+              "1"
+            ],
+            [
+              "1761313500000",
+              "110630.1",
+              "110697.5",
+              "110322.3",
+              "110488.6",
+              "113297.06",
+              "1132.9706",
+              "125208879.77844",
+              "1"
+            ],
+            [
+              "1761313200000",
+              "110695.3",
+              "110869.1",
+              "110600",
+              "110630.1",
+              "58749.39",
+              "587.4939",
+              "65062773.06844",
+              "1"
+            ],
+            [
+              "1761312900000",
+              "111163.6",
+              "111230.7",
+              "110644.6",
+              "110695.3",
+              "114527.09",
+              "1145.2709",
+              "127016042.27639",
+              "1"
+            ],
+            [
+              "1761312600000",
+              "111190",
+              "111264.8",
+              "111051.9",
+              "111163.6",
+              "58663.54",
+              "586.6354",
+              "65209199.56597",
+              "1"
+            ],
+            [
+              "1761312300000",
+              "111263.3",
+              "111263.3",
+              "111188.6",
+              "111190.1",
+              "10309.11",
+              "103.0911",
+              "11465624.58966",
+              "1"
+            ],
+            [
+              "1761312000000",
+              "111246",
+              "111345",
+              "111206.7",
+              "111263.3",
+              "12827.8",
+              "128.278",
+              "14274623.58671",
+              "1"
+            ],
+            [
+              "1761311700000",
+              "111143.1",
+              "111288",
+              "111092",
+              "111246.1",
+              "26201.28",
+              "262.0128",
+              "29134284.44283",
+              "1"
+            ],
+            [
+              "1761311400000",
+              "111379",
+              "111383.5",
+              "111114.9",
+              "111143.1",
+              "15887.23",
+              "158.8723",
+              "17671097.89695",
+              "1"
+            ],
+            [
+              "1761311100000",
+              "111360.9",
+              "111400",
+              "111281.4",
+              "111379",
+              "17884.36",
+              "178.8436",
+              "19914966.52849",
+              "1"
+            ],
+            [
+              "1761310800000",
+              "111256.8",
+              "111387.6",
+              "111142.3",
+              "111364.2",
+              "30696.07",
+              "306.9607",
+              "34157780.1969",
+              "1"
+            ],
+            [
+              "1761310500000",
+              "111193.4",
+              "111298.2",
+              "111108",
+              "111256.8",
+              "18658.36",
+              "186.5836",
+              "20747465.80881",
+              "1"
+            ],
+            [
+              "1761310200000",
+              "111300",
+              "111399.9",
+              "111190.9",
+              "111193.4",
+              "28454.09",
+              "284.5409",
+              "31668661.90289",
+              "1"
+            ],
+            [
+              "1761309900000",
+              "111512.3",
+              "111524.6",
+              "111172.8",
+              "111300",
+              "40459.79",
+              "404.5979",
+              "45052467.40354",
+              "1"
+            ],
+            [
+              "1761309600000",
+              "111345.1",
+              "111530.4",
+              "111252.1",
+              "111512.4",
+              "38559.9",
+              "385.599",
+              "42947393.01482",
+              "1"
+            ],
+            [
+              "1761309300000",
+              "111520.5",
+              "111628.8",
+              "111205.5",
+              "111345.1",
+              "73028.66",
+              "730.2866",
+              "81361493.4693",
+              "1"
+            ],
+            [
+              "1761309000000",
+              "110960.1",
+              "112178.3",
+              "110812.8",
+              "111520.5",
+              "517257.59",
+              "5172.5759",
+              "577580355.24119",
+              "1"
+            ],
+            [
+              "1761308700000",
+              "110973.4",
+              "110994.4",
+              "110825",
+              "110960.1",
+              "39734.48",
+              "397.3448",
+              "44071235.63999",
+              "1"
+            ],
+            [
+              "1761308400000",
+              "110879.6",
+              "111006.7",
+              "110834.1",
+              "110973.4",
+              "20645.14",
+              "206.4514",
+              "22903521.88105",
+              "1"
+            ],
+            [
+              "1761308100000",
+              "111138",
+              "111141.1",
+              "110879.6",
+              "110879.6",
+              "27074.35",
+              "270.7435",
+              "30052931.46641",
+              "1"
+            ],
+            [
+              "1761307800000",
+              "111179.7",
+              "111246.3",
+              "111131.7",
+              "111138.1",
+              "18846.66",
+              "188.4666",
+              "20958834.74741",
+              "1"
+            ],
+            [
+              "1761307500000",
+              "111155",
+              "111198.5",
+              "111102.5",
+              "111179.8",
+              "13123.68",
+              "131.2368",
+              "14588660.09424",
+              "1"
+            ],
+            [
+              "1761307200000",
+              "111023.9",
+              "111170",
+              "111023.8",
+              "111155",
+              "16649.79",
+              "166.4979",
+              "18500539.42592",
+              "1"
+            ],
+            [
+              "1761306900000",
+              "111021.6",
+              "111070.9",
+              "110914.9",
+              "111023.9",
+              "18822.24",
+              "188.2224",
+              "20894489.88553",
+              "1"
+            ],
+            [
+              "1761306600000",
+              "110866.6",
+              "111093.4",
+              "110840.1",
+              "111021.5",
+              "29091.79",
+              "290.9179",
+              "32293529.78513",
+              "1"
+            ],
+            [
+              "1761306300000",
+              "110953.3",
+              "111000",
+              "110841",
+              "110866.7",
+              "19729.53",
+              "197.2953",
+              "21879377.69517",
+              "1"
+            ],
+            [
+              "1761306000000",
+              "110946.6",
+              "110991.7",
+              "110909.3",
+              "110953.2",
+              "9675.42",
+              "96.7542",
+              "10735814.35365",
+              "1"
+            ],
+            [
+              "1761305700000",
+              "110823.7",
+              "110966",
+              "110773.4",
+              "110946.7",
+              "19151.08",
+              "191.5108",
+              "21239096.56906",
+              "1"
+            ],
+            [
+              "1761305400000",
+              "111086.9",
+              "111087",
+              "110534.2",
+              "110823.8",
+              "110270.59",
+              "1102.7059",
+              "122159299.54923",
+              "1"
+            ],
+            [
+              "1761305100000",
+              "111065",
+              "111087",
+              "111046",
+              "111087",
+              "4594.68",
+              "45.9468",
+              "5103311.22166",
+              "1"
+            ],
+            [
+              "1761304800000",
+              "111194.7",
+              "111194.7",
+              "111053.3",
+              "111065",
+              "7119.56",
+              "71.1956",
+              "7909854.34156",
+              "1"
+            ],
+            [
+              "1761304500000",
+              "111200.1",
+              "111236",
+              "111155.3",
+              "111194.7",
+              "4783.51",
+              "47.8351",
+              "5319012.27438",
+              "1"
+            ],
+            [
+              "1761304200000",
+              "111113.4",
+              "111240",
+              "111113.3",
+              "111200.1",
+              "8870.46",
+              "88.7046",
+              "9863766.41096",
+              "1"
+            ],
+            [
+              "1761303900000",
+              "111116.2",
+              "111149.3",
+              "111069.3",
+              "111113.3",
+              "7931.88",
+              "79.3188",
+              "8813593.78041",
+              "1"
+            ],
+            [
+              "1761303600000",
+              "111078.7",
+              "111116.3",
+              "111019.9",
+              "111116.3",
+              "12476.4",
+              "124.764",
+              "13855929.50952",
+              "1"
+            ],
+            [
+              "1761303300000",
+              "111130.7",
+              "111166.7",
+              "111066.7",
+              "111078.6",
+              "4048.7",
+              "40.487",
+              "4499191.0352",
+              "1"
+            ],
+            [
+              "1761303000000",
+              "111080.1",
+              "111140.1",
+              "111050",
+              "111130.7",
+              "5898.23",
+              "58.9823",
+              "6551767.22346",
+              "1"
+            ],
+            [
+              "1761302700000",
+              "111139.4",
+              "111166.4",
+              "111080",
+              "111080.1",
+              "4720.86",
+              "47.2086",
+              "5246967.34312",
+              "1"
+            ],
+            [
+              "1761302400000",
+              "111153.6",
+              "111153.7",
+              "111059.1",
+              "111139.5",
+              "7414.17",
+              "74.1417",
+              "8237365.64526",
+              "1"
+            ],
+            [
+              "1761302100000",
+              "111208.8",
+              "111208.9",
+              "111131.8",
+              "111153.6",
+              "9409.65",
+              "94.0965",
+              "10460506.56279",
+              "1"
+            ],
+            [
+              "1761301800000",
+              "111037.9",
+              "111226.7",
+              "111037.9",
+              "111208.8",
+              "26910.89",
+              "269.1089",
+              "29906315.73782",
+              "1"
+            ],
+            [
+              "1761301500000",
+              "111049.8",
+              "111089.5",
+              "111026",
+              "111038",
+              "7715.75",
+              "77.1575",
+              "8568485.058",
+              "1"
+            ],
+            [
+              "1761301200000",
+              "111135.7",
+              "111151",
+              "111022",
+              "111049.8",
+              "23523.49",
+              "235.2349",
+              "26127389.637",
+              "1"
+            ],
+            [
+              "1761300900000",
+              "111228.7",
+              "111240.8",
+              "111135.8",
+              "111135.8",
+              "7402.64",
+              "74.0264",
+              "8230939.81138",
+              "1"
+            ],
+            [
+              "1761300600000",
+              "111245.3",
+              "111266",
+              "111218.4",
+              "111228.7",
+              "5170.62",
+              "51.7062",
+              "5751593.91755",
+              "1"
+            ],
+            [
+              "1761300300000",
+              "111180",
+              "111277.5",
+              "111143.1",
+              "111245.2",
+              "11081.91",
+              "110.8191",
+              "12322627.55183",
+              "1"
+            ],
+            [
+              "1761300000000",
+              "111288.4",
+              "111288.5",
+              "111172.4",
+              "111180",
+              "13879.62",
+              "138.7962",
+              "15437983.62604",
+              "1"
+            ],
+            [
+              "1761299700000",
+              "111271.8",
+              "111293.2",
+              "111200.1",
+              "111288.8",
+              "13334.65",
+              "133.3465",
+              "14832839.03611",
+              "1"
+            ],
+            [
+              "1761299400000",
+              "111441",
+              "111443.6",
+              "111233.3",
+              "111271.8",
+              "12996.81",
+              "129.9681",
+              "14471535.17121",
+              "1"
+            ],
+            [
+              "1761299100000",
+              "111350",
+              "111475.4",
+              "111307.7",
+              "111441",
+              "27794.6",
+              "277.946",
+              "30967708.65701",
+              "1"
+            ],
+            [
+              "1761298800000",
+              "111265.8",
+              "111364.4",
+              "111254.4",
+              "111350",
+              "11276.1",
+              "112.761",
+              "12548249.48966",
+              "1"
+            ],
+            [
+              "1761298500000",
+              "111302.4",
+              "111348",
+              "111265.8",
+              "111265.8",
+              "5888.72",
+              "58.8872",
+              "6554310.49695",
+              "1"
+            ],
+            [
+              "1761298200000",
+              "111398.6",
+              "111409",
+              "111188",
+              "111302.3",
+              "34116.13",
+              "341.1613",
+              "37969291.03485",
+              "1"
+            ],
+            [
+              "1761297900000",
+              "111269.1",
+              "111409.6",
+              "111267.6",
+              "111398.7",
+              "18216.02",
+              "182.1602",
+              "20285790.57371",
+              "1"
+            ],
+            [
+              "1761297600000",
+              "111287.8",
+              "111331.5",
+              "111240",
+              "111269.1",
+              "7845",
+              "78.45",
+              "8729890.20993",
+              "1"
+            ],
+            [
+              "1761297300000",
+              "111299.9",
+              "111377",
+              "111253.3",
+              "111287.7",
+              "18711.69",
+              "187.1169",
+              "20828337.4762",
+              "1"
+            ],
+            [
+              "1761297000000",
+              "111194.8",
+              "111329",
+              "111183.9",
+              "111299.9",
+              "23834.39",
+              "238.3439",
+              "26518112.40836",
+              "1"
+            ]
+          ]
+        }
+      }
+    ]
+  },
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "币种设置",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "币种设置": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "获取K线",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BTC 1H 100": {
+      "main": [
+        [
+          {
+            "node": "1h rsi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BTC 5min": {
+      "main": [
+        [
+          {
+            "node": "计算1h2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "计算1h1": {
+      "main": [
+        [
+          {
+            "node": "查询LINK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "计算1h2": {
+      "main": [
+        [
+          {
+            "node": "查询BTC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LINK 5min 300": {
+      "main": [
+        [
+          {
+            "node": "计算1h1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "查询LINK": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "收集查询数据",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SOL 5MIN300": {
+      "main": [
+        [
+          {
+            "node": "计算1h",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "计算1h": {
+      "main": [
+        [
+          {
+            "node": "查询SOL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TRX 5MIN300": {
+      "main": [
+        [
+          {
+            "node": "计算1h3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "计算1h3": {
+      "main": [
+        [
+          {
+            "node": "查询TRX",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "查询SOL": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "收集查询数据",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "查询BTC": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "收集查询数据",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "查询TRX": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "收集查询数据",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BNB 5MIN300": {
+      "main": [
+        [
+          {
+            "node": "计算1h4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "计算1h4": {
+      "main": [
+        [
+          {
+            "node": "查询BNB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "查询BNB": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "收集查询数据",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "获取K线": {
+      "main": [
+        [
+          {
+            "node": "计算1h5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "计算1h5": {
+      "main": [
+        [
+          {
+            "node": "查询",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "查询": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "cc59c200-1869-42b1-8fa2-0dfd1d0da0f3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "86337187a027334efdeca67b4b01fd797cd08d2588c4e9d45cd99f795c1764d6"
+  },
+  "id": "OjoY8uNqBI5Oe3uo",
+  "tags": []
+}
