@@ -180,6 +180,7 @@ export class AnalysisService {
       });
 
       // 7. 计算相对上一轮的涨跌幅并保存单币详情
+      const extendedCoinDetails = [];
       for (const detail of coinDetails) {
         // 获取上一轮的数据用于计算涨跌幅
         const previousRoundDetail: any = await this.coinService.getPreviousRoundDetail(detail.symbol);
@@ -205,14 +206,15 @@ export class AnalysisService {
           is_crash_vs_prev: isCrashVsPrev ? 1 : 0
         };
         
+        extendedCoinDetails.push(extendedDetail);
         await this.coinService.saveCoinRoundDetail(detail.symbol, roundTime, extendedDetail);
       }
 
-      // 8. 更新日统计
-      await this.updateDailyStats(today, coinDetails, surgeCount, crashCount);
+      // 8. 更新日统计（使用轮次对比的急涨急跌数据）
+      await this.updateDailyStats(today, extendedCoinDetails, surgeCount, crashCount);
 
       // 9. 更新币种优先级
-      await this.updateCoinPriorities(coinDetails);
+      await this.updateCoinPriorities(extendedCoinDetails);
 
       return {
         success: true,
@@ -241,8 +243,9 @@ export class AnalysisService {
       const existing: any = await this.coinService.getTodayStats(date);
       const coinStat = existing.find((s: any) => s.symbol === detail.symbol);
 
-      const totalSurges = (coinStat?.total_surges || 0) + (detail.is_surge ? 1 : 0);
-      const totalCrashes = (coinStat?.total_crashes || 0) + (detail.is_crash ? 1 : 0);
+      // 使用相对上一轮的急涨急跌判断（is_surge_vs_prev, is_crash_vs_prev）
+      const totalSurges = (coinStat?.total_surges || 0) + (detail.is_surge_vs_prev ? 1 : 0);
+      const totalCrashes = (coinStat?.total_crashes || 0) + (detail.is_crash_vs_prev ? 1 : 0);
       const newHighCount = (coinStat?.new_high_count || 0) + detail.new_high_count;
       const newLowCount = (coinStat?.new_low_count || 0) + detail.new_low_count;
 
