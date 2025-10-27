@@ -1,0 +1,263 @@
+[
+  {
+    "symbol": "OKB",
+    "all_time_high": 235.51972,
+    "all_time_low": 162.60563,
+    "high_count": 1447,
+    "low_count": 356,
+    "low_ratio_percent": 73.38,
+    "high_ratio_percent": 106.28
+  },
+  {
+    "symbol": "DOT",
+    "all_time_high": 4.883676056338,
+    "all_time_low": 2.90639,
+    "high_count": 2927,
+    "low_count": 680,
+    "low_ratio_percent": 66.07,
+    "high_ratio_percent": 111.02
+  },
+  {
+    "symbol": "LINK",
+    "all_time_high": 26.37,
+    "all_time_low": 16.62113,
+    "high_count": 6138,
+    "low_count": 677,
+    "low_ratio_percent": 71.97,
+    "high_ratio_percent": 114.19
+  },
+  {
+    "symbol": "ADA",
+    "all_time_high": 0.953985915493,
+    "all_time_low": 0.62663,
+    "high_count": 3708,
+    "low_count": 677,
+    "low_ratio_percent": 72.47,
+    "high_ratio_percent": 110.32
+  },
+  {
+    "symbol": "FIL",
+    "all_time_high": 2.656661971831,
+    "all_time_low": 1.47924,
+    "high_count": 3709,
+    "low_count": 677,
+    "low_ratio_percent": 62.88,
+    "high_ratio_percent": 112.92
+  },
+  {
+    "symbol": "XLM",
+    "all_time_high": 0.4177,
+    "all_time_low": 0.30889,
+    "high_count": 6138,
+    "low_count": 677,
+    "low_ratio_percent": 79.84,
+    "high_ratio_percent": 107.96
+  },
+  {
+    "symbol": "HBAR",
+    "all_time_high": 0.2552676056338,
+    "all_time_low": 0.16373,
+    "high_count": 3708,
+    "low_count": 677,
+    "low_ratio_percent": 71.66,
+    "high_ratio_percent": 111.72
+  },
+  {
+    "symbol": "BCH",
+    "all_time_high": 650.823943662,
+    "all_time_low": 459.09296,
+    "high_count": 2998,
+    "low_count": 678,
+    "low_ratio_percent": 86.52,
+    "high_ratio_percent": 122.65
+  },
+  {
+    "symbol": "ETC",
+    "all_time_high": 24.32,
+    "all_time_low": 14.48451,
+    "high_count": 6137,
+    "low_count": 1517,
+    "low_ratio_percent": 69.0,
+    "high_ratio_percent": 115.86
+  },
+  {
+    "symbol": "TON",
+    "all_time_high": 3.392,
+    "all_time_low": 2.12076,
+    "high_count": 6137,
+    "low_count": 387,
+    "low_ratio_percent": 66.57,
+    "high_ratio_percent": 106.47
+  },
+  {
+    "symbol": "TRX",
+    "all_time_high": 0.36644,
+    "all_time_low": 0.29508,
+    "high_count": 6137,
+    "low_count": 270,
+    "low_ratio_percent": 82.26,
+    "high_ratio_percent": 102.15
+  },
+  {
+    "symbol": "SUI",
+    "all_time_high": 3.981056338028,
+    "all_time_low": 2.41479,
+    "high_count": 2964,
+    "low_count": 319,
+    "low_ratio_percent": 67.66,
+    "high_ratio_percent": 111.54
+  },
+  {
+    "symbol": "DOGE",
+    "all_time_high": 0.3071549295775,
+    "all_time_low": 0.18701,
+    "high_count": 3708,
+    "low_count": 677,
+    "low_ratio_percent": 67.83,
+    "high_ratio_percent": 111.41
+  },
+  {
+    "symbol": "SOL",
+    "all_time_high": 253.3591549296,
+    "all_time_low": 183.80986,
+    "high_count": 2974,
+    "low_count": 438,
+    "low_ratio_percent": 80.74,
+    "high_ratio_percent": 111.29
+  },
+  {
+    "symbol": "LTC",
+    "all_time_high": 135.56901,
+    "all_time_low": 91.32113,
+    "high_count": 1004,
+    "low_count": 678,
+    "low_ratio_percent": 74.23,
+    "high_ratio_percent": 110.2
+  },
+  {
+    "symbol": "BNB",
+    "all_time_high": 1377.4831,
+    "all_time_low": 820.7,
+    "high_count": 903,
+    "low_count": 6137,
+    "low_ratio_percent": 84.2,
+    "high_ratio_percent": 141.32
+  },
+  {
+    "symbol": "XRP",
+    "all_time_high": 3.190211267606,
+    "all_time_low": 2.33165,
+    "high_count": 3727,
+    "low_count": 677,
+    "low_ratio_percent": 83.27,
+    "high_ratio_percent": 113.93
+  },
+  {
+    "symbol": "ETH",
+    "all_time_high": 4830.0,
+    "all_time_low": 3837.73944,
+    "high_count": 6137,
+    "low_count": 356,
+    "low_ratio_percent": 87.26,
+    "high_ratio_percent": 109.82
+  },
+  {
+    "symbol": "BTC",
+    "all_time_high": 125370.20986,
+    "all_time_low": 106787.7831,
+    "high_count": 1439,
+    "low_count": 678,
+    "low_ratio_percent": 91.99,
+    "high_ratio_percent": 107.99
+  },
+  {
+    "symbol": "CRO",
+    "all_time_high": 0.3857746478873,
+    "all_time_low": 0.14214,
+    "high_count": 5939,
+    "low_count": 677,
+    "low_ratio_percent": 40.46,
+    "high_ratio_percent": 109.8
+  },
+  {
+    "symbol": "CFX",
+    "all_time_high": 0.1878309859155,
+    "all_time_low": 0.10773,
+    "high_count": 2964,
+    "low_count": 395,
+    "low_ratio_percent": 62.34,
+    "high_ratio_percent": 108.7
+  },
+  {
+    "symbol": "CRV",
+    "all_time_high": 0.8628732394366,
+    "all_time_low": 0.51941,
+    "high_count": 3568,
+    "low_count": 678,
+    "low_ratio_percent": 68.37,
+    "high_ratio_percent": 113.58
+  },
+  {
+    "symbol": "APT",
+    "all_time_high": 5.49327,
+    "all_time_low": 3.14277,
+    "high_count": 1440,
+    "low_count": 423,
+    "low_ratio_percent": 65.58,
+    "high_ratio_percent": 114.63
+  },
+  {
+    "symbol": "NEAR",
+    "all_time_high": 3.324084507042,
+    "all_time_low": 2.15015,
+    "high_count": 2709,
+    "low_count": 677,
+    "low_ratio_percent": 72.19,
+    "high_ratio_percent": 111.6
+  },
+  {
+    "symbol": "UNI",
+    "all_time_high": 10.3711971831,
+    "all_time_low": 5.99058,
+    "high_count": 3709,
+    "low_count": 677,
+    "low_ratio_percent": 65.47,
+    "high_ratio_percent": 113.35
+  },
+  {
+    "symbol": "AAVE",
+    "all_time_high": 322.6535211268,
+    "all_time_low": 213.46901,
+    "high_count": 3789,
+    "low_count": 680,
+    "low_ratio_percent": 76.05,
+    "high_ratio_percent": 114.95
+  },
+  {
+    "symbol": "STX",
+    "all_time_high": 0.7021126760563,
+    "all_time_low": 0.42073,
+    "high_count": 3568,
+    "low_count": 680,
+    "low_ratio_percent": 68.0,
+    "high_ratio_percent": 113.48
+  },
+  {
+    "symbol": "TAO",
+    "all_time_high": 476.82394,
+    "all_time_low": 293.10704,
+    "high_count": 717,
+    "low_count": 1927,
+    "low_ratio_percent": 86.19,
+    "high_ratio_percent": 140.22
+  },
+  {
+    "symbol": "LDO",
+    "all_time_high": 1.354929577465,
+    "all_time_low": 0.86355,
+    "high_count": 2786,
+    "low_count": 680,
+    "low_ratio_percent": 72.06,
+    "high_ratio_percent": 113.06
+  }
+]
