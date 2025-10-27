@@ -4,6 +4,9 @@ let currentTimeframe = '5m';
 let klineChart = null;
 let allCoins = [];
 let showIndicators = true; // 默认显示技术指标
+let autoRefreshInterval = null;
+let countdown = 30;
+let countdownInterval = null;
 
 // 初始化
 document.addEventListener('DOMContentLoaded', async () => {
@@ -12,7 +15,51 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('syncBtn').addEventListener('click', syncKlineData);
   document.getElementById('sync48hBtn').addEventListener('click', sync48HoursData);
   document.getElementById('toggleIndicators').addEventListener('click', toggleIndicatorColumns);
+  
+  // 启动自动刷新（30秒）
+  startAutoRefresh();
 });
+
+// 启动自动刷新
+function startAutoRefresh() {
+  // 设置30秒自动刷新
+  autoRefreshInterval = setInterval(() => {
+    loadKlineData();
+    resetCountdown();
+  }, 30000);
+  
+  // 启动倒计时显示
+  startCountdown();
+}
+
+// 启动倒计时
+function startCountdown() {
+  countdown = 30;
+  updateCountdownDisplay();
+  
+  countdownInterval = setInterval(() => {
+    countdown--;
+    updateCountdownDisplay();
+    
+    if (countdown <= 0) {
+      countdown = 30;
+    }
+  }, 1000);
+}
+
+// 重置倒计时
+function resetCountdown() {
+  countdown = 30;
+  updateCountdownDisplay();
+}
+
+// 更新倒计时显示
+function updateCountdownDisplay() {
+  const countdownEl = document.getElementById('countdown');
+  if (countdownEl) {
+    countdownEl.textContent = `${countdown}秒后自动刷新`;
+  }
+}
 
 // 加载币种列表
 async function loadCoins() {

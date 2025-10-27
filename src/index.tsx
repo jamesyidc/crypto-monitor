@@ -7,6 +7,7 @@ import { AnalysisService } from './services/analysisService'
 import { KlineService } from './services/klineService'
 import { SignalService } from './services/signalService'
 import { TelegramService } from './services/telegramService'
+import { PositionService } from './services/positionService'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
@@ -690,6 +691,9 @@ app.get('/', (c) => {
                         <i class="fas fa-cog mr-2"></i>控制中心
                     </h2>
                     <div class="flex gap-2">
+                        <a href="/positions.html" class="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2 rounded-lg transition">
+                            <i class="fas fa-wallet mr-2"></i>持仓追踪
+                        </a>
                         <a href="/history.html" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg transition">
                             <i class="fas fa-history mr-2"></i>历史回看
                         </a>
@@ -820,6 +824,162 @@ app.get('/', (c) => {
     </body>
     </html>
   `);
+});
+
+// ==================== 持仓管理 API ====================
+
+// API: 获取所有活跃持仓
+app.get('/api/positions', async (c) => {
+  try {
+    const positionService = new PositionService(c.env.DB);
+    const positions: any = await positionService.getActivePositions();
+    
+    // 附加当前价格
+    const enriched = await positionService.enrichPositionsWithCurrentPrice(positions);
+    
+    return c.json({ success: true, positions: enriched });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 添加持仓
+app.post('/api/positions', async (c) => {
+  try {
+    const body = await c.req.json();
+    const positionService = new PositionService(c.env.DB);
+    
+    const result = await positionService.addPosition({
+      symbol: body.symbol,
+      positionType: body.position_type,
+      entryPrice: parseFloat(body.entry_price),
+      quantity: body.quantity ? parseFloat(body.quantity) : undefined,
+      stopLoss: body.stop_loss ? parseFloat(body.stop_loss) : undefined,
+      takeProfit: body.take_profit ? parseFloat(body.take_profit) : undefined,
+      notes: body.notes
+    });
+    
+    return c.json({ success: true, data: result });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 更新持仓
+app.put('/api/positions/:id', async (c) => {
+  try {
+    const id = parseInt(c.req.param('id'));
+    const body = await c.req.json();
+    const positionService = new PositionService(c.env.DB);
+    
+    const result = await positionService.updatePosition(id, {
+      quantity: body.quantity ? parseFloat(body.quantity) : undefined,
+      stopLoss: body.stopLoss ? parseFloat(body.stopLoss) : undefined,
+      takeProfit: body.takeProfit ? parseFloat(body.takeProfit) : undefined,
+      notes: body.notes
+    });
+    
+    return c.json({ success: true, data: result });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 平仓
+app.post('/api/positions/:id/close', async (c) => {
+  try {
+    const id = parseInt(c.req.param('id'));
+    const body = await c.req.json();
+    const positionService = new PositionService(c.env.DB);
+    
+    const result = await positionService.closePosition(id, parseFloat(body.closedPrice));
+    
+    return c.json({ success: true, data: result });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 删除持仓
+app.delete('/api/positions/:id', async (c) => {
+  try {
+    const id = parseInt(c.req.param('id'));
+    const positionService = new PositionService(c.env.DB);
+    
+    const result = await positionService.deletePosition(id);
+    
+    return c.json({ success: true, data: result });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 检查持仓预警
+app.get('/api/positions/check-alerts', async (c) => {
+  try {
+    const positionService = new PositionService(c.env.DB);
+    const klineService = new KlineService(c.env.DB);
+    
+    // 获取所有活跃持仓
+    const positions: any = await positionService.getActivePositions();
+    
+    if (positions.length === 0) {
+      return c.json({ 
+        success: true, 
+        alerts: [],
+        message: '暂无活跃持仓'
+      });
+    }
+    
+    // 获取这些币种的最新K线数据
+    const symbols = [...new Set(positions.map((p: any) => p.symbol))];
+    const klineDataMap = new Map();
+    
+    for (const symbol of symbols) {
+      const result = await klineService.getKlineWithIndicators(symbol, '5m', 1);
+      if (result.data && result.data.length > 0) {
+        klineDataMap.set(symbol, result.data[0]);
+      }
+    }
+    
+    // 转换为数组供检查使用
+    const klineData = Array.from(klineDataMap.values());
+    
+    // 检查预警
+    const alerts = await positionService.checkPositionAlerts(klineData);
+    
+    // 如果有预警，发送到Telegram
+    let telegramSent = 0;
+    if (alerts.length > 0 && c.env.TELEGRAM_BOT_TOKEN && c.env.TELEGRAM_CHAT_ID) {
+      const telegramService = new TelegramService(
+        c.env.TELEGRAM_BOT_TOKEN,
+        c.env.TELEGRAM_CHAT_ID
+      );
+      
+      for (const alert of alerts) {
+        const sent = await telegramService.sendPositionAlert(alert);
+        if (sent) {
+          telegramSent++;
+          // 保存预警记录
+          await positionService.savePositionAlert({
+            ...alert,
+            telegramSent: true
+          });
+        }
+      }
+    }
+    
+    return c.json({
+      success: true,
+      alerts,
+      telegram: {
+        sent: telegramSent,
+        total: alerts.length
+      }
+    });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
 });
 
 export default app

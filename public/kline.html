@@ -18,22 +18,30 @@
 <body class="bg-gray-50 min-h-screen">
     <div class="container mx-auto px-4 py-6">
         <!-- 导航 -->
-        <div class="bg-white rounded-lg shadow-md p-4 mb-6 flex items-center justify-between">
-            <div>
-                <a href="/" class="text-blue-600 hover:text-blue-700">
-                    <i class="fas fa-arrow-left mr-2"></i>返回首页
-                </a>
+        <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+            <div class="flex items-center justify-between mb-3">
+                <div>
+                    <a href="/" class="text-blue-600 hover:text-blue-700">
+                        <i class="fas fa-arrow-left mr-2"></i>返回首页
+                    </a>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-chart-candlestick mr-2"></i>K线数据查询
+                </h1>
+                <div class="flex gap-2">
+                    <button id="syncBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition">
+                        <i class="fas fa-sync mr-2"></i>同步最新
+                    </button>
+                    <button id="sync48hBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition">
+                        <i class="fas fa-database mr-2"></i>补全48小时
+                    </button>
+                </div>
             </div>
-            <h1 class="text-2xl font-bold text-gray-800">
-                <i class="fas fa-chart-candlestick mr-2"></i>K线数据查询
-            </h1>
-            <div class="flex gap-2">
-                <button id="syncBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition">
-                    <i class="fas fa-sync mr-2"></i>同步最新
-                </button>
-                <button id="sync48hBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition">
-                    <i class="fas fa-database mr-2"></i>补全48小时
-                </button>
+            <div class="text-center">
+                <div class="inline-block text-sm text-gray-600 bg-gray-100 px-4 py-2 rounded-lg">
+                    <i class="fas fa-clock mr-2"></i>
+                    <span id="countdown">30秒后自动刷新</span>
+                </div>
             </div>
         </div>
 

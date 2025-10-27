@@ -143,4 +143,72 @@ ${alert.triggers.map((t: string) => `• ${t}`).join('\n')}
       return false;
     }
   }
+
+  // 发送持仓提醒（多单见顶/空单见底）
+  async sendPositionAlert(alert: any): Promise<boolean> {
+    try {
+      const message = this.buildPositionAlertMessage(alert);
+      
+      const response = await fetch(`${this.apiUrl}/sendMessage`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          chat_id: this.chatId,
+          text: message,
+          parse_mode: 'HTML',
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (!result.ok) {
+        console.error('❌ 持仓提醒发送失败:', JSON.stringify(result));
+        return false;
+      }
+
+      console.log(`✅ 持仓提醒已发送: ${alert.position.symbol} ${alert.alertType}`);
+      return true;
+    } catch (error) {
+      console.error('❌ 持仓提醒发送异常:', error);
+      return false;
+    }
+  }
+
+  // 构建持仓提醒消息
+  private buildPositionAlertMessage(alert: any): string {
+    const { position, alertType, klineTime, currentPrice, sarChangePercent, changePercent, rsi5min, profitPercent } = alert;
+    
+    const isLongTop = alertType === 'LONG_TOP';
+    const emoji = isLongTop ? '🔴' : '🟢';
+    const title = isLongTop ? '多单见顶预警' : '空单见底预警';
+    const action = isLongTop ? '建议止盈' : '建议止盈';
+    
+    return `
+${emoji} <b>${title}</b> ${emoji}
+
+📊 <b>币种</b>: ${position.symbol}
+💰 <b>持仓类型</b>: ${position.position_type === 'LONG' ? '多单🟢' : '空单🔴'}
+🎯 <b>开仓价格</b>: $${position.entry_price.toFixed(4)}
+💵 <b>当前价格</b>: $${currentPrice.toFixed(4)}
+📈 <b>盈亏</b>: ${parseFloat(profitPercent) >= 0 ? '+' : ''}${profitPercent}%
+
+⚠️ <b>预警信号</b>:
+├─ SAR变化: ${sarChangePercent.toFixed(2)}%
+├─ 涨跌幅: ${changePercent.toFixed(2)}%
+└─ RSI(5m): ${rsi5min.toFixed(2)} ${isLongTop ? '(超买⬆️)' : '(超卖⬇️)'}
+
+🕐 <b>触发时间</b>: ${klineTime}
+
+${isLongTop ? 
+  '⚠️ <b>多单警告</b>: SAR上涨但价格回调，RSI超买(>70)，可能见顶！' : 
+  '⚠️ <b>空单警告</b>: SAR下跌但价格反弹，RSI超卖(<30)，可能见底！'
+}
+
+💡 <b>${action}</b>
+
+${position.notes ? `📝 备注: ${position.notes}` : ''}
+    `.trim();
+  }
 }
