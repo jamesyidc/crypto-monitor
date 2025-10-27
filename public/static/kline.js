@@ -292,7 +292,13 @@ function renderTable(klineData, alerts = []) {
   tbody.innerHTML = klineData.map((k) => {
     // 检查是否有预警
     const hasAlert = alertMap[k.index];
-    const rowClass = hasAlert ? 'bg-yellow-50 border-l-4 border-yellow-500' : '';
+    // 🆕 V1行背景色（橙色边框高亮）
+    const isV1Row = k.is_v1 === true;
+    const rowClass = hasAlert 
+      ? 'bg-yellow-50 border-l-4 border-yellow-500' 
+      : isV1Row 
+        ? 'bg-orange-50 border-l-2 border-orange-400' 
+        : '';
     
     // 基础K线数据 - 涨跌幅颜色
     const getChangeClass = (change) => {
@@ -305,6 +311,11 @@ function renderTable(klineData, alerts = []) {
       return 'text-gray-400';
     };
     const changeClass = getChangeClass(k.change);
+    
+    // 🆕 V1标记 - 成交量大于1.5倍均量
+    const isV1 = k.is_v1 === true;
+    const volumeClass = isV1 ? 'bg-orange-100 text-orange-700 font-bold' : 'text-gray-600';
+    const v1Badge = isV1 ? '<span class="inline-block px-1 py-0.5 bg-orange-500 text-white text-xs rounded font-bold ml-1">V1</span>' : '';
     
     // 信号样式
     const signalClass = k.signal && k.signal.startsWith('多头') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
@@ -338,7 +349,7 @@ function renderTable(klineData, alerts = []) {
         <td class="py-2 px-1 text-right font-mono text-red-600">${k.low ? k.low.toFixed(4) : '-'}</td>
         <td class="py-2 px-1 text-right font-mono font-bold">${k.close ? k.close.toFixed(4) : '-'}</td>
         <td class="py-2 px-1 text-right font-bold ${changeClass}">${k.change || '-'}</td>
-        <td class="py-2 px-1 text-right font-mono text-gray-600">${k.volume ? formatVolume(k.volume) : '-'}</td>
+        <td class="py-2 px-1 text-right font-mono ${volumeClass}">${k.volume ? formatVolume(k.volume) : '-'}${v1Badge}</td>
         <!-- 技术指标列（默认显示） -->
         <td class="py-2 px-1 text-center indicator-col">
           <span class="inline-block px-2 py-0.5 rounded ${signalClass} text-xs font-semibold">
