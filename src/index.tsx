@@ -105,6 +105,16 @@ app.get('/api/okx/config/:symbol', async (c) => {
   return c.json(config);
 });
 
+// 比价比对页面
+app.get('/compare', (c) => {
+  return c.redirect('/compare.html');
+});
+
+// K线查询页面
+app.get('/kline', (c) => {
+  return c.redirect('/kline.html');
+});
+
 // 首页
 app.get('/', (c) => {
   return c.html(`
@@ -151,6 +161,9 @@ app.get('/', (c) => {
                         <i class="fas fa-cog mr-2"></i>控制中心
                     </h2>
                     <div class="flex gap-2">
+                        <a href="/compare.html" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition">
+                            <i class="fas fa-balance-scale mr-2"></i>比价比对
+                        </a>
                         <a href="/kline.html" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition">
                             <i class="fas fa-chart-candlestick mr-2"></i>K线查询
                         </a>

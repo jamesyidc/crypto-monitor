@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>比价比对 - V5.5</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+            font-size: 12px;
+            background: #f0f0f0;
+        }
+
+        /* 顶部工具栏 */
+        .toolbar {
+            background: #e8e8e8;
+            border-bottom: 1px solid #c0c0c0;
+            padding: 8px 10px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .toolbar-item {
+            cursor: pointer;
+            padding: 4px 8px;
+            user-select: none;
+        }
+
+        .toolbar-item:hover {
+            background: #d0d0d0;
+        }
+
+        .toolbar-item.active {
+            background: #fff;
+            border: 1px solid #999;
+            border-bottom: 1px solid #fff;
+        }
+
+        /* 主容器 */
+        .container {
+            display: flex;
+            height: calc(100vh - 120px);
+            gap: 2px;
+            background: #c0c0c0;
+            padding: 2px;
+        }
+
+        /* 表格容器 */
+        .table-panel {
+            flex: 1;
+            background: white;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            background: #f5f5f5;
+            padding: 8px;
+            border-bottom: 1px solid #ddd;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* 表格样式 */
+        .data-table-container {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table thead {
+            position: sticky;
+            top: 0;
+            background: #e0e0e0;
+            z-index: 10;
+        }
+
+        .data-table th {
+            padding: 6px 4px;
+            text-align: center;
+            border: 1px solid #c0c0c0;
+            font-weight: bold;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
+        .data-table td {
+            padding: 4px;
+            text-align: right;
+            border: 1px solid #e0e0e0;
+            font-size: 11px;
+        }
+
+        .data-table tbody tr:hover {
+            background: #f0f8ff;
+        }
+
+        /* 币名列左对齐 */
+        .data-table td:first-child,
+        .data-table th:first-child {
+            text-align: left;
+            padding-left: 8px;
+        }
+
+        /* 颜色样式 */
+        .green-bg {
+            background: #00ff00 !important;
+            color: #000;
+            font-weight: bold;
+        }
+
+        .red-bg {
+            background: #ff0000 !important;
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .yellow-bg {
+            background: #ffff00 !important;
+            color: #000;
+            font-weight: bold;
+        }
+
+        .light-yellow-bg {
+            background: #ffffcc !important;
+        }
+
+        /* 底部控制栏 */
+        .control-bar {
+            background: #f0f0f0;
+            padding: 10px;
+            border-top: 1px solid #c0c0c0;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .control-label {
+            font-size: 12px;
+            color: #333;
+        }
+
+        .control-input {
+            padding: 4px 8px;
+            border: 1px solid #999;
+            font-size: 12px;
+            width: 120px;
+        }
+
+        .control-btn {
+            padding: 5px 15px;
+            border: 1px solid #999;
+            background: #e0e0e0;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .control-btn:hover {
+            background: #d0d0d0;
+        }
+
+        .control-btn:active {
+            background: #c0c0c0;
+        }
+
+        /* 状态栏 */
+        .status-bar {
+            background: #f0f0f0;
+            padding: 4px 10px;
+            border-top: 1px solid #c0c0c0;
+            font-size: 11px;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* 滚动条样式 */
+        .data-table-container::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        .data-table-container::-webkit-scrollbar-track {
+            background: #f0f0f0;
+        }
+
+        .data-table-container::-webkit-scrollbar-thumb {
+            background: #c0c0c0;
+            border: 1px solid #999;
+        }
+
+        .data-table-container::-webkit-scrollbar-thumb:hover {
+            background: #a0a0a0;
+        }
+
+        /* 加载动画 */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 时间列 */
+        .time-column {
+            text-align: center !important;
+            font-size: 10px;
+            color: #666;
+        }
+
+        /* 右侧面板滚动条 */
+        .right-panels {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .right-panel-top {
+            flex: 1;
+            background: white;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .right-panel-bottom {
+            height: 150px;
+            background: white;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .scroll-indicator {
+            text-align: center;
+            padding: 4px;
+            background: #f5f5f5;
+            border-top: 1px solid #ddd;
+            font-size: 11px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部工具栏 -->
+    <div class="toolbar">
+        <div class="toolbar-item">首页</div>
+        <div class="toolbar-item">查询</div>
+        <div class="toolbar-item">趋势</div>
+        <div class="toolbar-item active">比价</div>
+        <div class="toolbar-item">监控比价</div>
+        <div class="toolbar-item">盘径</div>
+        <div class="toolbar-item">重点监控</div>
+        <div class="toolbar-item">查询</div>
+        <div class="toolbar-item">工具</div>
+    </div>
+
+    <!-- 主容器：三栏布局 -->
+    <div class="container">
+        <!-- 左侧面板：主比价表格 -->
+        <div class="table-panel" style="flex: 1.2;">
+            <div class="panel-header">
+                <span>比价数据</span>
+                <span id="leftUpdateTime">--</span>
+            </div>
+            <div class="data-table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>币名</th>
+                            <th>最高价格</th>
+                            <th>计次</th>
+                            <th>最低价格</th>
+                            <th>计次</th>
+                            <th>最高占比</th>
+                            <th>最低占比</th>
+                            <th style="width: 20px;">▲</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leftTableBody">
+                        <tr>
+                            <td colspan="8" class="loading">
+                                <div class="loading-spinner"></div>
+                                <div>加载中...</div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 中间面板：历史记录 -->
+        <div class="table-panel" style="flex: 1.2;">
+            <div class="panel-header">
+                <span>历史记录</span>
+                <span id="centerUpdateTime">--</span>
+            </div>
+            <div class="data-table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>币名</th>
+                            <th>时间</th>
+                            <th>状态</th>
+                            <th>数据</th>
+                        </tr>
+                    </thead>
+                    <tbody id="centerTableBody">
+                        <tr>
+                            <td colspan="4" class="loading">
+                                <div class="loading-spinner"></div>
+                                <div>加载中...</div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 右侧面板：双表格布局 -->
+        <div class="right-panels" style="flex: 1;">
+            <!-- 右上：新高统计 -->
+            <div class="right-panel-top">
+                <div class="panel-header">
+                    <span>新高统计</span>
+                    <span id="rightTopTime">--</span>
+                </div>
+                <div class="data-table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>币名</th>
+                                <th>今天</th>
+                                <th>三日</th>
+                                <th>七天</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rightTopTableBody">
+                            <tr>
+                                <td colspan="4" class="loading">
+                                    <div class="loading-spinner"></div>
+                                    <div>加载中...</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="scroll-indicator">▼ 滚动查看更多</div>
+            </div>
+
+            <!-- 右下：切换为创新高榜 -->
+            <div class="right-panel-bottom">
+                <div class="panel-header">
+                    <span>切换为创新高榜</span>
+                </div>
+                <div class="data-table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>排名</th>
+                                <th>币名</th>
+                                <th>次数</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rightBottomTableBody">
+                            <tr>
+                                <td colspan="3" class="loading">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 底部控制栏 -->
+    <div class="control-bar">
+        <div class="control-group">
+            <span class="control-label">币名</span>
+            <input type="text" class="control-input" id="coinFilter" placeholder="输入币名筛选...">
+        </div>
+        <div class="control-group">
+            <span class="control-label">最大</span>
+            <input type="text" class="control-input" id="maxFilter" placeholder="">
+        </div>
+        <div class="control-group">
+            <span class="control-label">最小</span>
+            <input type="text" class="control-input" id="minFilter" placeholder="">
+        </div>
+        <button class="control-btn" id="addBtn">添加</button>
+        <button class="control-btn" id="deleteBtn">删除</button>
+        <button class="control-btn" id="exportBtn">导出</button>
+        <button class="control-btn" id="importBtn">导入</button>
+        <div style="flex: 1;"></div>
+        <button class="control-btn" id="refreshBtn">🔄 刷新数据</button>
+    </div>
+
+    <!-- 状态栏 -->
+    <div class="status-bar">
+        <div>
+            <span>比价画面 0 0</span>
+            <span style="margin-left: 30px;">盘进盘出 计次 0 2</span>
+        </div>
+        <div id="statusInfo">就绪 tok.en  AT_IT2I.qtWJVJl3Gu.ewTg7uNh9F.ew8gBu.giJk</div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script src="/static/compare.js"></script>
+</body>
+</html>
