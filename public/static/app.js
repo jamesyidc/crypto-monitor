@@ -51,10 +51,21 @@ async function runAnalysis() {
       // 延迟1秒后刷新数据
       setTimeout(loadDashboard, 1000);
     } else {
-      showStatus('分析失败: ' + response.data.error, 'error');
+      // 友好的错误提示
+      let errorMsg = response.data.error || '未知错误';
+      if (errorMsg.includes('429') || errorMsg.includes('限流')) {
+        errorMsg = 'CoinGecko API 请求频繁，已自动重试但仍失败。请稍后再试。';
+      }
+      showStatus('分析失败: ' + errorMsg, 'error');
+      console.error('分析失败详情:', response.data);
     }
   } catch (error) {
-    showStatus('分析失败: ' + error.message, 'error');
+    let errorMsg = error.message || '网络错误';
+    if (errorMsg.includes('429') || errorMsg.includes('限流')) {
+      errorMsg = 'CoinGecko API 请求频繁，系统将在下次10分钟自动重试。';
+    }
+    showStatus('分析失败: ' + errorMsg, 'error');
+    console.error('分析异常:', error);
   } finally {
     btn.disabled = false;
     btn.innerHTML = '<i class="fas fa-play mr-2"></i>执行分析';

@@ -48,24 +48,185 @@ export class CoinService {
     return result.results;
   }
 
-  // 从 CoinGecko 获取价格数据
+  // 从 CoinGecko 获取价格数据（带重试和指数退避）
   async fetchPricesFromCoinGecko(): Promise<CoinGeckoSimplePrice> {
     const coins = await this.getAllCoins();
     const ids = coins.map((c: any) => SYMBOL_TO_COINGECKO_ID[c.symbol]).join(',');
     
     const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true`;
     
-    const response = await fetch(url, {
-      headers: {
-        'Accept': 'application/json',
+    // 重试配置：最多重试3次，使用指数退避
+    const maxRetries = 3;
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        // 如果不是第一次尝试，等待一段时间（指数退避）
+        if (attempt > 0) {
+          const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 10000); // 1s, 2s, 4s，最多10s
+          console.log(`CoinGecko API 重试 ${attempt}/${maxRetries}，等待 ${waitTime}ms...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+        
+        const response = await fetch(url, {
+          headers: {
+            'Accept': 'application/json',
+          }
+        });
+
+        // 429 错误（限流）- 继续重试
+        if (response.status === 429) {
+          console.warn(`CoinGecko API 限流 (429)，尝试 ${attempt + 1}/${maxRetries + 1}`);
+          lastError = new Error(`CoinGecko API 限流: ${response.status}`);
+          continue;
+        }
+
+        // 其他错误 - 不重试，直接抛出
+        if (!response.ok) {
+          throw new Error(`CoinGecko API error: ${response.status}`);
+        }
+
+        // 成功获取数据
+        return await response.json();
+        
+      } catch (error: any) {
+        console.error(`CoinGecko API 请求失败 (尝试 ${attempt + 1}/${maxRetries + 1}):`, error.message);
+        lastError = error;
+        
+        // 如果是最后一次尝试，抛出错误
+        if (attempt === maxRetries) {
+          throw error;
+        }
       }
-    });
-
-    if (!response.ok) {
-      throw new Error(`CoinGecko API error: ${response.status}`);
     }
-
-    return await response.json();
+    
+    // 如果所有重试都失败，尝试使用备份数据源
+    console.error('CoinGecko API 所有重试均失败，尝试使用备份数据源...');
+    
+    // 尝试 Binance API
+    try {
+      return await this.fetchPricesFromBinance();
+    } catch (binanceError: any) {
+      console.error('Binance 备份数据源失败:', binanceError.message);
+    }
+    
+    // 尝试 CryptoCompare API 作为第三备份
+    try {
+      console.log('尝试 CryptoCompare API 作为第三备份数据源...');
+      return await this.fetchPricesFromCoinCap();
+    } catch (cryptocompareError: any) {
+      console.error('CryptoCompare 备份数据源也失败:', cryptocompareError.message);
+    }
+    
+    throw lastError || new Error('所有数据源均请求失败（CoinGecko + Binance + CryptoCompare）');
+  }
+  
+  // 从 CryptoCompare 获取价格数据（第三备份数据源）
+  private async fetchPricesFromCoinCap(): Promise<CoinGeckoSimplePrice> {
+    const coins = await this.getAllCoins();
+    const result: CoinGeckoSimplePrice = {};
+    
+    console.log('使用 CryptoCompare API 作为第三备份数据源...');
+    
+    // 将所有币种符号组合成批量请求
+    const symbols = coins.map((c: any) => c.symbol).join(',');
+    
+    try {
+      // CryptoCompare 支持批量查询
+      const url = `https://min-api.cryptocompare.com/data/pricemultifull?fsyms=${symbols}&tsyms=USD`;
+      const response = await fetch(url, {
+        headers: { 'Accept': 'application/json' }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`CryptoCompare API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (!data.RAW) {
+        throw new Error('CryptoCompare API 返回数据格式错误');
+      }
+      
+      // 转换为 CoinGecko 格式
+      for (const coin of coins) {
+        const symbol = coin.symbol;
+        const coinData = data.RAW[symbol]?.USD;
+        
+        if (coinData) {
+          const coinGeckoId = SYMBOL_TO_COINGECKO_ID[symbol];
+          result[coinGeckoId] = {
+            usd: coinData.PRICE,
+            usd_24h_change: coinData.CHANGEPCT24HOUR,
+            usd_market_cap: coinData.MKTCAP,
+            usd_24h_vol: coinData.VOLUME24HOURTO
+          };
+        } else {
+          console.warn(`CryptoCompare: 未找到 ${symbol} 的数据`);
+        }
+      }
+      
+      const successCount = Object.keys(result).length;
+      if (successCount < coins.length / 2) {
+        throw new Error(`CryptoCompare API 数据不足: 仅获取到 ${successCount}/${coins.length} 个币种`);
+      }
+      
+      console.log(`✅ CryptoCompare API 成功获取 ${successCount}/${coins.length} 个币种的数据`);
+      return result;
+      
+    } catch (error: any) {
+      console.error('CryptoCompare API 请求失败:', error.message);
+      throw error;
+    }
+  }
+  
+  // 从 Binance 获取价格数据（备份数据源）
+  private async fetchPricesFromBinance(): Promise<CoinGeckoSimplePrice> {
+    const coins = await this.getAllCoins();
+    const result: CoinGeckoSimplePrice = {};
+    
+    console.log('使用 Binance API 作为备份数据源...');
+    
+    // Binance API 需要单独请求每个币种
+    // 为了简化，我们只获取价格，不获取24h变化
+    for (const coin of coins) {
+      const symbol = coin.symbol;
+      const pair = `${symbol}USDT`;
+      
+      try {
+        // Binance 24hr ticker API
+        const url = `https://api.binance.com/api/v3/ticker/24hr?symbol=${pair}`;
+        const response = await fetch(url);
+        
+        if (response.ok) {
+          const data = await response.json();
+          const coinGeckoId = SYMBOL_TO_COINGECKO_ID[symbol];
+          
+          result[coinGeckoId] = {
+            usd: parseFloat(data.lastPrice),
+            usd_24h_change: parseFloat(data.priceChangePercent),
+            usd_market_cap: 0, // Binance API 不提供市值
+            usd_24h_vol: parseFloat(data.quoteVolume)
+          };
+        } else {
+          console.warn(`Binance API 获取 ${symbol} 失败: ${response.status}`);
+        }
+        
+        // 添加小延迟避免被限流
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } catch (error: any) {
+        console.warn(`Binance API 请求 ${symbol} 异常:`, error.message);
+      }
+    }
+    
+    // 检查是否获取到足够的数据
+    const successCount = Object.keys(result).length;
+    if (successCount < coins.length / 2) {
+      throw new Error(`Binance API 数据不足: 仅获取到 ${successCount}/${coins.length} 个币种`);
+    }
+    
+    console.log(`✅ Binance API 成功获取 ${successCount}/${coins.length} 个币种的数据`);
+    return result;
   }
 
   // 保存价格记录
