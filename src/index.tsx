@@ -1274,4 +1274,59 @@ app.get('/api/simulated/strategies', async (c) => {
   }
 });
 
+// ==================== 震荡收敛统计 API ====================
+
+// API: 获取指定币种的震荡收敛统计
+app.get('/api/convergence/:symbol', async (c) => {
+  const symbol = c.req.param('symbol');
+  const days = parseInt(c.req.query('days') || '30');
+  
+  try {
+    const { ConvergenceStatsService } = await import('./services/convergenceStatsService');
+    const convergenceService = new ConvergenceStatsService(c.env.DB);
+    const stats = await convergenceService.getConvergenceStats(symbol, days);
+    
+    if (!stats) {
+      return c.json({ success: false, message: '暂无震荡收敛数据' });
+    }
+    
+    return c.json({ success: true, stats });
+  } catch (error: any) {
+    console.error('获取震荡收敛统计失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 获取所有币种的震荡收敛统计（简化版）
+app.get('/api/convergence/all/stats', async (c) => {
+  const days = parseInt(c.req.query('days') || '30');
+  
+  try {
+    const { ConvergenceStatsService } = await import('./services/convergenceStatsService');
+    const convergenceService = new ConvergenceStatsService(c.env.DB);
+    const allStats = await convergenceService.getAllConvergenceStats(days);
+    
+    return c.json({ success: true, stats: allStats });
+  } catch (error: any) {
+    console.error('获取所有震荡收敛统计失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 获取今日震荡收敛次数
+app.get('/api/convergence/:symbol/today', async (c) => {
+  const symbol = c.req.param('symbol');
+  
+  try {
+    const { ConvergenceStatsService } = await import('./services/convergenceStatsService');
+    const convergenceService = new ConvergenceStatsService(c.env.DB);
+    const count = await convergenceService.getTodayConvergenceCount(symbol);
+    
+    return c.json({ success: true, symbol, count });
+  } catch (error: any) {
+    console.error('获取今日震荡收敛次数失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
 export default app

@@ -1,9 +1,15 @@
 // 买卖点识别服务
+import { ConvergenceStatsService } from './convergenceStatsService';
+
 export class SignalService {
   private db?: D1Database;
+  private convergenceService?: ConvergenceStatsService;
 
   constructor(db?: D1Database) {
     this.db = db;
+    if (db) {
+      this.convergenceService = new ConvergenceStatsService(db);
+    }
   }
   // 识别买卖点信号
   // coinLevel: 币种优先级等级（1-6），用于主升信号判断
@@ -14,6 +20,34 @@ export class SignalService {
 
     const signals: any[] = [];
     const alerts: any[] = []; // 新增：预警列表（满足任一触发条件）
+    
+    // 🆕 先记录所有震荡收敛数据（用于统计分析）
+    if (this.convergenceService) {
+      for (let i = 0; i < klineData.length; i++) {
+        const k = klineData[i];
+        // 注意：字段名是 channel_state，不是 channelState
+        if (k.channel_state && k.channel_state.includes('震荡收敛') && k.boll_ub && k.boll_mb && k.boll_lb) {
+          const bollWidth = k.boll_ub - k.boll_lb;
+          const bollWidthPercent = (bollWidth / k.boll_mb) * 100;
+          
+          this.convergenceService.recordConvergence({
+            symbol: k.symbol,
+            timeframe: '5m',
+            convergence_time: k.time,
+            boll_width: bollWidth,
+            boll_width_percent: bollWidthPercent,
+            boll_upper: k.boll_ub,
+            boll_middle: k.boll_mb,
+            boll_lower: k.boll_lb,
+            close_price: parseFloat(k.close),
+            rsi_5min: k.rsi_5min,
+            sar_direction: k.signal
+          }).catch(err => {
+            console.error(`记录${k.symbol}震荡收敛数据失败:`, err);
+          });
+        }
+      }
+    }
     
     // 计算成交量平均值（用于V1, V2判断）
     const volumes = klineData.map(k => parseFloat(k.volume || '0'));
@@ -208,8 +242,8 @@ export class SignalService {
       
       for (let i = 0; i < klineData.length; i++) {
         const k = klineData[i];
-        // 检查通道状态是否为"震荡收敛"
-        if (k.channelState && k.channelState.includes('震荡收敛')) {
+        // 检查通道状态是否为"震荡收敛"（注意字段名是 channel_state）
+        if (k.channel_state && k.channel_state.includes('震荡收敛')) {
           convergenceSignals.push(i);
         }
       }
