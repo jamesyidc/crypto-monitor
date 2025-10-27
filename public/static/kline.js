@@ -133,8 +133,18 @@ function renderChart(klineData) {
   // 反转数据（从旧到新）
   const data = [...klineData].reverse();
 
-  // 准备数据
-  const labels = data.map(k => formatTime(k.open_time));
+  // 准备数据 - 优先使用 time 字段（格式化时间），如果没有则用 open_time
+  const labels = data.map(k => {
+    if (k.time) {
+      // time 格式：2025/10/27 18:30:00 -> 提取 18:30
+      return k.time.substring(11, 16);
+    } else if (k.open_time) {
+      // 使用 open_time 时间戳
+      const date = new Date(k.open_time);
+      return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    }
+    return '';
+  });
   const prices = data.map(k => k.close);
   const volumes = data.map(k => k.volume);
 
@@ -173,6 +183,14 @@ function renderChart(klineData) {
         }
       },
       scales: {
+        x: {
+          ticks: {
+            maxTicksLimit: 20,  // 限制最多显示20个标签，避免重叠
+            maxRotation: 45,    // 最大旋转角度
+            minRotation: 45,    // 最小旋转角度（保持一致）
+            autoSkip: true      // 自动跳过一些标签
+          }
+        },
         y: {
           type: 'linear',
           display: true,
