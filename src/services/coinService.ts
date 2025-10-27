@@ -195,6 +195,54 @@ export class CoinService {
       .run();
   }
 
+  // 增加极端行情累计次数（涨幅≥4%）
+  async incrementExtremeUpCount(symbol: string) {
+    await this.db
+      .prepare(`
+        UPDATE price_extremes 
+        SET extreme_up_count = extreme_up_count + 1, last_updated = datetime('now')
+        WHERE symbol = ?
+      `)
+      .bind(symbol)
+      .run();
+  }
+
+  // 增加极端行情累计次数（跌幅≤-3%）
+  async incrementExtremeDownCount(symbol: string) {
+    await this.db
+      .prepare(`
+        UPDATE price_extremes 
+        SET extreme_down_count = extreme_down_count + 1, last_updated = datetime('now')
+        WHERE symbol = ?
+      `)
+      .bind(symbol)
+      .run();
+  }
+
+  // 重置极端上涨计次
+  async resetExtremeUpCount(symbol: string) {
+    await this.db
+      .prepare(`
+        UPDATE price_extremes 
+        SET extreme_up_count = 0, last_updated = datetime('now')
+        WHERE symbol = ?
+      `)
+      .bind(symbol)
+      .run();
+  }
+
+  // 重置极端下跌计次
+  async resetExtremeDownCount(symbol: string) {
+    await this.db
+      .prepare(`
+        UPDATE price_extremes 
+        SET extreme_down_count = 0, last_updated = datetime('now')
+        WHERE symbol = ?
+      `)
+      .bind(symbol)
+      .run();
+  }
+
   // 保存轮次统计
   async saveRoundStat(roundTime: string, stats: any) {
     await this.db

@@ -248,7 +248,7 @@ function renderCoinTable(coinDetails, extremes, priorities) {
   const tbody = document.getElementById('coinTableBody');
   
   if (!coinDetails || coinDetails.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="18" class="text-center py-8 text-gray-500">暂无币种数据</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="20" class="text-center py-8 text-gray-500">暂无币种数据</td></tr>';
     return;
   }
   
@@ -290,6 +290,18 @@ function renderCoinTable(coinDetails, extremes, priorities) {
     const crashCell = todayCrashCount > 0
       ? `<span class="inline-block w-full py-1 px-2 bg-red-100 text-red-700 font-bold rounded">${todayCrashCount}次</span>`
       : '<span class="text-gray-300">0次</span>';
+    
+    // +4% - 显示极端上涨累计次数（涨幅≥+4%）
+    const extremeUpCount = coin.extreme_up_count || 0;
+    const extremeUpCell = extremeUpCount > 0
+      ? `<span class="inline-block w-full py-1 px-2 bg-green-200 text-green-800 font-bold rounded">${extremeUpCount}</span>`
+      : '<span class="text-gray-300">0</span>';
+    
+    // -3% - 显示极端下跌累计次数（跌幅≤-3%）
+    const extremeDownCount = coin.extreme_down_count || 0;
+    const extremeDownCell = extremeDownCount > 0
+      ? `<span class="inline-block w-full py-1 px-2 bg-red-200 text-red-800 font-bold rounded">${extremeDownCount}</span>`
+      : '<span class="text-gray-300">0</span>';
     
     // 更新时间
     const updateTime = new Date(coin.round_time).toLocaleString('zh-CN', {
@@ -383,6 +395,8 @@ function renderCoinTable(coinDetails, extremes, priorities) {
         <td class="text-center py-2 px-1">${changeIndicator}</td>
         <td class="text-center py-2 px-1">${surgeCell}</td>
         <td class="text-center py-2 px-1">${crashCell}</td>
+        <td class="text-center py-2 px-1">${extremeUpCell}</td>
+        <td class="text-center py-2 px-1">${extremeDownCell}</td>
         <td class="text-right py-2 px-1 text-xs text-gray-600">${updateTime}</td>
         <td class="text-right py-2 px-1 font-mono text-xs text-gray-700">${athPrice}</td>
         <td class="text-right py-2 px-1 text-xs text-gray-600">${athTime}</td>

@@ -8,6 +8,7 @@ import { KlineService } from './services/klineService'
 import { SignalService } from './services/signalService'
 import { TelegramService } from './services/telegramService'
 import { PositionService } from './services/positionService'
+import { SimulatedTradingService } from './services/simulatedTradingService'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
@@ -691,6 +692,9 @@ app.get('/', (c) => {
                         <i class="fas fa-cog mr-2"></i>控制中心
                     </h2>
                     <div class="flex gap-2">
+                        <a href="/trading.html" class="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-lg transition">
+                            <i class="fas fa-chart-line mr-2"></i>模拟交易
+                        </a>
                         <a href="/positions.html" class="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2 rounded-lg transition">
                             <i class="fas fa-wallet mr-2"></i>持仓追踪
                         </a>
@@ -792,6 +796,8 @@ app.get('/', (c) => {
                                 <th class="text-center py-2 px-1">上轮涨跌</th>
                                 <th class="text-center py-2 px-1">当天急涨次数</th>
                                 <th class="text-center py-2 px-1">当天急跌次数</th>
+                                <th class="text-center py-2 px-1">+4%</th>
+                                <th class="text-center py-2 px-1">-3%</th>
                                 <th class="text-right py-2 px-1">更新时间</th>
                                 <th class="text-right py-2 px-1">历史高价</th>
                                 <th class="text-right py-2 px-1">高的时间</th>
@@ -809,7 +815,7 @@ app.get('/', (c) => {
                         </thead>
                         <tbody id="coinTableBody">
                             <tr>
-                                <td colspan="18" class="text-center py-8 text-gray-500">
+                                <td colspan="20" class="text-center py-8 text-gray-500">
                                     加载中...
                                 </td>
                             </tr>
@@ -977,6 +983,175 @@ app.get('/api/positions/check-alerts', async (c) => {
         total: alerts.length
       }
     });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// ========== 模拟交易系统 API ==========
+
+// API: 获取所有模拟账户
+app.get('/api/simulated/accounts', async (c) => {
+  try {
+    const tradingService = new SimulatedTradingService(c.env.DB);
+    const accounts = await tradingService.getAllAccounts();
+    return c.json({ success: true, accounts });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 创建模拟账户
+app.post('/api/simulated/accounts', async (c) => {
+  try {
+    const body = await c.req.json();
+    const tradingService = new SimulatedTradingService(c.env.DB);
+    
+    const result = await tradingService.createAccount({
+      accountName: body.account_name,
+      initialBalance: parseFloat(body.initial_balance),
+      leverage: body.leverage ? parseFloat(body.leverage) : undefined,
+      tradingFeeRate: body.trading_fee_rate ? parseFloat(body.trading_fee_rate) : undefined
+    });
+    
+    return c.json({ success: true, data: result });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 获取账户详情
+app.get('/api/simulated/accounts/:id', async (c) => {
+  try {
+    const id = parseInt(c.req.param('id'));
+    const tradingService = new SimulatedTradingService(c.env.DB);
+    const account = await tradingService.getAccount(id);
+    return c.json({ success: true, account });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 更新账户状态
+app.put('/api/simulated/accounts/:id/status', async (c) => {
+  try {
+    const id = parseInt(c.req.param('id'));
+    const body = await c.req.json();
+    const tradingService = new SimulatedTradingService(c.env.DB);
+    
+    await tradingService.updateAccountStatus(id, body.status);
+    return c.json({ success: true });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 获取账户持仓
+app.get('/api/simulated/accounts/:id/positions', async (c) => {
+  try {
+    const id = parseInt(c.req.param('id'));
+    const tradingService = new SimulatedTradingService(c.env.DB);
+    const positions = await tradingService.getOpenTrades(id);
+    return c.json({ success: true, positions });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 获取交易历史
+app.get('/api/simulated/accounts/:id/history', async (c) => {
+  try {
+    const id = parseInt(c.req.param('id'));
+    const limit = parseInt(c.req.query('limit') || '100');
+    const tradingService = new SimulatedTradingService(c.env.DB);
+    const history = await tradingService.getTradeHistory(id, limit);
+    return c.json({ success: true, history });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 手动开仓
+app.post('/api/simulated/trades/open', async (c) => {
+  try {
+    const body = await c.req.json();
+    const tradingService = new SimulatedTradingService(c.env.DB);
+    
+    const result = await tradingService.openTrade({
+      accountId: body.account_id,
+      strategyId: body.strategy_id,
+      symbol: body.symbol,
+      positionType: body.position_type,
+      entryPrice: parseFloat(body.entry_price),
+      quantity: parseFloat(body.quantity),
+      signalSource: body.signal_source,
+      notes: body.notes
+    });
+    
+    return c.json({ success: true, data: result });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 平仓
+app.post('/api/simulated/trades/:id/close', async (c) => {
+  try {
+    const id = parseInt(c.req.param('id'));
+    const body = await c.req.json();
+    const tradingService = new SimulatedTradingService(c.env.DB);
+    
+    const result = await tradingService.closeTrade(id, parseFloat(body.exit_price));
+    return c.json({ success: true, data: result });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 根据信号自动交易
+app.post('/api/simulated/auto-trade', async (c) => {
+  try {
+    const body = await c.req.json();
+    const tradingService = new SimulatedTradingService(c.env.DB);
+    
+    const result = await tradingService.executeTradeBySignal({
+      accountId: body.account_id,
+      strategyId: body.strategy_id,
+      symbol: body.symbol,
+      signalType: body.signal_type,
+      currentPrice: parseFloat(body.current_price),
+      quantity: body.quantity ? parseFloat(body.quantity) : undefined
+    });
+    
+    return c.json(result);
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 批量自动交易所有币种
+app.post('/api/simulated/auto-trade-all', async (c) => {
+  try {
+    const body = await c.req.json();
+    const tradingService = new SimulatedTradingService(c.env.DB);
+    
+    const result = await tradingService.autoTradeAllSymbols(
+      body.account_id,
+      body.strategy_id
+    );
+    
+    return c.json(result);
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 获取所有策略
+app.get('/api/simulated/strategies', async (c) => {
+  try {
+    const tradingService = new SimulatedTradingService(c.env.DB);
+    const strategies = await tradingService.getAllStrategies();
+    return c.json({ success: true, strategies });
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);
   }

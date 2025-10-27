@@ -145,6 +145,9 @@ async function loadKlineData() {
     
     // 显示统计面板
     document.getElementById('statsPanel').classList.remove('hidden');
+    
+    // 重置倒计时
+    resetCountdown();
 
   } catch (error) {
     console.error('加载K线数据失败:', error);
@@ -335,6 +338,9 @@ function renderTable(klineData, alerts = []) {
         </td>
         <td class="py-2 px-1 text-right font-mono text-gray-500 indicator-col">
           ${k.boll_lb ? k.boll_lb.toFixed(4) : '-'}
+        </td>
+        <td class="py-2 px-1 text-right font-mono text-purple-600 font-bold indicator-col">
+          ${(k.boll_ub && k.boll_lb) ? (k.boll_ub - k.boll_lb).toFixed(4) : '-'}
         </td>
         <td class="py-2 px-1 text-center indicator-col">
           ${getChannelIcon(k.channel_state)}

@@ -71,6 +71,9 @@ async function loadPositions() {
     updateStats();
     showStatus('数据加载成功', 'success');
     
+    // 重置倒计时
+    resetCountdown();
+    
     // 2秒后隐藏状态消息
     setTimeout(() => {
       document.getElementById('statusMessage').classList.add('hidden');

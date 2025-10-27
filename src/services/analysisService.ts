@@ -113,6 +113,27 @@ export class AnalysisService {
           await this.coinService.incrementExtremeCount(symbol, 'low');
         }
 
+        // 极端行情累计次数管理（涨幅≥4% 或 跌幅≤-3%）
+        if (isExtremeUp) {
+          // 触发极端上涨：累加次数
+          await this.coinService.incrementExtremeUpCount(symbol);
+        } else {
+          // 未触发极端上涨：重置计数（因为没有连续极端上涨）
+          if (extreme.extreme_up_count > 0) {
+            await this.coinService.resetExtremeUpCount(symbol);
+          }
+        }
+
+        if (isExtremeDown) {
+          // 触发极端下跌：累加次数
+          await this.coinService.incrementExtremeDownCount(symbol);
+        } else {
+          // 未触发极端下跌：重置计数（因为没有连续极端下跌）
+          if (extreme.extreme_down_count > 0) {
+            await this.coinService.resetExtremeDownCount(symbol);
+          }
+        }
+
         coinDetails.push({
           symbol,
           price: data.usd,
@@ -338,14 +359,18 @@ export class AnalysisService {
     // 获取优先级
     const priorities = await this.coinService.getAllCoinPriorities();
     
-    // 增强coinDetails数据：添加当天急涨急跌累计次数
+    // 增强coinDetails数据：添加当天急涨急跌累计次数和极端行情累计次数
     const enhancedCoinDetails = coinDetails.map((detail: any) => {
       const todayStat = todayStats.find((stat: any) => stat.symbol === detail.symbol);
+      const extreme = extremes.find((ext: any) => ext.symbol === detail.symbol);
       return {
         ...detail,
         // 当天急涨急跌累计次数
         today_surge_count: todayStat?.total_surges || 0,
-        today_crash_count: todayStat?.total_crashes || 0
+        today_crash_count: todayStat?.total_crashes || 0,
+        // 极端行情累计次数（+4% 和 -3%）
+        extreme_up_count: extreme?.extreme_up_count || 0,
+        extreme_down_count: extreme?.extreme_down_count || 0
       };
     });
 
