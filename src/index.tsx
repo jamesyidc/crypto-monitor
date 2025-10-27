@@ -418,24 +418,37 @@ app.get('/api/signal/:symbol', async (c) => {
     let telegramStatus = { sent: 0, failed: 0, skipped: false };
     if (sendTelegram && detection.alerts && detection.alerts.length > 0) {
       try {
-        // 初始化Telegram服务
-        const telegramService = new TelegramService(
-          '8437045462:AAFePnwdC21cqeWhZISMQHGGgjmroVqE2H0',
-          '-1003227444260'
-        );
-        
-        // 创建K线数据映射表
-        const klineDataMap = new Map();
-        result.data.forEach((k: any) => {
-          klineDataMap.set(k.index, k);
+        // ===== 关键修改：只发送最近2小时的预警 =====
+        // 5分钟K线：1小时=12根，2小时=24根
+        // index=0是最新，所以只发送index < 24的预警
+        const recentAlerts = detection.alerts.filter((alert: any) => {
+          const alertIndex = alert.index || 0;
+          return alertIndex < 24; // 只发送最近24根K线（2小时）的预警
         });
         
-        // 批量发送预警到Telegram
-        const sentCount = await telegramService.sendMultipleAlerts(detection.alerts, klineDataMap);
-        telegramStatus.sent = sentCount;
-        telegramStatus.failed = detection.alerts.length - sentCount;
-        
-        console.log(`📤 ${symbol} 预警已发送到Telegram: ${sentCount}/${detection.alerts.length}`);
+        if (recentAlerts.length === 0) {
+          telegramStatus.skipped = true;
+          console.log(`⏭️  ${symbol} 无最近2小时内的预警，跳过发送`);
+        } else {
+          // 初始化Telegram服务
+          const telegramService = new TelegramService(
+            '8437045462:AAFePnwdC21cqeWhZISMQHGGgjmroVqE2H0',
+            '-1003227444260'
+          );
+          
+          // 创建K线数据映射表
+          const klineDataMap = new Map();
+          result.data.forEach((k: any) => {
+            klineDataMap.set(k.index, k);
+          });
+          
+          // 批量发送最近2小时的预警到Telegram
+          const sentCount = await telegramService.sendMultipleAlerts(recentAlerts, klineDataMap);
+          telegramStatus.sent = sentCount;
+          telegramStatus.failed = recentAlerts.length - sentCount;
+          
+          console.log(`📤 ${symbol} 预警已发送到Telegram: ${sentCount}/${recentAlerts.length} (过滤前: ${detection.alerts.length})`);
+        }
       } catch (telegramError: any) {
         console.error(`❌ ${symbol} Telegram发送失败:`, telegramError);
         telegramStatus.failed = detection.alerts.length;
