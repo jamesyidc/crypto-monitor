@@ -374,6 +374,13 @@ function renderFilteredAlerts(alerts) {
             <span class="font-bold text-lg text-gray-800">${alert.symbol}</span>
             <span class="text-sm text-gray-500">${alert.time}</span>
             ${getTriggerBadges(alert.triggers)}
+            <a href="/kline.html?symbol=${alert.symbol}&timeframe=5m" 
+               target="_blank"
+               class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded transition text-xs inline-flex items-center gap-1 ml-2"
+               title="查看${alert.symbol}的5分钟K线详情">
+              <i class="fas fa-chart-line"></i>
+              <span>K线详情</span>
+            </a>
           </div>
           
           <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs mt-2">
