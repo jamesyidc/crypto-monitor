@@ -214,8 +214,8 @@ function renderSurgeStats(latestRound, todayStats) {
   
   if (todayStats && Array.isArray(todayStats)) {
     todayStats.forEach(stat => {
-      totalSurge += stat.surge_count || 0;
-      totalCrash += stat.crash_count || 0;
+      totalSurge += stat.total_surges || 0;
+      totalCrash += stat.total_crashes || 0;
     });
   }
   
