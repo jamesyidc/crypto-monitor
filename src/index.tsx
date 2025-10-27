@@ -155,6 +155,91 @@ app.get('/api/okx/config/:symbol', async (c) => {
 
 // ========== 买卖点信号 API ==========
 
+// API: 获取所有币种的买卖点信号
+app.get('/api/signal/all', async (c) => {
+  const timeframe = c.req.query('timeframe') || '5m';
+  const limit = parseInt(c.req.query('limit') || '100');
+  
+  try {
+    const klineService = new KlineService(c.env.DB);
+    const signalService = new SignalService();
+    
+    // 获取所有币种配置
+    const configs: any = await klineService.getAllOKXConfigs();
+    const symbols = configs.map((config: any) => config.symbol);
+    
+    // 检测所有币种的买卖点
+    const results = await signalService.detectMultiSymbolSignals(
+      symbols,
+      async (symbol: string) => {
+        const result = await klineService.getKlineWithIndicators(symbol, timeframe, limit);
+        return result.data;
+      }
+    );
+    
+    // 生成摘要
+    const summary = signalService.generateSignalSummary(results);
+    
+    return c.json({
+      success: true,
+      summary,
+      results
+    });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 获取过去24小时的买卖点信号
+app.get('/api/signal/24h', async (c) => {
+  const timeframe = c.req.query('timeframe') || '5m';
+  
+  try {
+    const klineService = new KlineService(c.env.DB);
+    const signalService = new SignalService();
+    
+    // 计算24小时需要的K线数量
+    // 5分钟: 24 * 12 = 288根
+    // 15分钟: 24 * 4 = 96根
+    // 1小时: 24根
+    const limitMap: { [key: string]: number } = {
+      '5m': 288,
+      '15m': 96,
+      '1H': 24,
+      '4H': 6,
+      '1D': 1
+    };
+    const limit = limitMap[timeframe] || 288;
+    
+    // 获取所有币种配置
+    const configs: any = await klineService.getAllOKXConfigs();
+    const symbols = configs.map((config: any) => config.symbol);
+    
+    // 检测所有币种的买卖点
+    const results = await signalService.detectMultiSymbolSignals(
+      symbols,
+      async (symbol: string) => {
+        const result = await klineService.getKlineWithIndicators(symbol, timeframe, limit);
+        return result.data;
+      }
+    );
+    
+    // 生成摘要
+    const summary = signalService.generateSignalSummary(results);
+    
+    return c.json({
+      success: true,
+      timeRange: '24h',
+      timeframe,
+      barsAnalyzed: limit,
+      summary,
+      results
+    });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
 // API: 获取单个币种的买卖点信号
 app.get('/api/signal/:symbol', async (c) => {
   const symbol = c.req.param('symbol');
@@ -179,41 +264,6 @@ app.get('/api/signal/:symbol', async (c) => {
     });
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 400);
-  }
-});
-
-// API: 获取所有币种的买卖点信号
-app.get('/api/signal/all', async (c) => {
-  const timeframe = c.req.query('timeframe') || '5m';
-  const limit = parseInt(c.req.query('limit') || '100');
-  
-  try {
-    const klineService = new KlineService(c.env.DB);
-    const signalService = new SignalService();
-    
-    // 获取所有币种配置
-    const configs: any = await klineService.getAllOKXConfigs();
-    const symbols = configs.map((c: any) => c.symbol);
-    
-    // 检测所有币种的买卖点
-    const results = await signalService.detectMultiSymbolSignals(
-      symbols,
-      async (symbol: string) => {
-        const result = await klineService.getKlineWithIndicators(symbol, timeframe, limit);
-        return result.data;
-      }
-    );
-    
-    // 生成摘要
-    const summary = signalService.generateSignalSummary(results);
-    
-    return c.json({
-      success: true,
-      summary,
-      results
-    });
-  } catch (error: any) {
-    return c.json({ success: false, error: error.message }, 500);
   }
 });
 

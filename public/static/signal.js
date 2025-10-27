@@ -6,13 +6,18 @@ let signalData = null;
 document.addEventListener('DOMContentLoaded', () => {
   loadSignalData();
   
-  // 刷新按钮
+  // 实时信号按钮
   document.getElementById('refreshBtn').addEventListener('click', () => {
     loadSignalData();
   });
+  
+  // 24小时信号按钮
+  document.getElementById('refresh24hBtn').addEventListener('click', () => {
+    load24HourSignalData();
+  });
 });
 
-// 加载信号数据
+// 加载信号数据（实时 - 默认100根K线）
 async function loadSignalData() {
   const refreshBtn = document.getElementById('refreshBtn');
   refreshBtn.disabled = true;
@@ -33,6 +38,7 @@ async function loadSignalData() {
       renderTopSellSignals(signalData.summary.topSellSignals);
       renderAllSignals(signalData.results);
       updateLastUpdateTime();
+      updateDataRange('实时数据（最近100根K线，约8小时）');
     } else {
       showError('加载失败: ' + response.data.error);
     }
@@ -40,7 +46,39 @@ async function loadSignalData() {
     showError('网络错误: ' + error.message);
   } finally {
     refreshBtn.disabled = false;
-    refreshBtn.innerHTML = '<i class="fas fa-sync-alt mr-2"></i>刷新数据';
+    refreshBtn.innerHTML = '<i class="fas fa-sync-alt mr-2"></i>实时信号';
+  }
+}
+
+// 加载24小时信号数据
+async function load24HourSignalData() {
+  const refreshBtn = document.getElementById('refresh24hBtn');
+  refreshBtn.disabled = true;
+  refreshBtn.innerHTML = '<i class="fas fa-spinner loading mr-2"></i>加载中...';
+  
+  try {
+    const response = await axios.get('/api/signal/24h', {
+      params: {
+        timeframe: '5m'
+      }
+    });
+    
+    if (response.data.success) {
+      signalData = response.data;
+      updateStatistics(signalData.summary);
+      renderTopBuySignals(signalData.summary.topBuySignals);
+      renderTopSellSignals(signalData.summary.topSellSignals);
+      renderAllSignals(signalData.results);
+      updateLastUpdateTime();
+      updateDataRange(`过去24小时数据（${signalData.barsAnalyzed}根K线，${signalData.timeframe}周期）`);
+    } else {
+      showError('加载失败: ' + response.data.error);
+    }
+  } catch (error) {
+    showError('网络错误: ' + error.message);
+  } finally {
+    refreshBtn.disabled = false;
+    refreshBtn.innerHTML = '<i class="fas fa-clock mr-2"></i>过去24小时';
   }
 }
 
@@ -301,6 +339,14 @@ function updateLastUpdateTime() {
     second: '2-digit'
   });
   document.getElementById('lastUpdate').textContent = `最后更新: ${timeString}`;
+}
+
+// 更新数据范围显示
+function updateDataRange(rangeText) {
+  const dataRangeEl = document.getElementById('dataRange');
+  if (dataRangeEl) {
+    dataRangeEl.textContent = rangeText;
+  }
 }
 
 // 显示错误信息
