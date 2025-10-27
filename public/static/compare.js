@@ -83,13 +83,29 @@ const staticCompareData = {
     ]
 };
 
-// 加载比价数据（使用静态数据）
+// 加载比价数据（从API获取真实数据）
 async function loadCompareData() {
     try {
         console.log('正在加载比价数据...');
         
-        // 使用静态数据
-        currentData = staticCompareData;
+        // 从API获取数据
+        const response = await axios.get('/api/compare');
+        const apiData = response.data;
+        
+        // API已经返回了正确格式的coins数组
+        currentData = {
+            coins: apiData.coins.map(coin => ({
+                symbol: coin.symbol,
+                highPrice: coin.highPrice,
+                highCount: coin.highCount || 0,
+                lowPrice: coin.lowPrice,
+                lowCount: coin.lowCount || 0,
+                highRatio: coin.highRatio,
+                lowRatio: coin.lowRatio,
+                currentPrice: coin.currentPrice,
+                lastUpdated: coin.last_updated
+            }))
+        };
         
         // 渲染三个表格
         renderLeftTable(currentData);
@@ -97,16 +113,32 @@ async function loadCompareData() {
         renderRightTables(currentData);
         
         // 更新时间戳
-        const now = new Date().toLocaleString('zh-CN');
-        document.getElementById('leftUpdateTime').textContent = now;
-        document.getElementById('centerUpdateTime').textContent = now;
-        document.getElementById('rightTopTime').textContent = now;
+        const updateTime = apiData.lastUpdated 
+            ? new Date(apiData.lastUpdated).toLocaleString('zh-CN')
+            : new Date().toLocaleString('zh-CN');
         
-        console.log('比价数据加载完成');
+        document.getElementById('leftUpdateTime').textContent = updateTime;
+        document.getElementById('centerUpdateTime').textContent = updateTime;
+        document.getElementById('rightTopTime').textContent = updateTime;
+        
+        console.log('比价数据加载完成，共', currentData.coins.length, '个币种');
+        showSuccess('数据刷新成功');
         
     } catch (error) {
         console.error('加载数据失败:', error);
         showError('加载数据失败: ' + error.message);
+        
+        // 如果API失败，回退到静态数据
+        console.log('回退到静态数据');
+        currentData = staticCompareData;
+        renderLeftTable(currentData);
+        renderCenterTable(currentData);
+        renderRightTables(currentData);
+        
+        const now = new Date().toLocaleString('zh-CN');
+        document.getElementById('leftUpdateTime').textContent = now + ' (静态)';
+        document.getElementById('centerUpdateTime').textContent = now + ' (静态)';
+        document.getElementById('rightTopTime').textContent = now + ' (静态)';
     }
 }
 

@@ -1,11 +1,14 @@
 import { CoinService, coingeckoIdToSymbol } from './coinService';
+import { TelegramService } from './telegramService';
 import type { MarketTrend, StarType, CoinLevel } from '../types';
 
 export class AnalysisService {
   private coinService: CoinService;
+  private telegramService: TelegramService;
 
   constructor(coinService: CoinService) {
     this.coinService = coinService;
+    this.telegramService = new TelegramService();
   }
 
   // 执行一轮分析
@@ -97,6 +100,22 @@ export class AnalysisService {
           await this.coinService.updatePriceExtreme(symbol, 'high', data.usd);
           await this.coinService.saveExtremeRecord(symbol, 'new_high', data.usd, extreme.all_time_high, 0);
           newHighCount = 1;
+          
+          // 🔔 发送Telegram创新高通知
+          const oldHighRatio = ((data.usd / extreme.all_time_high) * 100).toFixed(2);
+          const message = `🚀 创新高预警！\n\n` +
+            `📌 币种: ${symbol}\n` +
+            `💰 当前价格: $${data.usd.toFixed(6)}\n` +
+            `📈 旧历史高价: $${extreme.all_time_high.toFixed(6)}\n` +
+            `📈 新历史高价: $${data.usd.toFixed(6)}\n` +
+            `📊 涨幅: +${((data.usd - extreme.all_time_high) / extreme.all_time_high * 100).toFixed(2)}%\n` +
+            `🕒 时间: ${new Date().toLocaleString('zh-CN')}\n` +
+            `✅ 计次已重置为 0`;
+          
+          // 异步发送，不阻塞主流程
+          this.telegramService.sendMessage(message).catch(err => {
+            console.error(`发送创新高通知失败 (${symbol}):`, err.message);
+          });
         } else {
           // 未创新高：计次加1
           await this.coinService.incrementExtremeCount(symbol, 'high');
@@ -108,6 +127,22 @@ export class AnalysisService {
           await this.coinService.updatePriceExtreme(symbol, 'low', data.usd);
           await this.coinService.saveExtremeRecord(symbol, 'new_low', data.usd, extreme.all_time_low, 0);
           newLowCount = 1;
+          
+          // 🔔 发送Telegram创新低通知
+          const newLowRatio = ((data.usd / extreme.all_time_low) * 100).toFixed(2);
+          const message = `📉 创新低预警！\n\n` +
+            `📌 币种: ${symbol}\n` +
+            `💰 当前价格: $${data.usd.toFixed(6)}\n` +
+            `📉 旧历史低价: $${extreme.all_time_low.toFixed(6)}\n` +
+            `📉 新历史低价: $${data.usd.toFixed(6)}\n` +
+            `📊 跌幅: ${((data.usd - extreme.all_time_low) / extreme.all_time_low * 100).toFixed(2)}%\n` +
+            `🕒 时间: ${new Date().toLocaleString('zh-CN')}\n` +
+            `✅ 计次已重置为 0`;
+          
+          // 异步发送，不阻塞主流程
+          this.telegramService.sendMessage(message).catch(err => {
+            console.error(`发送创新低通知失败 (${symbol}):`, err.message);
+          });
         } else {
           // 未创新低：计次加1
           await this.coinService.incrementExtremeCount(symbol, 'low');

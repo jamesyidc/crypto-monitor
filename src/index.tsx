@@ -115,13 +115,15 @@ app.get('/api/compare', async (c) => {
         highRatio: Math.min(highRatio, 100), // 最高占比 ≤ 100%
         lowRatio: Math.max(lowRatio, 100),   // 最低占比 ≥ 100%
         ath_date: extreme.ath_date,
-        atl_date: extreme.atl_date
+        atl_date: extreme.atl_date,
+        last_updated: extreme.last_updated
       };
     });
     
     return c.json({
       success: true,
       updateTime: latestRound.round_time,
+      lastUpdated: extremes[0]?.last_updated || new Date().toISOString(),
       coins: coins
     });
   } catch (error: any) {
