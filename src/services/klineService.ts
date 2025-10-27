@@ -241,8 +241,16 @@ export class KlineService {
     const indicators = this.indicatorService.calculateSARRSIBoll(klineData, symbol);
 
     // 只返回用户请求的数量（最新的 limit 根K线）
-    // 这样确保返回的每一根K线都有完整的指标值
-    const trimmedIndicators = indicators.slice(-limit);
+    // indicators 数组已经是从旧到新排列（因为输入的 klineData 已经 reverse 过）
+    // slice(-limit) 取最后 N 条，保持从旧到新的顺序
+    let trimmedIndicators = indicators.slice(-limit);
+    
+    // 重新计算 index，使其从 0 开始递增（时间越早 index 越小）
+    // 现在 trimmedIndicators[0] 是最早的时间，trimmedIndicators[n-1] 是最新的时间
+    trimmedIndicators = trimmedIndicators.map((item, idx) => ({
+      ...item,
+      index: idx
+    }));
 
     return {
       symbol,
