@@ -1,5 +1,6 @@
 // 买卖点识别服务
 import { ConvergenceStatsService } from './convergenceStatsService';
+import { getBeijingTodayStart } from '../utils/timeUtils';
 
 export class SignalService {
   private db?: D1Database;
@@ -597,15 +598,13 @@ export class SignalService {
     }
   }
 
-  // 获取最近的买卖点信号
+  // 获取最近的买卖点信号（使用北京时间）
   async getRecentTradingSignals(hours: number = 24, limit: number = 100): Promise<any[]> {
     if (!this.db) return [];
 
     try {
-      // 🆕 只统计当天的信号（从今天0点UTC开始）
-      const today = new Date();
-      today.setUTCHours(0, 0, 0, 0);
-      const todayStart = today.toISOString();
+      // 🔥 只统计当天的信号（从北京时间今天0点开始）
+      const todayStart = getBeijingTodayStart();
       
       const result = await this.db
         .prepare(`
@@ -632,10 +631,8 @@ export class SignalService {
     if (!this.db) return [];
 
     try {
-      // 🆕 只统计当天的信号（从今天0点UTC开始）
-      const today = new Date();
-      today.setUTCHours(0, 0, 0, 0);
-      const todayStart = today.toISOString();
+      // 🔥 只统计当天的信号（从北京时间今天0点开始）
+      const todayStart = getBeijingTodayStart();
       
       const result = await this.db
         .prepare(`
@@ -685,10 +682,8 @@ export class SignalService {
     if (!this.db) return [];
 
     try {
-      // 🆕 只查询当天的信号（从今天0点UTC开始）
-      const today = new Date();
-      today.setUTCHours(0, 0, 0, 0);
-      const todayStart = today.toISOString();
+      // 🔥 只查询当天的信号（从北京时间今天0点开始）
+      const todayStart = getBeijingTodayStart();
       
       const result = await this.db
         .prepare(`
@@ -716,10 +711,8 @@ export class SignalService {
     if (!this.db) return [];
 
     try {
-      // 🆕 只查询当天的信号（从今天0点UTC开始）
-      const today = new Date();
-      today.setUTCHours(0, 0, 0, 0);
-      const todayStart = today.toISOString();
+      // 🔥 只查询当天的信号（从北京时间今天0点开始）
+      const todayStart = getBeijingTodayStart();
       
       const result = await this.db
         .prepare(`

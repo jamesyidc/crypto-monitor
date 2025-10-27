@@ -1,5 +1,6 @@
 // 震荡收敛统计服务
 // 用于记录和统计每次震荡收敛时的布林带宽度数据
+import { getBeijingDateString, getBeijingDateDaysAgo } from '../utils/timeUtils';
 
 export interface ConvergenceRecord {
   symbol: string;
@@ -78,12 +79,11 @@ export class ConvergenceStatsService {
     return successCount;
   }
 
-  // 获取指定币种的震荡收敛统计
+  // 获取指定币种的震荡收敛统计（使用北京时间）
   async getConvergenceStats(symbol: string, days: number = 30): Promise<ConvergenceStats | null> {
     try {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - days);
-      const cutoffDateStr = cutoffDate.toISOString().split('T')[0];
+      // 🔥 使用北京时间计算N天前的日期
+      const cutoffDateStr = getBeijingDateDaysAgo(days);
 
       // 统计数据（使用 DATE(created_at) 而不是 DATE(convergence_time)，因为时间格式问题）
       const statsResult = await this.db
@@ -137,12 +137,11 @@ export class ConvergenceStatsService {
     }
   }
 
-  // 获取所有币种的震荡收敛统计（简化版）
+  // 获取所有币种的震荡收敛统计（简化版，使用北京时间）
   async getAllConvergenceStats(days: number = 30): Promise<{ [symbol: string]: ConvergenceStats }> {
     try {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - days);
-      const cutoffDateStr = cutoffDate.toISOString().split('T')[0];
+      // 🔥 使用北京时间计算N天前的日期
+      const cutoffDateStr = getBeijingDateDaysAgo(days);
 
       const result = await this.db
         .prepare(`
@@ -186,10 +185,11 @@ export class ConvergenceStatsService {
     }
   }
 
-  // 获取今日震荡收敛次数
+  // 获取今日震荡收敛次数（使用北京时间）
   async getTodayConvergenceCount(symbol: string): Promise<number> {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      // 🔥 使用北京时间的今天日期
+      const today = getBeijingDateString();
       
       const result = await this.db
         .prepare(`
@@ -207,12 +207,11 @@ export class ConvergenceStatsService {
     }
   }
 
-  // 清理旧数据（保留最近N天的数据）
+  // 清理旧数据（保留最近N天的数据，使用北京时间）
   async cleanOldData(keepDays: number = 90): Promise<number> {
     try {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - keepDays);
-      const cutoffDateStr = cutoffDate.toISOString().split('T')[0];
+      // 🔥 使用北京时间计算N天前的日期
+      const cutoffDateStr = getBeijingDateDaysAgo(keepDays);
 
       const result = await this.db
         .prepare(`

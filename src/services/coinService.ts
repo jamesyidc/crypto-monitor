@@ -1,4 +1,5 @@
 import type { Bindings, CoinGeckoSimplePrice } from '../types';
+import { getBeijingDateString, getBeijingYesterday, getBeijingTodayStart, convertUTCtoBeijingDateString } from '../utils/timeUtils';
 
 // 币种符号到 CoinGecko ID 的映射
 const SYMBOL_TO_COINGECKO_ID: Record<string, string> = {
@@ -356,27 +357,30 @@ export class CoinService {
       .run();
   }
 
-  // 🆕 检查是否需要重置每日极值数据（隔天第一次刷新）
+  // 🆕 检查是否需要重置每日极值数据（隔天第一次刷新）- 使用北京时间
   async shouldResetDailyExtremes(): Promise<boolean> {
     // 获取 price_extremes 表中最新的 last_updated 时间
     const result: any = await this.db
       .prepare(`
-        SELECT DATE(last_updated) as last_date 
+        SELECT last_updated 
         FROM price_extremes 
         ORDER BY last_updated DESC 
         LIMIT 1
       `)
       .first();
     
-    if (!result || !result.last_date) {
+    if (!result || !result.last_updated) {
       return false; // 没有数据，不需要重置
     }
     
-    // 获取当前日期（UTC）
-    const today = new Date().toISOString().split('T')[0];
+    // 🔥 关键：将UTC时间转换为北京时间日期进行比较
+    const lastUpdateBeijingDate = convertUTCtoBeijingDateString(result.last_updated);
+    const todayBeijingDate = getBeijingDateString();
     
-    // 如果最后更新日期不是今天，则需要重置
-    return result.last_date !== today;
+    console.log(`📅 检查是否需要重置: 上次更新=${lastUpdateBeijingDate}, 今天=${todayBeijingDate}`);
+    
+    // 如果最后更新日期（北京时间）不是今天，则需要重置
+    return lastUpdateBeijingDate !== todayBeijingDate;
   }
 
   // 🆕 重置每日极值数据（保留all_time_high/low，清零计次）
@@ -395,9 +399,16 @@ export class CoinService {
     console.log('✅ 已重置每日极值数据（隔天第一次刷新）');
   }
 
-  // 🆕 完整的每日数据清零（0点执行）
+  // 🆕 完整的每日数据清零（北京时间0点执行）
   async resetAllDailyData() {
-    console.log('🔄 开始执行每日数据清零...');
+    const todayBeijing = getBeijingDateString();
+    const yesterdayBeijing = getBeijingYesterday();
+    const todayStartISO = getBeijingTodayStart();
+    
+    console.log('🔄 开始执行每日数据清零（北京时间）...');
+    console.log(`   📅 今天: ${todayBeijing}`);
+    console.log(`   📅 昨天: ${yesterdayBeijing}`);
+    console.log(`   🕐 今天0点(ISO): ${todayStartISO}`);
     
     // 1. 清零极值计次数据
     await this.db
@@ -412,38 +423,30 @@ export class CoinService {
       .run();
     console.log('  ✅ 已清零 price_extremes 表');
     
-    // 2. 删除昨天的 daily_stats 数据
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
-    
+    // 2. 删除昨天及之前的 daily_stats 数据（使用北京时间日期）
     await this.db
       .prepare(`DELETE FROM daily_stats WHERE date < ?`)
-      .bind(yesterdayStr)
+      .bind(todayBeijing)
       .run();
-    console.log('  ✅ 已清理昨天的 daily_stats 数据');
+    console.log(`  ✅ 已清理 ${todayBeijing} 之前的 daily_stats 数据`);
     
-    // 🆕 3. 删除昨天的 round_stats 数据（首页显示的轮次统计）
-    const todayStart = new Date();
-    todayStart.setUTCHours(0, 0, 0, 0);
-    const todayStartStr = todayStart.toISOString();
-    
+    // 🆕 3. 删除今天0点之前的 round_stats 数据（首页显示的轮次统计）
     await this.db
       .prepare(`DELETE FROM round_stats WHERE round_time < ?`)
-      .bind(todayStartStr)
+      .bind(todayStartISO)
       .run();
-    console.log('  ✅ 已清理昨天的 round_stats 数据（首页轮次统计）');
+    console.log(`  ✅ 已清理 ${todayStartISO} 之前的 round_stats 数据（首页轮次统计）`);
     
-    // 🆕 4. 删除昨天的 coin_round_details 数据（币种轮次详情）
+    // 🆕 4. 删除今天0点之前的 coin_round_details 数据（币种轮次详情）
     await this.db
       .prepare(`DELETE FROM coin_round_details WHERE round_time < ?`)
-      .bind(todayStartStr)
+      .bind(todayStartISO)
       .run();
-    console.log('  ✅ 已清理昨天的 coin_round_details 数据（币种详情）');
+    console.log(`  ✅ 已清理 ${todayStartISO} 之前的 coin_round_details 数据（币种详情）`);
     
     // 5. 不需要删除 trading_signals 和 alert_signals，因为查询时已按当天过滤
     
-    console.log('✅ 每日数据清零完成！所有红框数据已清零');
+    console.log('✅ 每日数据清零完成！所有红框数据已清零（北京时间）');
   }
 
   // 增加极端行情累计次数（涨幅≥4%）

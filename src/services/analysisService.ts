@@ -1,6 +1,7 @@
 import { CoinService, coingeckoIdToSymbol } from './coinService';
 import { TelegramService } from './telegramService';
 import type { MarketTrend, StarType, CoinLevel } from '../types';
+import { getBeijingISOString, getBeijingDateString, convertUTCtoBeijingDateString } from '../utils/timeUtils';
 
 export class AnalysisService {
   private coinService: CoinService;
@@ -11,10 +12,10 @@ export class AnalysisService {
     this.telegramService = new TelegramService();
   }
 
-  // 执行一轮分析
+  // 执行一轮分析（使用北京时间）
   async performRoundAnalysis() {
-    const roundTime = new Date().toISOString();
-    const today = new Date().toISOString().split('T')[0];
+    const roundTime = getBeijingISOString(); // 🔥 使用北京时间
+    const today = getBeijingDateString(); // 🔥 使用北京时间日期
 
     try {
       // 🆕 0. 检查是否需要重置每日数据（隔天第一次刷新）
@@ -393,8 +394,8 @@ export class AnalysisService {
       ? await this.coinService.getLatestCoinDetails(latestRound.round_time)
       : [];
 
-    // 获取今日统计
-    const today = new Date().toISOString().split('T')[0];
+    // 获取今日统计（使用北京时间日期）
+    const today = getBeijingDateString(); // 🔥 使用北京时间日期
     const todayStats = await this.coinService.getTodayStats(today);
 
     // 获取极值数据
@@ -468,8 +469,8 @@ export class AnalysisService {
     // 获取指定轮次的币种详情
     const coinDetails = await this.coinService.getLatestCoinDetails(roundTime);
 
-    // 获取该轮次日期的统计
-    const date = roundTime.split('T')[0];
+    // 获取该轮次日期的统计（将UTC时间转换为北京时间日期）
+    const date = convertUTCtoBeijingDateString(roundTime); // 🔥 转换为北京时间日期
     const todayStats = await this.coinService.getTodayStats(date);
 
     // 获取极值数据(使用当前最新的,因为极值会持续更新)

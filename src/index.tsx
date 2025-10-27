@@ -74,6 +74,36 @@ app.get('/api/history', async (c) => {
   }
 });
 
+// 🆕 API: 时间调试信息（显示北京时间逻辑）
+app.get('/api/debug/time', async (c) => {
+  const { debugTimeInfo, getBeijingDateString, getBeijingTodayStart, getBeijingYesterday, getBeijingDateTimeString } = await import('./utils/timeUtils');
+  
+  return c.json({
+    utc: {
+      now: new Date().toISOString(),
+      date: new Date().toISOString().split('T')[0]
+    },
+    beijing: {
+      now: getBeijingDateTimeString(),
+      date: getBeijingDateString(),
+      todayStart: getBeijingTodayStart(),
+      yesterday: getBeijingYesterday()
+    },
+    explanation: '所有数据清零和统计都基于北京时间（UTC+8），0点为北京时间0点'
+  });
+});
+
+// 🆕 API: 手动执行每日数据清零（测试用）
+app.post('/api/debug/reset', async (c) => {
+  try {
+    const coinService = new CoinService(c.env.DB);
+    await coinService.resetAllDailyData();
+    return c.json({ success: true, message: '每日数据清零完成（手动触发）' });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
 // API: 获取比价数据（动态计次系统）
 app.get('/api/compare', async (c) => {
   try {
