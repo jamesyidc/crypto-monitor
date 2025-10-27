@@ -187,8 +187,8 @@ export class CoinService {
       .prepare(`
         INSERT INTO coin_round_details (
           symbol, round_time, price, prev_price, change_amount, change_percent,
-          is_green, is_extreme_up, is_extreme_down, is_surge, is_crash, rank_in_round
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          is_green, is_extreme_up, is_extreme_down, is_surge, is_crash, rank_in_round, change_24h
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .bind(
         symbol,
@@ -202,7 +202,8 @@ export class CoinService {
         detail.is_extreme_down ? 1 : 0,
         detail.is_surge ? 1 : 0,
         detail.is_crash ? 1 : 0,
-        detail.rank_in_round
+        detail.rank_in_round,
+        detail.change_24h || 0
       )
       .run();
   }

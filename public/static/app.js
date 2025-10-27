@@ -217,8 +217,8 @@ function renderCoinTable(coinDetails, extremes, priorities) {
     const highRatio = extreme ? ((coin.price / extreme.all_time_high) * 100).toFixed(2) : '-';
     const lowRatio = extreme ? ((coin.price / extreme.all_time_low) * 100).toFixed(2) : '-';
     
-    const changeClass = coin.change_percent > 0 ? 'green-text' : (coin.change_percent < 0 ? 'red-text' : '');
-    const change24hClass = coin.change_24h > 0 ? 'green-text' : (coin.change_24h < 0 ? 'red-text' : '');
+    const changeClass = coin.change_percent && coin.change_percent > 0 ? 'green-text' : (coin.change_percent && coin.change_percent < 0 ? 'red-text' : '');
+    const change24hClass = coin.change_24h && coin.change_24h > 0 ? 'green-text' : (coin.change_24h && coin.change_24h < 0 ? 'red-text' : '');
     
     const levelBadge = priority ? `<span class="level-badge level-${priority.level}">等级${priority.level}</span>` : '-';
     
