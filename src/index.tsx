@@ -49,6 +49,29 @@ app.get('/api/rounds', async (c) => {
   return c.json(rounds);
 });
 
+// API: 获取历史数据(回看首页数据)
+app.get('/api/history', async (c) => {
+  const roundTime = c.req.query('round_time');
+  const limit = parseInt(c.req.query('limit') || '20');
+  
+  try {
+    const coinService = new CoinService(c.env.DB);
+    const analysisService = new AnalysisService(coinService);
+    
+    if (roundTime) {
+      // 获取指定轮次的完整数据
+      const data = await analysisService.getDashboardDataByRound(roundTime);
+      return c.json(data);
+    } else {
+      // 获取最近N轮的列表
+      const rounds = await coinService.getLatestRoundStats(limit);
+      return c.json({ rounds });
+    }
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
 // ========== K线数据 API ==========
 
 // API: 同步所有币种的 K线数据
@@ -490,6 +513,9 @@ app.get('/', (c) => {
                         <i class="fas fa-cog mr-2"></i>控制中心
                     </h2>
                     <div class="flex gap-2">
+                        <a href="/history.html" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg transition">
+                            <i class="fas fa-history mr-2"></i>历史回看
+                        </a>
                         <a href="/compare.html" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition">
                             <i class="fas fa-balance-scale mr-2"></i>比价比对
                         </a>

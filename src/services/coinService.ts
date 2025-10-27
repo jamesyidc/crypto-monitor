@@ -337,6 +337,15 @@ export class CoinService {
       .all();
     return result.results;
   }
+
+  // 获取指定轮次的统计数据
+  async getRoundStatByTime(roundTime: string) {
+    const result = await this.db
+      .prepare('SELECT * FROM round_stats WHERE round_time = ?')
+      .bind(roundTime)
+      .first();
+    return result;
+  }
 }
 
 // 将 CoinGecko ID 转换为符号

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>历史数据回看</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .coin-row { transition: background-color 0.3s; }
+        .coin-row:hover { background-color: #f3f4f6; }
+        .green-text { color: #10b981; font-weight: bold; }
+        .red-text { color: #ef4444; font-weight: bold; }
+        .round-item {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .round-item:hover {
+            background-color: #f0f9ff;
+            border-left: 4px solid #3b82f6;
+        }
+        .round-item.active {
+            background-color: #dbeafe;
+            border-left: 4px solid #2563eb;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        <!-- 标题栏 -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                        <i class="fas fa-history mr-2 text-blue-600"></i>
+                        历史数据回看
+                    </h1>
+                    <p class="text-gray-600">查看任意历史轮次的市场数据快照</p>
+                </div>
+                <a href="/" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition">
+                    <i class="fas fa-home mr-2"></i>返回首页
+                </a>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <!-- 左侧: 轮次列表 -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-lg shadow-md p-4">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">
+                        <i class="fas fa-list mr-2"></i>历史轮次
+                    </h3>
+                    <div id="roundsList" class="space-y-2 max-h-[600px] overflow-y-auto">
+                        <div class="text-center py-8 text-gray-500">
+                            加载中...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧: 数据详情 -->
+            <div class="lg:col-span-3">
+                <!-- 统计卡片 -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" id="statsCards">
+                    <!-- 动态生成 -->
+                </div>
+
+                <!-- 市场趋势 -->
+                <div class="bg-white rounded-lg shadow-md p-6 mb-6" id="marketTrend">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">
+                        <i class="fas fa-chart-area mr-2"></i>市场趋势分析
+                    </h2>
+                    <div id="trendContent" class="text-gray-600 text-center py-8">
+                        请选择左侧的历史轮次
+                    </div>
+                </div>
+
+                <!-- 币种列表 -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">
+                        <i class="fas fa-coins mr-2"></i>币种数据
+                    </h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="border-b-2 border-gray-200 text-xs">
+                                    <th class="text-center py-2 px-1">序号</th>
+                                    <th class="text-left py-2 px-1">币名</th>
+                                    <th class="text-center py-2 px-1">涨跌</th>
+                                    <th class="text-right py-2 px-1">当前价格</th>
+                                    <th class="text-right py-2 px-1">24涨幅</th>
+                                    <th class="text-center py-2 px-1">排行</th>
+                                </tr>
+                            </thead>
+                            <tbody id="coinTableBody">
+                                <tr>
+                                    <td colspan="6" class="text-center py-8 text-gray-500">
+                                        请选择左侧的历史轮次
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script src="/static/history.js"></script>
+</body>
+</html>

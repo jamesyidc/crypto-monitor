@@ -14,8 +14,29 @@ export class AnalysisService {
     const today = new Date().toISOString().split('T')[0];
 
     try {
-      // 1. 获取最新价格数据
-      const priceData = await this.coinService.fetchPricesFromCoinGecko();
+      // 1. 获取最新价格数据 (带重试机制)
+      let priceData = await this.coinService.fetchPricesFromCoinGecko();
+      
+      // 验证数据完整性 - 确保change_24h有值
+      let hasValidChanges = Object.values(priceData).every((data: any) => 
+        data.usd_24h_change !== undefined && data.usd_24h_change !== null
+      );
+      
+      // 如果数据不完整,最多重试2次
+      let retryCount = 0;
+      while (!hasValidChanges && retryCount < 2) {
+        console.log(`数据不完整,重试第 ${retryCount + 1} 次...`);
+        await new Promise(resolve => setTimeout(resolve, 2000)); // 等待2秒
+        priceData = await this.coinService.fetchPricesFromCoinGecko();
+        hasValidChanges = Object.values(priceData).every((data: any) => 
+          data.usd_24h_change !== undefined && data.usd_24h_change !== null
+        );
+        retryCount++;
+      }
+      
+      if (!hasValidChanges) {
+        console.warn('⚠️  警告: 部分币种的24小时涨跌幅数据缺失');
+      }
       
       // 2. 分析每个币种
       const coinDetails: any[] = [];
@@ -313,6 +334,39 @@ export class AnalysisService {
       todayStats,
       extremes,
       priorities
+    };
+  }
+
+  // 获取指定轮次的仪表板数据(用于历史回看)
+  async getDashboardDataByRound(roundTime: string) {
+    // 获取指定轮次统计
+    const roundStat = await this.coinService.getRoundStatByTime(roundTime);
+    
+    if (!roundStat) {
+      throw new Error('指定轮次不存在');
+    }
+
+    // 获取指定轮次的币种详情
+    const coinDetails = await this.coinService.getLatestCoinDetails(roundTime);
+
+    // 获取该轮次日期的统计
+    const date = roundTime.split('T')[0];
+    const todayStats = await this.coinService.getTodayStats(date);
+
+    // 获取极值数据(使用当前最新的,因为极值会持续更新)
+    const extremes = await this.coinService.getAllPriceExtremes();
+
+    // 获取优先级(使用当前最新的)
+    const priorities = await this.coinService.getAllCoinPriorities();
+
+    return {
+      latestRound: roundStat,
+      coinDetails,
+      todayStats,
+      extremes,
+      priorities,
+      isHistorical: true,
+      historicalRoundTime: roundTime
     };
   }
 }
