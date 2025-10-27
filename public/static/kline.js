@@ -8,8 +8,27 @@ let autoRefreshInterval = null;
 let countdown = 30;
 let countdownInterval = null;
 
+// 从URL参数获取初始币种和时间周期
+function getUrlParams() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const symbol = urlParams.get('symbol');
+  const timeframe = urlParams.get('timeframe');
+  
+  if (symbol) {
+    currentSymbol = symbol.toUpperCase();
+  }
+  if (timeframe) {
+    currentTimeframe = timeframe;
+  }
+  
+  console.log('📋 URL参数:', { symbol: currentSymbol, timeframe: currentTimeframe });
+}
+
 // 初始化
 document.addEventListener('DOMContentLoaded', async () => {
+  // 首先从URL读取参数
+  getUrlParams();
+  
   await loadCoins();
   bindTimeframeButtons();
   document.getElementById('syncBtn').addEventListener('click', syncKlineData);
@@ -104,6 +123,11 @@ function renderCoinSelector() {
 // 绑定时间周期按钮
 function bindTimeframeButtons() {
   document.querySelectorAll('.timeframe-btn').forEach(btn => {
+    // 设置初始选中状态
+    if (btn.dataset.tf === currentTimeframe) {
+      btn.classList.add('active');
+    }
+    
     btn.addEventListener('click', (e) => {
       document.querySelectorAll('.timeframe-btn').forEach(b => b.classList.remove('active'));
       e.target.classList.add('active');
