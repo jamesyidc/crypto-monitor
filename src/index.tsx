@@ -327,12 +327,14 @@ app.get('/api/signal/all', async (c) => {
         // 遍历所有币种，发送未发送的信号
         for (const symbol of symbols) {
           // 获取该币种未发送的买卖点信号（过去2小时内）
-          const unsentSignals = await signalService.getUnsentTradingSignals(symbol, 2);
+          // 只取最新1条未发送信号，避免积压过多
+          const allUnsentSignals = await signalService.getUnsentTradingSignals(symbol, 2);
+          const unsentSignals = allUnsentSignals.slice(0, 1);
           
           if (unsentSignals.length > 0) {
-            console.log(`📤 ${symbol}: 发现 ${unsentSignals.length} 个新买卖点信号`);
+            console.log(`📤 ${symbol}: 发现 ${unsentSignals.length} 个新买卖点信号 (积压:${allUnsentSignals.length})`);
             
-            // 发送买卖点信号（每条消息间隔1秒）
+            // 发送买卖点信号（每条消息间隔3秒，避免429错误）
             for (let i = 0; i < unsentSignals.length; i++) {
               const signal = unsentSignals[i];
               try {
@@ -343,13 +345,18 @@ app.get('/api/signal/all', async (c) => {
                 // 标记为已发送
                 await signalService.markTradingSignalsAsSent([signal.id]);
                 
-                // ⚠️ 每条消息后等待1秒，避免Telegram API限流
+                // ⚠️ 每条消息后等待3秒，避免Telegram API 429限流
                 if (i < unsentSignals.length - 1) {
-                  console.log(`   ⏳ 等待1秒...`);
-                  await new Promise(resolve => setTimeout(resolve, 1000));
+                  console.log(`   ⏳ 等待3秒...`);
+                  await new Promise(resolve => setTimeout(resolve, 3000));
                 }
-              } catch (error) {
+              } catch (error: any) {
                 console.error(`❌ 发送买卖点信号失败 (${symbol}):`, error);
+                // 如果遇到429错误，等待更长时间
+                if (error.message && error.message.includes('429')) {
+                  console.log(`   ⏳ 遇到速率限制，等待10秒后继续...`);
+                  await new Promise(resolve => setTimeout(resolve, 10000));
+                }
                 telegramStatus.totalFailed++;
               }
             }
@@ -358,8 +365,8 @@ app.get('/api/signal/all', async (c) => {
               telegramStatus.symbols.push(symbol);
             }
             
-            // 币种之间也等待1秒
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // 币种之间也等待3秒
+            await new Promise(resolve => setTimeout(resolve, 3000));
           }
         }
         

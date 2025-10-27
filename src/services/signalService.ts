@@ -602,7 +602,10 @@ export class SignalService {
     if (!this.db) return [];
 
     try {
-      const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+      // 🆕 只统计当天的信号（从今天0点UTC开始）
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+      const todayStart = today.toISOString();
       
       const result = await this.db
         .prepare(`
@@ -611,7 +614,7 @@ export class SignalService {
           ORDER BY created_at DESC
           LIMIT ?
         `)
-        .bind(cutoffTime, limit)
+        .bind(todayStart, limit)
         .all();
 
       return result.results.map((row: any) => ({
@@ -629,7 +632,10 @@ export class SignalService {
     if (!this.db) return [];
 
     try {
-      const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+      // 🆕 只统计当天的信号（从今天0点UTC开始）
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+      const todayStart = today.toISOString();
       
       const result = await this.db
         .prepare(`
@@ -638,7 +644,7 @@ export class SignalService {
           ORDER BY alert_time DESC
           LIMIT ?
         `)
-        .bind(cutoffTime, limit)
+        .bind(todayStart, limit)
         .all();
 
       return result.results.map((row: any) => ({
@@ -679,7 +685,10 @@ export class SignalService {
     if (!this.db) return [];
 
     try {
-      const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+      // 🆕 只查询当天的信号（从今天0点UTC开始）
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+      const todayStart = today.toISOString();
       
       const result = await this.db
         .prepare(`
@@ -689,7 +698,7 @@ export class SignalService {
             AND created_at >= ?
           ORDER BY signal_time DESC
         `)
-        .bind(symbol, cutoffTime)
+        .bind(symbol, todayStart)
         .all();
 
       return result.results.map((row: any) => ({
@@ -707,7 +716,10 @@ export class SignalService {
     if (!this.db) return [];
 
     try {
-      const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+      // 🆕 只查询当天的信号（从今天0点UTC开始）
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+      const todayStart = today.toISOString();
       
       const result = await this.db
         .prepare(`
@@ -717,7 +729,7 @@ export class SignalService {
             AND created_at >= ?
           ORDER BY alert_time DESC
         `)
-        .bind(symbol, cutoffTime)
+        .bind(symbol, todayStart)
         .all();
 
       return result.results.map((row: any) => ({

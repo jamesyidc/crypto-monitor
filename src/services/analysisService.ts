@@ -17,6 +17,12 @@ export class AnalysisService {
     const today = new Date().toISOString().split('T')[0];
 
     try {
+      // 🆕 0. 检查是否需要重置每日数据（隔天第一次刷新）
+      const shouldReset = await this.coinService.shouldResetDailyExtremes();
+      if (shouldReset) {
+        await this.coinService.resetAllDailyData();
+      }
+      
       // 1. 获取最新价格数据 (带重试机制)
       let priceData = await this.coinService.fetchPricesFromCoinGecko();
       

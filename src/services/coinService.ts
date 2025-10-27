@@ -356,6 +356,96 @@ export class CoinService {
       .run();
   }
 
+  // 🆕 检查是否需要重置每日极值数据（隔天第一次刷新）
+  async shouldResetDailyExtremes(): Promise<boolean> {
+    // 获取 price_extremes 表中最新的 last_updated 时间
+    const result: any = await this.db
+      .prepare(`
+        SELECT DATE(last_updated) as last_date 
+        FROM price_extremes 
+        ORDER BY last_updated DESC 
+        LIMIT 1
+      `)
+      .first();
+    
+    if (!result || !result.last_date) {
+      return false; // 没有数据，不需要重置
+    }
+    
+    // 获取当前日期（UTC）
+    const today = new Date().toISOString().split('T')[0];
+    
+    // 如果最后更新日期不是今天，则需要重置
+    return result.last_date !== today;
+  }
+
+  // 🆕 重置每日极值数据（保留all_time_high/low，清零计次）
+  async resetDailyExtremes() {
+    await this.db
+      .prepare(`
+        UPDATE price_extremes 
+        SET high_count = 0, 
+            low_count = 0, 
+            extreme_up_count = 0, 
+            extreme_down_count = 0,
+            last_updated = datetime('now')
+      `)
+      .run();
+    
+    console.log('✅ 已重置每日极值数据（隔天第一次刷新）');
+  }
+
+  // 🆕 完整的每日数据清零（0点执行）
+  async resetAllDailyData() {
+    console.log('🔄 开始执行每日数据清零...');
+    
+    // 1. 清零极值计次数据
+    await this.db
+      .prepare(`
+        UPDATE price_extremes 
+        SET high_count = 0, 
+            low_count = 0, 
+            extreme_up_count = 0, 
+            extreme_down_count = 0,
+            last_updated = datetime('now')
+      `)
+      .run();
+    console.log('  ✅ 已清零 price_extremes 表');
+    
+    // 2. 删除昨天的 daily_stats 数据
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    
+    await this.db
+      .prepare(`DELETE FROM daily_stats WHERE date < ?`)
+      .bind(yesterdayStr)
+      .run();
+    console.log('  ✅ 已清理昨天的 daily_stats 数据');
+    
+    // 🆕 3. 删除昨天的 round_stats 数据（首页显示的轮次统计）
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+    const todayStartStr = todayStart.toISOString();
+    
+    await this.db
+      .prepare(`DELETE FROM round_stats WHERE round_time < ?`)
+      .bind(todayStartStr)
+      .run();
+    console.log('  ✅ 已清理昨天的 round_stats 数据（首页轮次统计）');
+    
+    // 🆕 4. 删除昨天的 coin_round_details 数据（币种轮次详情）
+    await this.db
+      .prepare(`DELETE FROM coin_round_details WHERE round_time < ?`)
+      .bind(todayStartStr)
+      .run();
+    console.log('  ✅ 已清理昨天的 coin_round_details 数据（币种详情）');
+    
+    // 5. 不需要删除 trading_signals 和 alert_signals，因为查询时已按当天过滤
+    
+    console.log('✅ 每日数据清零完成！所有红框数据已清零');
+  }
+
   // 增加极端行情累计次数（涨幅≥4%）
   async incrementExtremeUpCount(symbol: string) {
     await this.db

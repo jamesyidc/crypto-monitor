@@ -122,6 +122,10 @@ export class KlineService {
       try {
         const klineData = await this.fetchKlineFromOKX(config.okx_symbol, timeframe, limit);
         await this.saveKlineData(config.symbol, timeframe, klineData);
+        
+        // 🆕 清理30天以前的旧数据（保留30天 = 8640条5分钟K线）
+        await this.cleanOldKlineDataByDays(config.symbol, timeframe, 30);
+        
         results.push({
           symbol: config.symbol,
           success: true,
@@ -211,6 +215,21 @@ export class KlineService {
         )
       `)
       .bind(symbol, timeframe, symbol, timeframe, keepCount)
+      .run();
+  }
+
+  // 🆕 按天数清理旧数据（保留最近N天）
+  async cleanOldKlineDataByDays(symbol: string, timeframe: string, keepDays: number = 30) {
+    // 计算N天前的时间戳（毫秒）
+    const cutoffTime = Date.now() - (keepDays * 24 * 60 * 60 * 1000);
+    
+    await this.db
+      .prepare(`
+        DELETE FROM kline_data 
+        WHERE symbol = ? AND timeframe = ? 
+        AND open_time < ?
+      `)
+      .bind(symbol, timeframe, cutoffTime)
       .run();
   }
 
