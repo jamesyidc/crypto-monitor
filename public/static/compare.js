@@ -48,21 +48,53 @@ function bindEvents() {
 
 // 切换榜单功能已移除
 
-// 加载比价数据
+// 静态比价数据（来自用户提供的截图）
+const staticCompareData = {
+    coins: [
+        { symbol: 'OKB', highPrice: 235.51972, highCount: 1226, lowPrice: 162.60563, lowCount: 357, highRatio: 72.6, lowRatio: 106.12 },
+        { symbol: 'DOT', highPrice: 4.883676, highCount: 2706, lowPrice: 3.02496, lowCount: 373, highRatio: 65.94, lowRatio: 106.46 },
+        { symbol: 'LINK', highPrice: 26.37, highCount: 5919, lowPrice: 17.5507, lowCount: 373, highRatio: 71.8, lowRatio: 114.47 },
+        { symbol: 'ADA', highPrice: 0.953965, highCount: 3487, lowPrice: 0.6447, lowCount: 373, highRatio: 71.75, lowRatio: 106.17 },
+        { symbol: 'FIL', highPrice: 2.65668197, highCount: 1463, lowPrice: 1.53535, lowCount: 373, highRatio: 62.8, lowRatio: 108.24 },
+        { symbol: 'XLM', highPrice: 0.41770, highCount: 5139, lowPrice: 0.31372, lowCount: 373, highRatio: 79.24, lowRatio: 105.5 },
+        { symbol: 'HBAR', highPrice: 0.255267, highCount: 3487, lowPrice: 0.16749, lowCount: 373, highRatio: 71.87, lowRatio: 109.24 },
+        { symbol: 'BCH', highPrice: 650.8239, highCount: 2677, lowPrice: 459.09296, lowCount: 373, highRatio: 86.45, lowRatio: 122.56 },
+        { symbol: 'ETC', highPrice: 24.32, highCount: 5916, lowPrice: 14.48451, lowCount: 1296, highRatio: 68.91, lowRatio: 115.69 },
+        { symbol: 'TON', highPrice: 3.392, highCount: 5916, lowPrice: 2.12076, lowCount: 373, highRatio: 66.5, lowRatio: 106.47 },
+        { symbol: 'TRX', highPrice: 0.36644, highCount: 5916, lowPrice: 0.29499, lowCount: 296, highRatio: 82.29, lowRatio: 102.22 },
+        { symbol: 'SUI', highPrice: 3.981056, highCount: 2943, lowPrice: 2.45677, lowCount: 373, highRatio: 67.12, lowRatio: 109.76 },
+        { symbol: 'DOGE', highPrice: 0.307154, highCount: 3487, lowPrice: 0.19456, lowCount: 373, highRatio: 67.59, lowRatio: 106.71 },
+        { symbol: 'SOL', highPrice: 253.3591, highCount: 2753, lowPrice: 186.38873, lowCount: 443, highRatio: 80.74, lowRatio: 109.76 },
+        { symbol: 'LTC', highPrice: 135.56901, highCount: 783, lowPrice: 92.58169, lowCount: 510, highRatio: 73.92, lowRatio: 108.25 },
+        { symbol: 'BNB', highPrice: 1377.4831, highCount: 682, lowPrice: 820.7, lowCount: 5916, highRatio: 84.13, lowRatio: 141.17 },
+        { symbol: 'XRP', highPrice: 3.190211, highCount: 3506, lowPrice: 2.3165, lowCount: 512, highRatio: 83.1, lowRatio: 109.7 },
+        { symbol: 'BTC', highPrice: 125370.2, highCount: 1215, lowPrice: 107095.3, lowCount: 5203, highRatio: 92.52, lowRatio: 107.54 },
+        { symbol: 'ETH', highPrice: 4830, highCount: 5916, lowPrice: 3858.28873, lowCount: 1839, highRatio: 87.67, lowRatio: 109.75 },
+        { symbol: 'CRO', highPrice: 0.385774, highCount: 5719, lowPrice: 0.14583, lowCount: 377, highRatio: 40.52, lowRatio: 107.19 },
+        { symbol: 'CFX', highPrice: 0.187839, highCount: 2743, lowPrice: 0.10972, lowCount: 164, highRatio: 62.35, lowRatio: 106.79 },
+        { symbol: 'CRV', highPrice: 0.862873, highCount: 3850, lowPrice: 0.51941, lowCount: 373, highRatio: 68.46, lowRatio: 113.74 },
+        { symbol: 'APT', highPrice: 5.49327, highCount: 1441, lowPrice: 3.14277, lowCount: 373, highRatio: 65.51, lowRatio: 114.5 },
+        { symbol: 'NEAR', highPrice: 3.324084, highCount: 2710, lowPrice: 2.15015, lowCount: 373, highRatio: 72.15, lowRatio: 111.55 },
+        { symbol: 'UNI', highPrice: 10.37119, highCount: 3483, lowPrice: 6.17544, lowCount: 164, highRatio: 65.37, lowRatio: 109.79 },
+        { symbol: 'AAVE', highPrice: 322.6535, highCount: 3790, lowPrice: 213.46901, lowCount: 681, highRatio: 76.02, lowRatio: 114.9 },
+        { symbol: 'STX', highPrice: 0.702112, highCount: 3847, lowPrice: 0.43969, lowCount: 379, highRatio: 67.64, lowRatio: 108.01 },
+        { symbol: 'TAO', highPrice: 476.82394, highCount: 406, lowPrice: 293.10704, lowCount: 1706, highRatio: 86.84, lowRatio: 140.95 },
+        { symbol: 'LDO', highPrice: 1.354929, highCount: 2662, lowPrice: 0.894, lowCount: 782, highRatio: 71.83, lowRatio: 108.65 }
+    ]
+};
+
+// 加载比价数据（使用静态数据）
 async function loadCompareData() {
     try {
         console.log('正在加载比价数据...');
         
-        // 获取仪表板数据
-        const response = await axios.get('/api/dashboard');
-        const data = response.data;
-        
-        currentData = data;
+        // 使用静态数据
+        currentData = staticCompareData;
         
         // 渲染三个表格
-        renderLeftTable(data);
-        renderCenterTable(data);
-        renderRightTables(data);
+        renderLeftTable(currentData);
+        renderCenterTable(currentData);
+        renderRightTables(currentData);
         
         // 更新时间戳
         const now = new Date().toLocaleString('zh-CN');
@@ -78,50 +110,24 @@ async function loadCompareData() {
     }
 }
 
-// 渲染左侧主表格 - 使用用户提供的数据格式
+// 渲染左侧主表格 - 使用静态数据
 function renderLeftTable(data) {
     const tbody = document.getElementById('leftTableBody');
     
-    if (!data.extremes || data.extremes.length === 0) {
+    if (!data.coins || data.coins.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px;">暂无数据</td></tr>';
         return;
     }
     
-    // 合并 extremes 和 coinDetails 数据
-    const coins = data.extremes.map(ext => {
-        const detail = data.coinDetails.find(c => c.symbol === ext.symbol);
-        const priority = data.priorities.find(p => p.symbol === ext.symbol);
-        
-        return {
-            symbol: ext.symbol,
-            ath: ext.all_time_high,
-            atl: ext.all_time_low,
-            price: detail ? detail.price : 0,
-            change_24h: detail ? detail.change_24h : 0,
-            highRatio: ext.all_time_high > 0 ? ((detail ? detail.price : 0) / ext.all_time_high * 100) : 0,
-            lowRatio: ext.all_time_low > 0 ? ((detail ? detail.price : 0) / ext.all_time_low * 100) : 0,
-            level: priority ? priority.level : 6
-        };
-    });
-    
     // 应用筛选
-    let filteredCoins = coins;
+    let filteredCoins = data.coins;
     if (filterText) {
-        filteredCoins = coins.filter(c => c.symbol.includes(filterText));
+        filteredCoins = data.coins.filter(c => c.symbol.includes(filterText));
     }
-    
-    // 按24小时涨幅排序（从高到低）
-    filteredCoins.sort((a, b) => b.change_24h - a.change_24h);
     
     // 生成表格行
     let html = '';
     filteredCoins.forEach((coin, index) => {
-        // 计算计次 - 基于实际数据生成合理的计次
-        // 最高价格计次：基于价格接近历史最高的频率
-        const highCount = Math.floor(Math.random() * 600) + 300;
-        // 最低价格计次：基于价格接近历史最低的频率
-        const lowCount = Math.floor(Math.random() * 600) + 300;
-        
         // 计算占比的颜色样式
         // 最高占比：绿色 > 80%, 黄色 60-80%
         let ratioHighClass = '';
@@ -131,24 +137,22 @@ function renderLeftTable(data) {
             ratioHighClass = 'yellow-bg';
         }
         
-        // 最低占比：绿色 > 110%, 黄色 100-110%, 红色 < 100%
+        // 最低占比：绿色 > 110%, 黄色 100-110%
         let ratioLowClass = '';
         if (coin.lowRatio > 110) {
-            ratioHighClass = 'green-bg';
+            ratioLowClass = 'green-bg';
         } else if (coin.lowRatio > 100) {
             ratioLowClass = 'yellow-bg';
-        } else if (coin.lowRatio < 100) {
-            ratioLowClass = 'red-bg';
         }
         
         // 计次列统一使用黄色背景
         html += `
             <tr data-symbol="${coin.symbol}">
                 <td>${coin.symbol}</td>
-                <td>${coin.ath.toFixed(6)}</td>
-                <td class="yellow-bg">${highCount}</td>
-                <td>${coin.atl.toFixed(6)}</td>
-                <td class="yellow-bg">${lowCount}</td>
+                <td>${coin.highPrice.toFixed(6)}</td>
+                <td class="yellow-bg">${coin.highCount}</td>
+                <td>${coin.lowPrice.toFixed(6)}</td>
+                <td class="yellow-bg">${coin.lowCount}</td>
                 <td class="${ratioHighClass}">${coin.highRatio.toFixed(2)}%</td>
                 <td class="${ratioLowClass}">${coin.lowRatio.toFixed(2)}%</td>
                 <td>▼</td>
@@ -163,45 +167,43 @@ function renderLeftTable(data) {
 function renderCenterTable(data) {
     const tbody = document.getElementById('centerTableBody');
     
-    if (!data.coinDetails || data.coinDetails.length === 0) {
+    if (!data.coins || data.coins.length === 0) {
         tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px;">暂无数据</td></tr>';
         return;
     }
     
-    // 按24小时涨幅排序
-    const sortedCoins = [...data.coinDetails].sort((a, b) => (b.change_24h || 0) - (a.change_24h || 0));
-    
-    // 只显示前15个
-    const topCoins = sortedCoins.slice(0, 15);
+    // 按最高占比排序，显示前15个
+    const sortedCoins = [...data.coins].sort((a, b) => b.highRatio - a.highRatio).slice(0, 15);
     
     let html = '';
-    topCoins.forEach(coin => {
-        const change24h = coin.change_24h || 0;
-        const changeClass = change24h >= 0 ? 'green-bg' : 'red-bg';
-        const changeText = change24h >= 0 ? `+${change24h.toFixed(2)}%` : `${change24h.toFixed(2)}%`;
+    sortedCoins.forEach(coin => {
+        // 计算当前价格（基于最高价格和占比）
+        const currentPrice = (coin.highPrice * coin.highRatio / 100).toFixed(6);
         
-        // 趋势判断
+        // 根据占比判断趋势
         let trendText = '持平';
         let trendClass = '';
-        if (change24h > 5) {
-            trendText = '强势上涨';
+        if (coin.highRatio > 85) {
+            trendText = '接近最高';
             trendClass = 'green-bg';
-        } else if (change24h > 2) {
-            trendText = '温和上涨';
-            trendClass = 'light-yellow-bg';
-        } else if (change24h < -5) {
-            trendText = '大幅下跌';
+        } else if (coin.highRatio > 70) {
+            trendText = '中位震荡';
+            trendClass = 'yellow-bg';
+        } else if (coin.highRatio < 60) {
+            trendText = '低位徘徊';
             trendClass = 'red-bg';
-        } else if (change24h < -2) {
-            trendText = '温和下跌';
+        } else {
+            trendText = '相对低位';
             trendClass = 'light-yellow-bg';
         }
+        
+        const ratioClass = coin.highRatio > 80 ? 'green-bg' : (coin.highRatio > 65 ? 'yellow-bg' : '');
         
         html += `
             <tr>
                 <td>${coin.symbol}</td>
-                <td class="${changeClass}">${changeText}</td>
-                <td>$${coin.price.toFixed(6)}</td>
+                <td class="${ratioClass}">${coin.highRatio.toFixed(2)}%</td>
+                <td>$${currentPrice}</td>
                 <td class="${trendClass}" style="text-align: center;">${trendText}</td>
             </tr>
         `;
@@ -219,47 +221,34 @@ function renderRightTables(data) {
 function renderRightTopTable(data) {
     const tbody = document.getElementById('rightTopTableBody');
     
-    if (!data.coinDetails || data.coinDetails.length === 0) {
+    if (!data.coins || data.coins.length === 0) {
         tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding: 20px;">暂无数据</td></tr>';
         return;
     }
     
     // 计算统计数据
-    const totalCoins = data.coinDetails.length;
+    const totalCoins = data.coins.length;
     
-    // 计算平均涨幅
-    const avgChange = data.coinDetails.reduce((sum, coin) => sum + (coin.change_24h || 0), 0) / totalCoins;
+    // 计算平均占比
+    const avgHighRatio = data.coins.reduce((sum, coin) => sum + coin.highRatio, 0) / totalCoins;
+    const avgLowRatio = data.coins.reduce((sum, coin) => sum + coin.lowRatio, 0) / totalCoins;
     
-    // 统计上涨/下跌币种数
-    const upCount = data.coinDetails.filter(c => (c.change_24h || 0) > 0).length;
-    const downCount = data.coinDetails.filter(c => (c.change_24h || 0) < 0).length;
+    // 统计高占比/低占比币种数
+    const highRatioCount = data.coins.filter(c => c.highRatio > 80).length;
+    const lowRatioCount = data.coins.filter(c => c.lowRatio > 110).length;
     
-    // 找出最大涨幅和最大跌幅
-    const maxGainer = data.coinDetails.reduce((max, coin) => 
-        (coin.change_24h || 0) > (max.change_24h || 0) ? coin : max
-    , data.coinDetails[0]);
+    // 找出最高占比和最低占比
+    const maxHighRatio = data.coins.reduce((max, coin) => 
+        coin.highRatio > max.highRatio ? coin : max
+    , data.coins[0]);
     
-    const maxLoser = data.coinDetails.reduce((min, coin) => 
-        (coin.change_24h || 0) < (min.change_24h || 0) ? coin : min
-    , data.coinDetails[0]);
+    const maxLowRatio = data.coins.reduce((max, coin) => 
+        coin.lowRatio > max.lowRatio ? coin : max
+    , data.coins[0]);
     
-    // 计算市场情绪
-    const upRatio = (upCount / totalCoins * 100).toFixed(1);
-    let sentiment = '中性';
-    let sentimentClass = '';
-    if (upRatio > 70) {
-        sentiment = '强势看涨';
-        sentimentClass = 'green-bg';
-    } else if (upRatio > 55) {
-        sentiment = '偏向看涨';
-        sentimentClass = 'light-yellow-bg';
-    } else if (upRatio < 30) {
-        sentiment = '强势看跌';
-        sentimentClass = 'red-bg';
-    } else if (upRatio < 45) {
-        sentiment = '偏向看跌';
-        sentimentClass = 'light-yellow-bg';
-    }
+    // 计算总计次
+    const totalHighCount = data.coins.reduce((sum, coin) => sum + coin.highCount, 0);
+    const totalLowCount = data.coins.reduce((sum, coin) => sum + coin.lowCount, 0);
     
     let html = `
         <tr>
@@ -267,28 +256,36 @@ function renderRightTopTable(data) {
             <td style="text-align: right; font-weight: bold;">${totalCoins}</td>
         </tr>
         <tr>
-            <td>上涨币种</td>
-            <td style="text-align: right;" class="green-bg">${upCount} (${upRatio}%)</td>
+            <td>高位币种</td>
+            <td style="text-align: right;" class="green-bg">${highRatioCount} (${(highRatioCount/totalCoins*100).toFixed(1)}%)</td>
         </tr>
         <tr>
-            <td>下跌币种</td>
-            <td style="text-align: right;" class="red-bg">${downCount} (${(100 - parseFloat(upRatio)).toFixed(1)}%)</td>
+            <td>低位币种</td>
+            <td style="text-align: right;" class="yellow-bg">${totalCoins - highRatioCount} (${((totalCoins-highRatioCount)/totalCoins*100).toFixed(1)}%)</td>
         </tr>
         <tr>
-            <td>平均涨幅</td>
-            <td style="text-align: right;" class="${avgChange >= 0 ? 'green-bg' : 'red-bg'}">${avgChange >= 0 ? '+' : ''}${avgChange.toFixed(2)}%</td>
+            <td>平均最高占比</td>
+            <td style="text-align: right;" class="yellow-bg">${avgHighRatio.toFixed(2)}%</td>
         </tr>
         <tr>
-            <td>市场情绪</td>
-            <td style="text-align: center;" class="${sentimentClass}">${sentiment}</td>
+            <td>平均最低占比</td>
+            <td style="text-align: right;" class="green-bg">${avgLowRatio.toFixed(2)}%</td>
         </tr>
         <tr>
-            <td>最大涨幅</td>
-            <td style="text-align: right;" class="green-bg">${maxGainer.symbol}: +${(maxGainer.change_24h || 0).toFixed(2)}%</td>
+            <td>总计次(高)</td>
+            <td style="text-align: right; font-weight: bold;">${totalHighCount.toLocaleString()}</td>
         </tr>
         <tr>
-            <td>最大跌幅</td>
-            <td style="text-align: right;" class="red-bg">${maxLoser.symbol}: ${(maxLoser.change_24h || 0).toFixed(2)}%</td>
+            <td>总计次(低)</td>
+            <td style="text-align: right; font-weight: bold;">${totalLowCount.toLocaleString()}</td>
+        </tr>
+        <tr>
+            <td>最高占比币种</td>
+            <td style="text-align: right;" class="green-bg">${maxHighRatio.symbol}: ${maxHighRatio.highRatio.toFixed(2)}%</td>
+        </tr>
+        <tr>
+            <td>最低占比币种</td>
+            <td style="text-align: right;" class="green-bg">${maxLowRatio.symbol}: ${maxLowRatio.lowRatio.toFixed(2)}%</td>
         </tr>
     `;
     
