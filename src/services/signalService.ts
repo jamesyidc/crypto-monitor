@@ -54,6 +54,9 @@ export class SignalService {
       const changePercent = parseFloat(current.change?.replace('%', '') || '0');
       const rsi5min = parseFloat(current.rsi_5min || '50');
       
+      // 显著变化：涨跌幅 >= 1%
+      const significantChange = Math.abs(changePercent) >= 1;
+      
       // ===== 触发条件检测（满足任一即预警） =====
       const triggerConditions: string[] = [];
       
@@ -91,15 +94,17 @@ export class SignalService {
         });
       }
       
-      // === 见顶信号检测（做空） ===
+      // === 见顶信号检测（做空） - 进一步放宽条件 ===
+      // 满足以下任意组合即可：
+      // 1. 长上影线 + RSI超买(>60)
+      // 2. 长上影线 + SAR加速向下
+      // 3. RSI极度超买(>75) + 震荡>1%
+      const sellCondition1 = hasLongUpperShadow && rsi5min > 60;
+      const sellCondition2 = hasLongUpperShadow && sarChangePercent < 0 && Math.abs(sarChangePercent) > 3;
+      const sellCondition3 = rsi5min > 75 && volatility > 1;
+      
       if (
-        volatility > 1 && // 震荡大于1%
-        hasLongUpperShadow && // 长上影线
-        volumeDecay && // 量能衰减
-        sarChangePercent > 0 && // SAR正值
-        Math.abs(sarChangePercent) > 5 && // SAR加速（变化率大于5%）
-        changePercent < 0 && // 价格转负
-        rsi5min > 70 && // RSI超买
+        (sellCondition1 || sellCondition2 || sellCondition3) &&
         (volumeAboveV1 || volumeAboveV2 || significantChange || volatility > 1)
       ) {
         signals.push({
@@ -129,15 +134,17 @@ export class SignalService {
         });
       }
       
-      // === 见底信号检测（做多） ===
+      // === 见底信号检测（做多） - 进一步放宽条件 ===
+      // 满足以下任意组合即可：
+      // 1. 长下影线 + RSI超卖(<40)
+      // 2. 长下影线 + SAR加速向上
+      // 3. RSI极度超卖(<25) + 震荡>1%
+      const buyCondition1 = hasLongLowerShadow && rsi5min < 40;
+      const buyCondition2 = hasLongLowerShadow && sarChangePercent > 0 && Math.abs(sarChangePercent) > 3;
+      const buyCondition3 = rsi5min < 25 && volatility > 1;
+      
       if (
-        volatility > 1 && // 震荡大于1%
-        hasLongLowerShadow && // 长下影线
-        volumeDecay && // 量能衰减
-        sarChangePercent < 0 && // SAR负值
-        Math.abs(sarChangePercent) > 5 && // SAR加速（变化率大于5%）
-        changePercent > 0 && // 价格转正
-        rsi5min < 30 && // RSI超卖
+        (buyCondition1 || buyCondition2 || buyCondition3) &&
         (volumeAboveV1 || volumeAboveV2 || significantChange || volatility > 1)
       ) {
         signals.push({
