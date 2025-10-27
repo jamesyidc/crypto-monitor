@@ -270,14 +270,14 @@ function renderCoinTable(coinDetails, extremes, priorities) {
     const sequenceNum = index + 1;
     
     // 本轮相对上一轮的涨跌幅（change_vs_prev_round）
-    const changeVsPrev = coin.change_vs_prev_round || 0;
-    let changeIndicator = '<span class="text-gray-400">-</span>';
+    // 注意：即使涨跌幅为0，也必须显示数值，不允许显示"-"
+    const changeVsPrev = coin.change_vs_prev_round !== undefined && coin.change_vs_prev_round !== null 
+      ? coin.change_vs_prev_round 
+      : 0;
     
-    if (changeVsPrev !== 0) {
-      const changeText = changeVsPrev >= 0 ? `+${changeVsPrev.toFixed(2)}%` : `${changeVsPrev.toFixed(2)}%`;
-      const changeClass = changeVsPrev >= 0 ? 'text-green-600' : 'text-red-600';
-      changeIndicator = `<span class="${changeClass} font-semibold">${changeText}</span>`;
-    }
+    const changeText = changeVsPrev >= 0 ? `+${changeVsPrev.toFixed(2)}%` : `${changeVsPrev.toFixed(2)}%`;
+    const changeClass = changeVsPrev > 0 ? 'text-green-600' : (changeVsPrev < 0 ? 'text-red-600' : 'text-gray-600');
+    const changeIndicator = `<span class="${changeClass} font-semibold">${changeText}</span>`;
     
     // 急涨 - 显示当天累计次数
     const todaySurgeCount = coin.today_surge_count || 0;
