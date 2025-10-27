@@ -3,10 +3,11 @@ export class SignalService {
   // 识别买卖点信号
   detectTradingSignals(klineData: any[]): any {
     if (klineData.length < 30) {
-      return { signals: [], stats: null };
+      return { signals: [], stats: null, alerts: [] };
     }
 
     const signals: any[] = [];
+    const alerts: any[] = []; // 新增：预警列表（满足任一触发条件）
     
     // 计算成交量平均值（用于V1, V2判断）
     const volumes = klineData.map(k => parseFloat(k.volume || '0'));
@@ -30,7 +31,7 @@ export class SignalService {
       const prevLow = parseFloat(previous.low);
       const prevVolume = parseFloat(previous.volume || '0');
       
-      // 计算震荡幅度
+      // 计算震荡幅度（波动率）
       const volatility = ((currentHigh - currentLow) / currentLow) * 100;
       
       // 计算上下影线
@@ -53,12 +54,42 @@ export class SignalService {
       const changePercent = parseFloat(current.change?.replace('%', '') || '0');
       const rsi5min = parseFloat(current.rsi_5min || '50');
       
-      // 涨跌幅大于±1%
-      const significantChange = Math.abs(changePercent) > 1;
+      // ===== 触发条件检测（满足任一即预警） =====
+      const triggerConditions: string[] = [];
       
-      // 成交量触发条件
-      const volumeAboveV1 = currentVolume > v1;
-      const volumeAboveV2 = currentVolume > v2 && currentVolume <= v1;
+      // 1. 成交量触发：V1 或 V2
+      const volumeAboveV1 = currentVolume >= v1;
+      const volumeAboveV2 = currentVolume >= v2;
+      if (volumeAboveV1) triggerConditions.push('成交量≥V1');
+      else if (volumeAboveV2) triggerConditions.push('成交量≥V2');
+      
+      // 2. 涨跌幅触发：±1%
+      const changeUp1Percent = changePercent >= 1;
+      const changeDown1Percent = changePercent <= -1;
+      if (changeUp1Percent) triggerConditions.push('涨幅≥1%');
+      if (changeDown1Percent) triggerConditions.push('跌幅≤-1%');
+      
+      // 3. 震荡（波动率）触发：±1%
+      const volatilityHigh = volatility >= 1;
+      if (volatilityHigh) triggerConditions.push('震荡≥1%');
+      
+      // 如果满足任一触发条件，生成预警
+      if (triggerConditions.length > 0) {
+        alerts.push({
+          symbol: current.symbol,
+          time: current.time,
+          index: current.index,
+          triggers: triggerConditions,
+          data: {
+            volume: currentVolume.toFixed(2),
+            volumeLevel: volumeAboveV1 ? 'V1+' : volumeAboveV2 ? 'V2+' : 'Normal',
+            changePercent: changePercent.toFixed(2) + '%',
+            volatility: volatility.toFixed(2) + '%',
+            rsi5min: rsi5min.toFixed(2),
+            sarChangePercent: sarChangePercent.toFixed(2) + '%'
+          }
+        });
+      }
       
       // === 见顶信号检测（做空） ===
       if (
@@ -142,12 +173,13 @@ export class SignalService {
       totalSignals: signals.length,
       buySignals: signals.filter(s => s.type === 'BUY').length,
       sellSignals: signals.filter(s => s.type === 'SELL').length,
+      totalAlerts: alerts.length, // 新增：预警总数
       avgVolume: avgVolume.toFixed(2),
       v1Threshold: v1.toFixed(2),
       v2Threshold: v2.toFixed(2)
     };
 
-    return { signals, stats };
+    return { signals, alerts, stats };
   }
 
   // 计算信号强度（0-100）

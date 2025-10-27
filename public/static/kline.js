@@ -66,38 +66,55 @@ function bindTimeframeButtons() {
   });
 }
 
-// 加载 K线数据（带技术指标）
+// 加载 K线数据（带技术指标和预警）
 async function loadKlineData() {
   try {
     showLoading();
     
     // 获取带技术指标的 K线数据
-    const response = await axios.get(`/api/kline/${currentSymbol}/indicators`, {
+    const klineResponse = await axios.get(`/api/kline/${currentSymbol}/indicators`, {
       params: {
         timeframe: currentTimeframe,
         limit: 300
       }
     });
 
-    if (!response.data.success) {
-      showError(response.data.error || '加载失败');
+    if (!klineResponse.data.success) {
+      showError(klineResponse.data.error || '加载失败');
       return;
     }
 
-    const result = response.data;
-    const klineData = result.data;
+    const klineData = klineResponse.data.data;
 
     if (!klineData || klineData.length === 0) {
       showNoData();
       return;
     }
 
-    // 渲染数据
+    // 获取预警信息
+    let alerts = [];
+    try {
+      const signalResponse = await axios.get(`/api/signal/${currentSymbol}`, {
+        params: {
+          timeframe: currentTimeframe,
+          limit: 300
+        }
+      });
+      
+      if (signalResponse.data.success && signalResponse.data.alerts) {
+        alerts = signalResponse.data.alerts;
+      }
+    } catch (error) {
+      console.warn('获取预警信息失败:', error);
+    }
+
+    // 渲染数据（传入预警信息）
     renderChart(klineData);
-    renderTable(klineData);
+    renderTable(klineData, alerts);
     
-    // 显示数据数量
+    // 显示数据数量和预警统计
     document.getElementById('statsPanel').classList.remove('hidden');
+    displayAlertStats(alerts);
 
   } catch (error) {
     console.error('加载K线数据失败:', error);
@@ -188,10 +205,20 @@ function renderChart(klineData) {
 }
 
 // 渲染表格
-function renderTable(klineData) {
+function renderTable(klineData, alerts = []) {
   const tbody = document.getElementById('klineTableBody');
   
+  // 创建预警索引映射（用于快速查找）
+  const alertMap = {};
+  alerts.forEach(alert => {
+    alertMap[alert.index] = alert;
+  });
+  
   tbody.innerHTML = klineData.map((k) => {
+    // 检查是否有预警
+    const hasAlert = alertMap[k.index];
+    const rowClass = hasAlert ? 'bg-yellow-50 border-l-4 border-yellow-500' : '';
+    
     // 基础K线数据
     const changeClass = k.change && k.change.includes('+') ? 'text-green-600' : 'text-red-600';
     
@@ -211,10 +238,17 @@ function renderTable(klineData) {
       if (!state) return '-';
       return state;
     };
+    
+    // 预警标记
+    const alertBadge = hasAlert 
+      ? `<span class="inline-block px-1 py-0.5 bg-yellow-500 text-white text-xs rounded font-bold ml-1" title="${hasAlert.triggers.join(', ')}">⚠️</span>`
+      : '';
 
     return `
-      <tr class="border-b border-gray-100 hover:bg-gray-50 text-xs">
-        <td class="py-2 px-1 text-gray-700 sticky left-0 bg-white">${k.time || '-'}</td>
+      <tr class="border-b border-gray-100 hover:bg-gray-50 text-xs ${rowClass}">
+        <td class="py-2 px-1 text-gray-700 sticky left-0 ${hasAlert ? 'bg-yellow-50' : 'bg-white'}">
+          ${k.time || '-'}${alertBadge}
+        </td>
         <td class="py-2 px-1 text-right font-mono">${k.open ? k.open.toFixed(4) : '-'}</td>
         <td class="py-2 px-1 text-right font-mono text-green-600">${k.high ? k.high.toFixed(4) : '-'}</td>
         <td class="py-2 px-1 text-right font-mono text-red-600">${k.low ? k.low.toFixed(4) : '-'}</td>
@@ -260,6 +294,45 @@ function renderTable(klineData) {
       </tr>
     `;
   }).join('');
+}
+
+// 显示预警统计
+function displayAlertStats(alerts) {
+  if (!alerts || alerts.length === 0) {
+    return;
+  }
+  
+  // 统计触发条件
+  const triggerStats = {};
+  alerts.forEach(alert => {
+    alert.triggers.forEach(trigger => {
+      triggerStats[trigger] = (triggerStats[trigger] || 0) + 1;
+    });
+  });
+  
+  const statsHtml = `
+    <div class="mt-4 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
+      <h3 class="text-sm font-bold text-yellow-800 mb-2">
+        <i class="fas fa-exclamation-triangle mr-1"></i>
+        预警统计（共${alerts.length}个预警点）
+      </h3>
+      <div class="grid grid-cols-3 gap-2 text-xs">
+        ${Object.entries(triggerStats).map(([trigger, count]) => `
+          <div class="bg-white p-2 rounded">
+            <span class="text-gray-600">${trigger}:</span>
+            <span class="font-bold text-yellow-700">${count}次</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+  
+  const statsPanel = document.getElementById('statsPanel');
+  const existingAlert = statsPanel.querySelector('.bg-yellow-50');
+  if (existingAlert) {
+    existingAlert.remove();
+  }
+  statsPanel.insertAdjacentHTML('beforeend', statsHtml);
 }
 
 // 切换指标列显示/隐藏
