@@ -224,6 +224,48 @@ app.post('/api/kline/sync48h/all', async (c) => {
   return c.json({ success: true, results });
 });
 
+// API: 自动同步K线数据（用于定时任务）
+app.post('/api/kline/sync/auto', async (c) => {
+  const startTime = Date.now();
+  
+  try {
+    const klineService = new KlineService(c.env.DB);
+    
+    // 只同步5分钟K线的最新100根（覆盖最近8小时）
+    const timeframe = '5m';
+    const limit = 100;
+    
+    console.log(`🔄 自动同步开始: timeframe=${timeframe}, limit=${limit}`);
+    
+    const results = await klineService.syncAllKlineData(timeframe, limit);
+    
+    // 统计结果
+    const summary = {
+      total: results.length,
+      success: results.filter((r: any) => r.success).length,
+      failed: results.filter((r: any) => !r.success).length,
+      duration: ((Date.now() - startTime) / 1000).toFixed(2)
+    };
+    
+    console.log(`✅ 自动同步完成: ${summary.success}/${summary.total} 成功, 耗时 ${summary.duration}秒`);
+    
+    return c.json({ 
+      success: true, 
+      message: 'K线数据自动同步完成',
+      summary,
+      results 
+    });
+  } catch (error: any) {
+    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+    console.error(`❌ 自动同步失败 (耗时 ${duration}秒):`, error.message);
+    return c.json({ 
+      success: false, 
+      error: error.message,
+      duration 
+    }, 500);
+  }
+});
+
 // API: 获取单个币种的 OKX 配置
 app.get('/api/okx/config/:symbol', async (c) => {
   const symbol = c.req.param('symbol');

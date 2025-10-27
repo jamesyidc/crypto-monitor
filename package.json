@@ -13,7 +13,12 @@
     "db:migrate:prod": "wrangler d1 migrations apply webapp-production",
     "db:console:local": "wrangler d1 execute webapp-production --local",
     "db:console:prod": "wrangler d1 execute webapp-production",
-    "clean-port": "fuser -k 3000/tcp 2>/dev/null || true"
+    "clean-port": "fuser -k 3000/tcp 2>/dev/null || true",
+    "scheduler": "node scheduler.js",
+    "scheduler:start": "pm2 start ecosystem.config.cjs --only kline-scheduler",
+    "scheduler:stop": "pm2 stop kline-scheduler",
+    "scheduler:restart": "pm2 restart kline-scheduler",
+    "scheduler:logs": "pm2 logs kline-scheduler --nostream"
   },
   "dependencies": {
     "hono": "^4.10.3"
