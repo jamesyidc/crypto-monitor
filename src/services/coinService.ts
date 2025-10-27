@@ -138,13 +138,13 @@ export class CoinService {
     return extreme;
   }
 
-  // 更新极值记录
+  // 更新极值记录（创新高/新低时调用）
   async updatePriceExtreme(symbol: string, type: 'high' | 'low', price: number) {
     if (type === 'high') {
       await this.db
         .prepare(`
           UPDATE price_extremes 
-          SET all_time_high = ?, ath_date = datetime('now'), last_updated = datetime('now')
+          SET all_time_high = ?, ath_date = datetime('now'), last_updated = datetime('now'), high_count = 0
           WHERE symbol = ?
         `)
         .bind(price, symbol)
@@ -153,10 +153,33 @@ export class CoinService {
       await this.db
         .prepare(`
           UPDATE price_extremes 
-          SET all_time_low = ?, atl_date = datetime('now'), last_updated = datetime('now')
+          SET all_time_low = ?, atl_date = datetime('now'), last_updated = datetime('now'), low_count = 0
           WHERE symbol = ?
         `)
         .bind(price, symbol)
+        .run();
+    }
+  }
+
+  // 增加计次（未创新高/新低时调用）
+  async incrementExtremeCount(symbol: string, type: 'high' | 'low') {
+    if (type === 'high') {
+      await this.db
+        .prepare(`
+          UPDATE price_extremes 
+          SET high_count = high_count + 1, last_updated = datetime('now')
+          WHERE symbol = ?
+        `)
+        .bind(symbol)
+        .run();
+    } else {
+      await this.db
+        .prepare(`
+          UPDATE price_extremes 
+          SET low_count = low_count + 1, last_updated = datetime('now')
+          WHERE symbol = ?
+        `)
+        .bind(symbol)
         .run();
     }
   }

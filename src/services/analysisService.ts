@@ -86,21 +86,31 @@ export class AnalysisService {
         if (isSurge) surgeCount++;
         if (isCrash) crashCount++;
 
-        // 检查创新高/新低
+        // 检查创新高/新低，并实现动态计次系统
         const extreme: any = await this.coinService.getOrCreatePriceExtreme(symbol, data.usd);
         let newHighCount = 0;
         let newLowCount = 0;
 
+        // 检查是否创新高
         if (data.usd > extreme.all_time_high) {
+          // 创新高：更新极值并重置计次为0
           await this.coinService.updatePriceExtreme(symbol, 'high', data.usd);
           await this.coinService.saveExtremeRecord(symbol, 'new_high', data.usd, extreme.all_time_high, 0);
           newHighCount = 1;
+        } else {
+          // 未创新高：计次加1
+          await this.coinService.incrementExtremeCount(symbol, 'high');
         }
 
+        // 检查是否创新低
         if (data.usd < extreme.all_time_low) {
+          // 创新低：更新极值并重置计次为0
           await this.coinService.updatePriceExtreme(symbol, 'low', data.usd);
           await this.coinService.saveExtremeRecord(symbol, 'new_low', data.usd, extreme.all_time_low, 0);
           newLowCount = 1;
+        } else {
+          // 未创新低：计次加1
+          await this.coinService.incrementExtremeCount(symbol, 'low');
         }
 
         coinDetails.push({

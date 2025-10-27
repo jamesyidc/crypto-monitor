@@ -72,6 +72,61 @@ app.get('/api/history', async (c) => {
   }
 });
 
+// API: 获取比价数据（动态计次系统）
+app.get('/api/compare', async (c) => {
+  try {
+    const coinService = new CoinService(c.env.DB);
+    
+    // 获取所有极值数据（包含计次）
+    const extremes: any = await coinService.getAllPriceExtremes();
+    
+    // 获取最新的币种详情（当前价格）
+    const latestRounds: any = await coinService.getLatestRoundStats(1);
+    const latestRound = latestRounds[0];
+    
+    if (!latestRound) {
+      return c.json({ success: false, error: '暂无数据' }, 404);
+    }
+    
+    const coinDetails: any = await coinService.getLatestCoinDetails(latestRound.round_time);
+    
+    // 组合数据：计算占比
+    const coins = extremes.map((extreme: any) => {
+      const detail = coinDetails.find((d: any) => d.symbol === extreme.symbol);
+      const currentPrice = detail ? detail.price : 0;
+      
+      // 计算占比
+      const highRatio = extreme.all_time_high > 0 
+        ? (currentPrice / extreme.all_time_high) * 100 
+        : 0;
+      const lowRatio = extreme.all_time_low > 0 
+        ? (currentPrice / extreme.all_time_low) * 100 
+        : 0;
+      
+      return {
+        symbol: extreme.symbol,
+        highPrice: extreme.all_time_high,
+        highCount: extreme.high_count,
+        lowPrice: extreme.all_time_low,
+        lowCount: extreme.low_count,
+        currentPrice: currentPrice,
+        highRatio: Math.min(highRatio, 100), // 最高占比 ≤ 100%
+        lowRatio: Math.max(lowRatio, 100),   // 最低占比 ≥ 100%
+        ath_date: extreme.ath_date,
+        atl_date: extreme.atl_date
+      };
+    });
+    
+    return c.json({
+      success: true,
+      updateTime: latestRound.round_time,
+      coins: coins
+    });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
 // ========== K线数据 API ==========
 
 // API: 同步所有币种的 K线数据
