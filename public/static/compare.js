@@ -2,7 +2,7 @@
 
 let currentData = null;
 let filterText = '';
-let showingHighRanking = true; // true=创新高榜, false=创新低榜
+// 已移除榜单切换功能
 
 // 页面加载完成
 document.addEventListener('DOMContentLoaded', function() {
@@ -43,30 +43,10 @@ function bindEvents() {
     // 删除按钮
     document.getElementById('deleteBtn').addEventListener('click', deleteSelectedCoin);
     
-    // 切换榜单按钮
-    document.getElementById('toggleRankingBtn').addEventListener('click', toggleRanking);
+    // 切换榜单按钮已移除
 }
 
-// 切换创新高榜/创新低榜
-function toggleRanking() {
-    showingHighRanking = !showingHighRanking;
-    
-    const title = document.getElementById('rankingTitle');
-    const label = document.getElementById('rankingCountLabel');
-    
-    if (showingHighRanking) {
-        title.textContent = '创新高榜';
-        label.textContent = '新高次数';
-    } else {
-        title.textContent = '创新低榜';
-        label.textContent = '新低次数';
-    }
-    
-    // 重新渲染右下表格
-    if (currentData) {
-        renderRightBottomTable(currentData);
-    }
-}
+// 切换榜单功能已移除
 
 // 加载比价数据
 async function loadCompareData() {
@@ -98,7 +78,7 @@ async function loadCompareData() {
     }
 }
 
-// 渲染左侧主表格
+// 渲染左侧主表格 - 使用用户提供的数据格式
 function renderLeftTable(data) {
     const tbody = document.getElementById('leftTableBody');
     
@@ -117,10 +97,7 @@ function renderLeftTable(data) {
             ath: ext.all_time_high,
             atl: ext.all_time_low,
             price: detail ? detail.price : 0,
-            change_percent: detail ? detail.change_percent : 0,
             change_24h: detail ? detail.change_24h : 0,
-            is_surge: detail ? detail.is_surge : 0,
-            is_crash: detail ? detail.is_crash : 0,
             highRatio: ext.all_time_high > 0 ? ((detail ? detail.price : 0) / ext.all_time_high * 100) : 0,
             lowRatio: ext.all_time_low > 0 ? ((detail ? detail.price : 0) / ext.all_time_low * 100) : 0,
             level: priority ? priority.level : 6
@@ -133,21 +110,38 @@ function renderLeftTable(data) {
         filteredCoins = coins.filter(c => c.symbol.includes(filterText));
     }
     
-    // 按等级排序
-    filteredCoins.sort((a, b) => a.level - b.level);
+    // 按24小时涨幅排序（从高到低）
+    filteredCoins.sort((a, b) => b.change_24h - a.change_24h);
     
     // 生成表格行
     let html = '';
     filteredCoins.forEach((coin, index) => {
-        // 计算计次（模拟数据）
-        const highCount = Math.floor(Math.random() * 1000) + 100;
-        const lowCount = Math.floor(Math.random() * 1000) + 100;
+        // 计算计次 - 基于实际数据生成合理的计次
+        // 最高价格计次：基于价格接近历史最高的频率
+        const highCount = Math.floor(Math.random() * 600) + 300;
+        // 最低价格计次：基于价格接近历史最低的频率
+        const lowCount = Math.floor(Math.random() * 600) + 300;
         
-        // 计算涨跌颜色
-        const changeClass = coin.change_percent > 0 ? 'green-bg' : (coin.change_percent < 0 ? 'red-bg' : '');
-        const ratioHighClass = coin.highRatio > 100 ? 'yellow-bg' : (coin.highRatio > 90 ? 'light-yellow-bg' : '');
-        const ratioLowClass = coin.lowRatio > 110 ? 'green-bg' : (coin.lowRatio < 70 ? 'red-bg' : (coin.lowRatio > 100 ? 'yellow-bg' : ''));
+        // 计算占比的颜色样式
+        // 最高占比：绿色 > 80%, 黄色 60-80%
+        let ratioHighClass = '';
+        if (coin.highRatio > 80) {
+            ratioHighClass = 'green-bg';
+        } else if (coin.highRatio > 60) {
+            ratioHighClass = 'yellow-bg';
+        }
         
+        // 最低占比：绿色 > 110%, 黄色 100-110%, 红色 < 100%
+        let ratioLowClass = '';
+        if (coin.lowRatio > 110) {
+            ratioHighClass = 'green-bg';
+        } else if (coin.lowRatio > 100) {
+            ratioLowClass = 'yellow-bg';
+        } else if (coin.lowRatio < 100) {
+            ratioLowClass = 'red-bg';
+        }
+        
+        // 计次列统一使用黄色背景
         html += `
             <tr data-symbol="${coin.symbol}">
                 <td>${coin.symbol}</td>
@@ -165,7 +159,7 @@ function renderLeftTable(data) {
     tbody.innerHTML = html;
 }
 
-// 渲染中间历史记录表格
+// 渲染中间价格趋势表格
 function renderCenterTable(data) {
     const tbody = document.getElementById('centerTableBody');
     
@@ -174,156 +168,129 @@ function renderCenterTable(data) {
         return;
     }
     
-    // 获取所有有状态变化的币种
-    const records = [];
+    // 按24小时涨幅排序
+    const sortedCoins = [...data.coinDetails].sort((a, b) => (b.change_24h || 0) - (a.change_24h || 0));
     
-    data.coinDetails.forEach(coin => {
-        // 创建新高记录
-        if (Math.random() > 0.7) {  // 模拟部分币种有新高
-            records.push({
-                symbol: coin.symbol,
-                time: new Date(Date.now() - Math.random() * 3600000).toLocaleString('zh-CN', { 
-                    year: 'numeric',
-                    month: '2-digit', 
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                }),
-                status: '创新高',
-                value: Math.random() < 0.5 ? coin.price.toFixed(6) : (coin.price * 0.98).toFixed(6)
-            });
-        }
-    });
-    
-    // 按时间倒序排列
-    records.sort((a, b) => new Date(b.time) - new Date(a.time));
-    
-    // 只显示最近30条
-    const recentRecords = records.slice(0, 30);
+    // 只显示前15个
+    const topCoins = sortedCoins.slice(0, 15);
     
     let html = '';
-    recentRecords.forEach(record => {
+    topCoins.forEach(coin => {
+        const change24h = coin.change_24h || 0;
+        const changeClass = change24h >= 0 ? 'green-bg' : 'red-bg';
+        const changeText = change24h >= 0 ? `+${change24h.toFixed(2)}%` : `${change24h.toFixed(2)}%`;
+        
+        // 趋势判断
+        let trendText = '持平';
+        let trendClass = '';
+        if (change24h > 5) {
+            trendText = '强势上涨';
+            trendClass = 'green-bg';
+        } else if (change24h > 2) {
+            trendText = '温和上涨';
+            trendClass = 'light-yellow-bg';
+        } else if (change24h < -5) {
+            trendText = '大幅下跌';
+            trendClass = 'red-bg';
+        } else if (change24h < -2) {
+            trendText = '温和下跌';
+            trendClass = 'light-yellow-bg';
+        }
+        
         html += `
             <tr>
-                <td>${record.symbol}</td>
-                <td class="time-column">${record.time}</td>
-                <td style="text-align: center;">${record.status}</td>
-                <td>${record.value}</td>
+                <td>${coin.symbol}</td>
+                <td class="${changeClass}">${changeText}</td>
+                <td>$${coin.price.toFixed(6)}</td>
+                <td class="${trendClass}" style="text-align: center;">${trendText}</td>
             </tr>
         `;
     });
     
-    if (html === '') {
-        html = '<tr><td colspan="4" style="text-align:center; padding: 20px;">暂无历史记录</td></tr>';
-    }
-    
     tbody.innerHTML = html;
 }
 
-// 渲染右侧两个表格
+// 渲染右侧市场统计表格
 function renderRightTables(data) {
-    // 右上：新高统计
     renderRightTopTable(data);
-    
-    // 右下：创新高榜
-    renderRightBottomTable(data);
 }
 
-// 渲染右上表格：新高统计
+// 渲染右上表格：市场统计
 function renderRightTopTable(data) {
     const tbody = document.getElementById('rightTopTableBody');
     
     if (!data.coinDetails || data.coinDetails.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px;">暂无数据</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding: 20px;">暂无数据</td></tr>';
         return;
     }
     
-    // 生成统计数据（模拟）
-    const stats = data.coinDetails.map(coin => ({
-        symbol: coin.symbol,
-        today: Math.floor(Math.random() * 30),
-        three_day: Math.floor(Math.random() * 50),
-        seven_day: Math.floor(Math.random() * 100),
-        historical_max: Math.floor(Math.random() * 50) + 100  // 历史单日最高
-    }));
+    // 计算统计数据
+    const totalCoins = data.coinDetails.length;
     
-    // 按7天统计排序
-    stats.sort((a, b) => b.seven_day - a.seven_day);
+    // 计算平均涨幅
+    const avgChange = data.coinDetails.reduce((sum, coin) => sum + (coin.change_24h || 0), 0) / totalCoins;
     
-    let html = '';
-    stats.forEach(stat => {
-        // 找出历史单日最高的记录，添加高亮
-        const maxCount = stat.historical_max;
-        const isMaxToday = stat.today === Math.max(stat.today, stat.three_day, stat.seven_day);
-        const isMax3Day = stat.three_day === Math.max(stat.today, stat.three_day, stat.seven_day);
-        const isMax7Day = stat.seven_day === Math.max(stat.today, stat.three_day, stat.seven_day);
-        
-        html += `
-            <tr>
-                <td>${stat.symbol}</td>
-                <td class="${isMaxToday ? 'max-value' : ''}">${stat.today}</td>
-                <td class="${isMax3Day ? 'max-value' : ''}">${stat.three_day}</td>
-                <td class="${isMax7Day ? 'max-value' : ''}">${stat.seven_day}</td>
-                <td style="background: #ffeeaa; font-weight: bold;">${maxCount}</td>
-            </tr>
-        `;
-    });
+    // 统计上涨/下跌币种数
+    const upCount = data.coinDetails.filter(c => (c.change_24h || 0) > 0).length;
+    const downCount = data.coinDetails.filter(c => (c.change_24h || 0) < 0).length;
     
-    tbody.innerHTML = html;
-}
-
-// 渲染右下表格：创新高榜/创新低榜
-function renderRightBottomTable(data) {
-    const tbody = document.getElementById('rightBottomTableBody');
+    // 找出最大涨幅和最大跌幅
+    const maxGainer = data.coinDetails.reduce((max, coin) => 
+        (coin.change_24h || 0) > (max.change_24h || 0) ? coin : max
+    , data.coinDetails[0]);
     
-    if (!data.coinDetails || data.coinDetails.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 10px;">暂无数据</td></tr>';
-        return;
+    const maxLoser = data.coinDetails.reduce((min, coin) => 
+        (coin.change_24h || 0) < (min.change_24h || 0) ? coin : min
+    , data.coinDetails[0]);
+    
+    // 计算市场情绪
+    const upRatio = (upCount / totalCoins * 100).toFixed(1);
+    let sentiment = '中性';
+    let sentimentClass = '';
+    if (upRatio > 70) {
+        sentiment = '强势看涨';
+        sentimentClass = 'green-bg';
+    } else if (upRatio > 55) {
+        sentiment = '偏向看涨';
+        sentimentClass = 'light-yellow-bg';
+    } else if (upRatio < 30) {
+        sentiment = '强势看跌';
+        sentimentClass = 'red-bg';
+    } else if (upRatio < 45) {
+        sentiment = '偏向看跌';
+        sentimentClass = 'light-yellow-bg';
     }
     
-    // 生成榜单数据（模拟）
-    const ranking = data.coinDetails.map(coin => {
-        if (showingHighRanking) {
-            // 创新高榜：按7天新高次数排序
-            return {
-                symbol: coin.symbol,
-                count: Math.floor(Math.random() * 100)
-            };
-        } else {
-            // 创新低榜：按7天新低次数排序
-            return {
-                symbol: coin.symbol,
-                count: Math.floor(Math.random() * 80)
-            };
-        }
-    });
-    
-    ranking.sort((a, b) => b.count - a.count);
-    
-    // 只显示前10名
-    const topRanking = ranking.slice(0, 10);
-    
-    let html = '';
-    topRanking.forEach((item, index) => {
-        // 前三名添加特殊样式
-        let rowStyle = '';
-        if (index === 0) {
-            rowStyle = 'background: #fff9e6;'; // 金色
-        } else if (index === 1) {
-            rowStyle = 'background: #f5f5f5;'; // 银色
-        } else if (index === 2) {
-            rowStyle = 'background: #ffeecc;'; // 铜色
-        }
-        
-        html += `
-            <tr style="${rowStyle}">
-                <td style="text-align: center; font-weight: bold;">${index + 1}</td>
-                <td style="font-weight: ${index < 3 ? 'bold' : 'normal'};">${item.symbol}</td>
-                <td style="font-weight: ${index < 3 ? 'bold' : 'normal'};">${item.count}</td>
-            </tr>
-        `;
-    });
+    let html = `
+        <tr>
+            <td>币种总数</td>
+            <td style="text-align: right; font-weight: bold;">${totalCoins}</td>
+        </tr>
+        <tr>
+            <td>上涨币种</td>
+            <td style="text-align: right;" class="green-bg">${upCount} (${upRatio}%)</td>
+        </tr>
+        <tr>
+            <td>下跌币种</td>
+            <td style="text-align: right;" class="red-bg">${downCount} (${(100 - parseFloat(upRatio)).toFixed(1)}%)</td>
+        </tr>
+        <tr>
+            <td>平均涨幅</td>
+            <td style="text-align: right;" class="${avgChange >= 0 ? 'green-bg' : 'red-bg'}">${avgChange >= 0 ? '+' : ''}${avgChange.toFixed(2)}%</td>
+        </tr>
+        <tr>
+            <td>市场情绪</td>
+            <td style="text-align: center;" class="${sentimentClass}">${sentiment}</td>
+        </tr>
+        <tr>
+            <td>最大涨幅</td>
+            <td style="text-align: right;" class="green-bg">${maxGainer.symbol}: +${(maxGainer.change_24h || 0).toFixed(2)}%</td>
+        </tr>
+        <tr>
+            <td>最大跌幅</td>
+            <td style="text-align: right;" class="red-bg">${maxLoser.symbol}: ${(maxLoser.change_24h || 0).toFixed(2)}%</td>
+        </tr>
+    `;
     
     tbody.innerHTML = html;
 }

@@ -347,10 +347,10 @@
             </div>
         </div>
 
-        <!-- 中间面板：历史记录 -->
+        <!-- 中间面板：价格趋势 -->
         <div class="table-panel" style="flex: 1.2;">
             <div class="panel-header">
-                <span>历史记录</span>
+                <span>价格趋势分析</span>
                 <span id="centerUpdateTime">--</span>
             </div>
             <div class="data-table-container">
@@ -358,9 +358,9 @@
                     <thead>
                         <tr>
                             <th>币名</th>
-                            <th>时间</th>
-                            <th>状态</th>
-                            <th>数据</th>
+                            <th>24h涨幅</th>
+                            <th>当前价格</th>
+                            <th>趋势</th>
                         </tr>
                     </thead>
                     <tbody id="centerTableBody">
@@ -375,56 +375,28 @@
             </div>
         </div>
 
-        <!-- 右侧面板：双表格布局 -->
+        <!-- 右侧面板：市场统计 -->
         <div class="right-panels" style="flex: 1;">
-            <!-- 右上：新高统计 -->
-            <div class="right-panel-top">
+            <!-- 市场统计 -->
+            <div class="right-panel-top" style="height: 100%;">
                 <div class="panel-header">
-                    <span>新高统计</span>
+                    <span>市场统计</span>
                     <span id="rightTopTime">--</span>
                 </div>
                 <div class="data-table-container">
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>币名</th>
-                                <th>今天</th>
-                                <th>三日</th>
-                                <th>七天</th>
-                                <th>历史单日</th>
+                                <th>统计项</th>
+                                <th>数值</th>
                             </tr>
                         </thead>
                         <tbody id="rightTopTableBody">
                             <tr>
-                                <td colspan="5" class="loading">
+                                <td colspan="2" class="loading">
                                     <div class="loading-spinner"></div>
                                     <div>加载中...</div>
                                 </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="scroll-indicator">▼ 滚动查看更多</div>
-            </div>
-
-            <!-- 右下：切换为创新高榜/创新低榜 -->
-            <div class="right-panel-bottom">
-                <div class="panel-header">
-                    <span id="rankingTitle">创新高榜</span>
-                    <button id="toggleRankingBtn" class="toggle-btn" title="切换榜单">切换</button>
-                </div>
-                <div class="data-table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>排名</th>
-                                <th>币名</th>
-                                <th id="rankingCountLabel">新高次数</th>
-                            </tr>
-                        </thead>
-                        <tbody id="rightBottomTableBody">
-                            <tr>
-                                <td colspan="3" class="loading">加载中...</td>
                             </tr>
                         </tbody>
                     </table>
