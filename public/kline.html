@@ -26,9 +26,14 @@
             <h1 class="text-2xl font-bold text-gray-800">
                 <i class="fas fa-chart-candlestick mr-2"></i>K线数据查询
             </h1>
-            <button id="syncBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition">
-                <i class="fas fa-sync mr-2"></i>同步数据
-            </button>
+            <div class="flex gap-2">
+                <button id="syncBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition">
+                    <i class="fas fa-sync mr-2"></i>同步最新
+                </button>
+                <button id="sync48hBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition">
+                    <i class="fas fa-database mr-2"></i>补全48小时
+                </button>
+            </div>
         </div>
 
         <!-- 币种选择 -->

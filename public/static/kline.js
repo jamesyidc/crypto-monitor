@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadCoins();
   bindTimeframeButtons();
   document.getElementById('syncBtn').addEventListener('click', syncKlineData);
+  document.getElementById('sync48hBtn').addEventListener('click', sync48HoursData);
   document.getElementById('toggleIndicators').addEventListener('click', toggleIndicatorColumns);
 });
 
@@ -289,7 +290,67 @@ async function syncKlineData() {
     alert('同步失败: ' + error.message);
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<i class="fas fa-sync mr-2"></i>同步数据';
+    btn.innerHTML = '<i class="fas fa-sync mr-2"></i>同步最新';
+  }
+}
+
+// 同步48小时历史数据
+async function sync48HoursData() {
+  const btn = document.getElementById('sync48hBtn');
+  const syncBtn = document.getElementById('syncBtn');
+  
+  // 禁用两个按钮
+  btn.disabled = true;
+  syncBtn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>同步中...';
+
+  const confirmed = confirm(
+    '即将补全所有29个币种的48小时数据（576根5分钟K线）\n' +
+    '这可能需要3-5分钟，请耐心等待\n\n' +
+    '是否继续？'
+  );
+
+  if (!confirmed) {
+    btn.disabled = false;
+    syncBtn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-database mr-2"></i>补全48小时';
+    return;
+  }
+
+  try {
+    showStatus('正在批量同步48小时数据，请稍候...', 'info');
+    
+    const response = await axios.post('/api/kline/sync48h/all');
+
+    if (response.data.success) {
+      const results = response.data.results;
+      const successCount = results.filter(r => r.success).length;
+      const failCount = results.filter(r => !r.success).length;
+      
+      let message = `数据同步完成！\n成功: ${successCount} 个币种\n失败: ${failCount} 个币种\n\n`;
+      
+      // 显示详细结果
+      results.forEach(r => {
+        if (r.success) {
+          message += `✓ ${r.symbol}: ${r.count} 根K线\n`;
+        } else {
+          message += `✗ ${r.symbol}: ${r.error}\n`;
+        }
+      });
+      
+      alert(message);
+      showStatus('48小时数据同步完成！', 'success');
+      
+      // 重新加载当前币种的数据
+      loadKlineData();
+    }
+  } catch (error) {
+    alert('同步失败: ' + error.message);
+    showStatus('同步失败: ' + error.message, 'error');
+  } finally {
+    btn.disabled = false;
+    syncBtn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-database mr-2"></i>补全48小时';
   }
 }
 

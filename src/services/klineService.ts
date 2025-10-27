@@ -248,4 +248,106 @@ export class KlineService {
 
     return results;
   }
+
+  // 批量获取历史数据（支持超过300根K线）
+  async fetchHistoricalKline(okxSymbol: string, timeframe: string = '5m', totalLimit: number = 576) {
+    const batchSize = 300; // OKX 单次最大限制
+    const batches = Math.ceil(totalLimit / batchSize);
+    let allKlines: any[] = [];
+    let after: string | null = null; // OKX 分页参数
+
+    for (let i = 0; i < batches; i++) {
+      const currentLimit = Math.min(batchSize, totalLimit - allKlines.length);
+      
+      // 构建 URL
+      let url = `https://www.okx.com/api/v5/market/candles?instId=${okxSymbol}&bar=${timeframe}&limit=${currentLimit}`;
+      if (after) {
+        url += `&after=${after}`;
+      }
+
+      const response = await fetch(url, {
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`OKX API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.code !== '0') {
+        throw new Error(`OKX API error: ${data.msg}`);
+      }
+
+      const klines = data.data;
+      if (!klines || klines.length === 0) {
+        break; // 没有更多数据
+      }
+
+      allKlines = allKlines.concat(klines);
+
+      // 设置下一批的 after 参数（最后一根K线的时间戳）
+      after = klines[klines.length - 1][0];
+
+      // 达到目标数量后停止
+      if (allKlines.length >= totalLimit) {
+        break;
+      }
+
+      // 避免请求过快，等待一小段时间
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    return allKlines;
+  }
+
+  // 同步48小时历史数据（576根5分钟K线）
+  async sync48HoursData(symbol: string) {
+    const config: any = await this.getOKXConfig(symbol);
+    if (!config) {
+      throw new Error(`未找到 ${symbol} 的 OKX 配置`);
+    }
+
+    console.log(`开始同步 ${symbol} 的48小时数据...`);
+
+    // 获取576根5分钟K线（48小时）
+    const klineData = await this.fetchHistoricalKline(config.okx_symbol, '5m', 576);
+    
+    // 保存到数据库
+    await this.saveKlineData(symbol, '5m', klineData);
+
+    console.log(`${symbol} 同步完成，共 ${klineData.length} 根K线`);
+
+    return {
+      symbol,
+      success: true,
+      count: klineData.length
+    };
+  }
+
+  // 批量同步所有币种的48小时数据
+  async syncAll48HoursData() {
+    const configs: any = await this.getAllOKXConfigs();
+    const results = [];
+
+    for (const config of configs) {
+      try {
+        const result = await this.sync48HoursData(config.symbol);
+        results.push(result);
+      } catch (error: any) {
+        results.push({
+          symbol: config.symbol,
+          success: false,
+          error: error.message
+        });
+      }
+
+      // 避免请求过快
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+
+    return results;
+  }
 }

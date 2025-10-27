@@ -124,6 +124,26 @@ app.post('/api/kline/indicators/batch', async (c) => {
   return c.json({ success: true, results });
 });
 
+// API: 同步单个币种的48小时数据
+app.post('/api/kline/:symbol/sync48h', async (c) => {
+  const symbol = c.req.param('symbol');
+  
+  try {
+    const klineService = new KlineService(c.env.DB);
+    const result = await klineService.sync48HoursData(symbol);
+    return c.json(result);
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 400);
+  }
+});
+
+// API: 批量同步所有币种的48小时数据
+app.post('/api/kline/sync48h/all', async (c) => {
+  const klineService = new KlineService(c.env.DB);
+  const results = await klineService.syncAll48HoursData();
+  return c.json({ success: true, results });
+});
+
 // API: 获取单个币种的 OKX 配置
 app.get('/api/okx/config/:symbol', async (c) => {
   const symbol = c.req.param('symbol');
