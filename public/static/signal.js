@@ -4,7 +4,8 @@ let signalData = null;
 
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', () => {
-  loadSignalData();
+  // 默认加载24小时数据
+  load24HourSignalData();
   
   // 实时信号按钮
   document.getElementById('refreshBtn').addEventListener('click', () => {
@@ -128,6 +129,14 @@ function renderAlertPool(results) {
   // 更新预警数量
   countEl.textContent = allAlerts.length;
   updateAlertCount(allAlerts.length);
+  
+  // 更新时间范围
+  const timeRangeEl = document.getElementById('alertPoolTimeRange');
+  if (timeRangeEl && allAlerts.length > 0) {
+    const firstTime = allAlerts[allAlerts.length - 1].time; // 最早的
+    const lastTime = allAlerts[0].time; // 最新的
+    timeRangeEl.innerHTML = `<i class="fas fa-clock mr-1"></i>数据范围：${firstTime} ~ ${lastTime}`;
+  }
   updateAlertCount(allAlerts.length);
   
   if (allAlerts.length === 0) {
