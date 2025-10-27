@@ -332,14 +332,22 @@ app.get('/api/signal/all', async (c) => {
           if (unsentSignals.length > 0) {
             console.log(`📤 ${symbol}: 发现 ${unsentSignals.length} 个新买卖点信号`);
             
-            // 发送买卖点信号
-            for (const signal of unsentSignals) {
+            // 发送买卖点信号（每条消息间隔1秒）
+            for (let i = 0; i < unsentSignals.length; i++) {
+              const signal = unsentSignals[i];
               try {
+                console.log(`   [${i+1}/${unsentSignals.length}] 发送 ${symbol} ${signal.signal_type} 信号...`);
                 await telegramService.sendTradingSignal(signal);
                 telegramStatus.totalSent++;
                 
                 // 标记为已发送
                 await signalService.markTradingSignalsAsSent([signal.id]);
+                
+                // ⚠️ 每条消息后等待1秒，避免Telegram API限流
+                if (i < unsentSignals.length - 1) {
+                  console.log(`   ⏳ 等待1秒...`);
+                  await new Promise(resolve => setTimeout(resolve, 1000));
+                }
               } catch (error) {
                 console.error(`❌ 发送买卖点信号失败 (${symbol}):`, error);
                 telegramStatus.totalFailed++;
@@ -349,6 +357,9 @@ app.get('/api/signal/all', async (c) => {
             if (!telegramStatus.symbols.includes(symbol)) {
               telegramStatus.symbols.push(symbol);
             }
+            
+            // 币种之间也等待1秒
+            await new Promise(resolve => setTimeout(resolve, 1000));
           }
         }
         
