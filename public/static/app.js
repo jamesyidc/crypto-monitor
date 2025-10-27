@@ -1,6 +1,9 @@
 // 全局状态
 let currentData = null;
 let autoRefreshInterval = null;
+let countdownInterval = null;
+let nextAnalysisTime = null;
+let isAutoRunning = true;
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
@@ -8,6 +11,9 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 绑定执行分析按钮
   document.getElementById('analyzeBtn').addEventListener('click', runAnalysis);
+  
+  // 绑定自动分析开关按钮
+  document.getElementById('autoToggleBtn').addEventListener('click', toggleAutoRefresh);
   
   // 启动自动刷新 (10分钟)
   startAutoRefresh();
@@ -31,6 +37,11 @@ async function runAnalysis() {
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>分析中...';
   
+  // 更新倒计时显示
+  if (isAutoRunning) {
+    document.getElementById('countdown').textContent = '分析中...';
+  }
+  
   try {
     showStatus('正在采集数据并分析...', 'info');
     const response = await axios.post('/api/analyze');
@@ -39,6 +50,11 @@ async function runAnalysis() {
       showStatus('分析完成!', 'success');
       // 延迟1秒后刷新数据
       setTimeout(loadDashboard, 1000);
+      
+      // 如果是自动运行，重置下次分析时间
+      if (isAutoRunning) {
+        nextAnalysisTime = Date.now() + 10 * 60 * 1000; // 10分钟后
+      }
     } else {
       showStatus('分析失败: ' + response.data.error, 'error');
     }
@@ -394,11 +410,22 @@ function showStatus(message, type) {
 
 // 启动自动刷新
 function startAutoRefresh() {
+  // 设置下次分析时间
+  nextAnalysisTime = Date.now() + 10 * 60 * 1000; // 10分钟后
+  isAutoRunning = true;
+  
   // 每10分钟自动执行分析
   autoRefreshInterval = setInterval(() => {
     console.log('自动执行分析...');
     runAnalysis();
+    nextAnalysisTime = Date.now() + 10 * 60 * 1000; // 重置下次分析时间
   }, 10 * 60 * 1000); // 10分钟
+  
+  // 启动倒计时显示
+  startCountdown();
+  
+  // 更新按钮状态
+  updateAutoToggleButton();
   
   console.log('自动刷新已启动: 每10分钟执行一次');
 }
@@ -408,6 +435,65 @@ function stopAutoRefresh() {
   if (autoRefreshInterval) {
     clearInterval(autoRefreshInterval);
     autoRefreshInterval = null;
-    console.log('自动刷新已停止');
   }
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+  }
+  isAutoRunning = false;
+  
+  // 更新倒计时显示
+  document.getElementById('countdown').textContent = '已暂停';
+  
+  // 更新按钮状态
+  updateAutoToggleButton();
+  
+  console.log('自动刷新已停止');
+}
+
+// 切换自动刷新
+function toggleAutoRefresh() {
+  if (isAutoRunning) {
+    stopAutoRefresh();
+  } else {
+    startAutoRefresh();
+  }
+}
+
+// 更新自动开关按钮状态
+function updateAutoToggleButton() {
+  const btn = document.getElementById('autoToggleBtn');
+  if (isAutoRunning) {
+    btn.innerHTML = '<i class="fas fa-pause mr-2"></i>暂停自动';
+    btn.className = 'bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg transition';
+  } else {
+    btn.innerHTML = '<i class="fas fa-play mr-2"></i>启动自动';
+    btn.className = 'bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition';
+  }
+}
+
+// 启动倒计时显示
+function startCountdown() {
+  // 清除旧的倒计时
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+  }
+  
+  // 更新倒计时
+  countdownInterval = setInterval(() => {
+    if (!isAutoRunning || !nextAnalysisTime) {
+      return;
+    }
+    
+    const remaining = nextAnalysisTime - Date.now();
+    if (remaining <= 0) {
+      document.getElementById('countdown').textContent = '分析中...';
+      return;
+    }
+    
+    const minutes = Math.floor(remaining / 60000);
+    const seconds = Math.floor((remaining % 60000) / 1000);
+    document.getElementById('countdown').textContent = 
+      `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }, 1000); // 每秒更新
 }

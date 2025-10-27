@@ -170,12 +170,21 @@ app.get('/', (c) => {
                         <button id="analyzeBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition">
                             <i class="fas fa-play mr-2"></i>执行分析
                         </button>
+                        <button id="autoToggleBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg transition">
+                            <i class="fas fa-pause mr-2"></i>暂停自动
+                        </button>
                     </div>
                 </div>
                 <div id="statusMessage" class="hidden p-4 rounded-lg mb-4"></div>
-                <div class="text-sm text-gray-600">
-                    <i class="fas fa-info-circle mr-2"></i>
-                    数据源: CoinGecko API · 点击"执行分析"开始第一次数据采集 · 点击"K线查询"查看OKX历史K线
+                <div class="flex items-center justify-between text-sm text-gray-600">
+                    <div>
+                        <i class="fas fa-info-circle mr-2"></i>
+                        数据源: CoinGecko API · 自动分析: 每10分钟一轮 · 点击"K线查询"查看OKX历史K线
+                    </div>
+                    <div id="countdownDisplay" class="text-blue-600 font-semibold">
+                        <i class="fas fa-clock mr-1"></i>
+                        下次分析: <span id="countdown">--:--</span>
+                    </div>
                 </div>
             </div>
 
