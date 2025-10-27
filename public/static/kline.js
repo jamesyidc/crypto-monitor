@@ -493,12 +493,19 @@ function formatDateTime(timestamp) {
 
 // 格式化成交量
 function formatVolume(volume) {
-  if (volume >= 1000000) {
-    return (volume / 1000000).toFixed(2) + 'M';
-  } else if (volume >= 1000) {
-    return (volume / 1000).toFixed(2) + 'K';
+  // 确保volume是数字类型（可能是字符串）
+  const vol = typeof volume === 'string' ? parseFloat(volume) : volume;
+  
+  if (isNaN(vol)) {
+    return '-';
   }
-  return volume.toFixed(2);
+  
+  if (vol >= 1000000) {
+    return (vol / 1000000).toFixed(2) + 'M';
+  } else if (vol >= 1000) {
+    return (vol / 1000).toFixed(2) + 'K';
+  }
+  return vol.toFixed(2);
 }
 
 // 显示加载状态
