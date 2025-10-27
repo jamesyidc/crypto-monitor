@@ -403,14 +403,14 @@ export class CoinService {
   async resetAllDailyData() {
     const todayBeijing = getBeijingDateString();
     const yesterdayBeijing = getBeijingYesterday();
-    const todayStartISO = getBeijingTodayStart();
     
     console.log('🔄 开始执行每日数据清零（北京时间）...');
     console.log(`   📅 今天: ${todayBeijing}`);
     console.log(`   📅 昨天: ${yesterdayBeijing}`);
-    console.log(`   🕐 今天0点(ISO): ${todayStartISO}`);
     
-    // 1. 清零极值计次数据
+    // 🔥 关键：只清零累计计数器，不删除任何历史数据
+    
+    // 1. 清零极值计次数据（保留历史极值记录 all_time_high/low）
     await this.db
       .prepare(`
         UPDATE price_extremes 
@@ -421,32 +421,21 @@ export class CoinService {
             last_updated = datetime('now')
       `)
       .run();
-    console.log('  ✅ 已清零 price_extremes 表');
+    console.log('  ✅ 已清零 price_extremes 计数器（创新高/低计次）');
     
-    // 2. 删除昨天及之前的 daily_stats 数据（使用北京时间日期）
-    await this.db
-      .prepare(`DELETE FROM daily_stats WHERE date < ?`)
-      .bind(todayBeijing)
-      .run();
-    console.log(`  ✅ 已清理 ${todayBeijing} 之前的 daily_stats 数据`);
+    // 2. ⚠️ daily_stats 永久保留，不删除（用于历史回看和趋势分析）
+    console.log('  ℹ️  daily_stats 表永久保留，每天自动创建新记录');
     
-    // 🆕 3. 删除今天0点之前的 round_stats 数据（首页显示的轮次统计）
-    await this.db
-      .prepare(`DELETE FROM round_stats WHERE round_time < ?`)
-      .bind(todayStartISO)
-      .run();
-    console.log(`  ✅ 已清理 ${todayStartISO} 之前的 round_stats 数据（首页轮次统计）`);
+    // 3. ⚠️ round_stats 永久保留，不删除（用于历史回看）
+    console.log('  ℹ️  round_stats 表永久保留，每轮统计实时计算非累计值');
     
-    // 🆕 4. 删除今天0点之前的 coin_round_details 数据（币种轮次详情）
-    await this.db
-      .prepare(`DELETE FROM coin_round_details WHERE round_time < ?`)
-      .bind(todayStartISO)
-      .run();
-    console.log(`  ✅ 已清理 ${todayStartISO} 之前的 coin_round_details 数据（币种详情）`);
+    // 4. ⚠️ coin_round_details 永久保留，不删除（用于历史回看）
+    console.log('  ℹ️  coin_round_details 表永久保留，可回看任意历史时刻');
     
-    // 5. 不需要删除 trading_signals 和 alert_signals，因为查询时已按当天过滤
+    // 5. trading_signals 和 alert_signals 永久保留，查询时按日期过滤
+    console.log('  ℹ️  trading_signals 和 alert_signals 表永久保留');
     
-    console.log('✅ 每日数据清零完成！所有红框数据已清零（北京时间）');
+    console.log('✅ 每日数据清零完成！计数器已清零，所有历史数据完整保留（北京时间）');
   }
 
   // 增加极端行情累计次数（涨幅≥4%）
