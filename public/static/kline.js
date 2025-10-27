@@ -91,32 +91,13 @@ async function loadKlineData() {
       return;
     }
 
-    // 获取预警信息（同时自动发送到Telegram）
-    let alerts = [];
-    let telegramStatus = null;
-    try {
-      const signalResponse = await axios.get(`/api/signal/${currentSymbol}`, {
-        params: {
-          timeframe: currentTimeframe,
-          limit: 300
-        }
-      });
-      
-      if (signalResponse.data.success) {
-        alerts = signalResponse.data.alerts || [];
-        telegramStatus = signalResponse.data.telegram;
-      }
-    } catch (error) {
-      console.warn('获取预警信息失败:', error);
-    }
-
-    // 渲染数据（传入预警信息）
+    // 直接渲染数据（不再调用耗时的signal API）
+    // indicators API已经包含了所有技术指标和信号
     renderChart(klineData);
-    renderTable(klineData, alerts);
+    renderTable(klineData, []);  // 暂时不显示预警标记
     
-    // 显示数据数量和预警统计
+    // 显示统计面板
     document.getElementById('statsPanel').classList.remove('hidden');
-    displayAlertStats(alerts, telegramStatus);
 
   } catch (error) {
     console.error('加载K线数据失败:', error);
