@@ -129,14 +129,18 @@ export class IndicatorService {
     // 计算布林带
     const bb = this.calculateBollingerBands(closes);
 
-    // ===== 整点 RSI_1h 计算（每12根K线） =====
+    // ===== RSI_1h 计算（使用滑动窗口，每根K线都计算） =====
+    // 1小时 = 12根5分钟K线
+    // 使用过去12根K线计算RSI，代表"1小时周期的RSI"
     const rsi_1h_full: (number | null)[] = Array(closes.length).fill(null);
-    for (let i = 12; i <= closes.length; i += 12) {
-      const hourSlice = closes.slice(i - 12, i);
+    
+    // 从第12根开始，每根K线都计算RSI_1h（使用过去12根的数据）
+    for (let i = 11; i < closes.length; i++) {
+      const hourSlice = closes.slice(i - 11, i + 1); // 取12根K线
       const hourRSI = this.calculateRSI(hourSlice);
       const last = hourRSI[hourRSI.length - 1];
       if (last !== null) {
-        rsi_1h_full[i - 1] = parseFloat(last.toFixed(2));
+        rsi_1h_full[i] = parseFloat(last.toFixed(2));
       }
     }
 
