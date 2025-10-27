@@ -495,9 +495,27 @@ app.get('/api/signal/:symbol', async (c) => {
             }
             
             const alertTime = klineData.open_time; // K线开盘时间（毫秒时间戳）
+            const alertDate = new Date(alertTime);
+            const latestKlineDate = new Date(latestKlineTime);
+            
+            // ===== 严格检查：必须是同一天 =====
+            const sameDay = alertDate.getUTCFullYear() === latestKlineDate.getUTCFullYear() &&
+                           alertDate.getUTCMonth() === latestKlineDate.getUTCMonth() &&
+                           alertDate.getUTCDate() === latestKlineDate.getUTCDate();
+            
+            if (!sameDay) {
+              console.log(`   ⏭️  跳过旧日期预警: ${alert.time} (不是今天)`);
+              return false; // 不是同一天，跳过
+            }
             
             // 只保留时间戳 >= 上一个小时开始时间的预警
-            return alertTime >= previousHourStart;
+            const isRecent = alertTime >= previousHourStart;
+            
+            if (!isRecent) {
+              console.log(`   ⏭️  跳过旧时间预警: ${alert.time} (早于${previousHour.toISOString().substring(11, 16)})`);
+            }
+            
+            return isRecent;
           });
           
           if (recentAlerts.length === 0) {

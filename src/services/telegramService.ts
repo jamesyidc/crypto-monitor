@@ -97,9 +97,13 @@ ${alert.triggers.map((t: string) => `• ${t}`).join('\n')}
   async sendMultipleAlerts(alerts: any[], klineDataMap: Map<number, any>): Promise<number> {
     let successCount = 0;
 
-    for (const alert of alerts) {
+    console.log(`📨 准备发送 ${alerts.length} 条预警到Telegram...`);
+    
+    for (let i = 0; i < alerts.length; i++) {
+      const alert = alerts[i];
       const klineData = klineDataMap.get(alert.index);
       if (klineData) {
+        console.log(`   [${i+1}/${alerts.length}] ${alert.symbol} ${alert.time} (index=${alert.index})`);
         const success = await this.sendAlert(alert, klineData);
         if (success) {
           successCount++;
@@ -107,9 +111,12 @@ ${alert.triggers.map((t: string) => `• ${t}`).join('\n')}
         
         // 避免发送过快，每条消息间隔1秒
         await this.delay(1000);
+      } else {
+        console.log(`   [${i+1}/${alerts.length}] ⚠️  跳过：找不到K线数据 (index=${alert.index})`);
       }
     }
 
+    console.log(`📨 发送完成：成功 ${successCount}/${alerts.length} 条`);
     return successCount;
   }
 
