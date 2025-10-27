@@ -448,12 +448,20 @@ app.get('/api/signal/:symbol', async (c) => {
   try {
     const klineService = new KlineService(c.env.DB);
     const signalService = new SignalService(c.env.DB);
+    const coinService = new CoinService(c.env.DB);
     
     // 获取带指标的K线数据
     const result = await klineService.getKlineWithIndicators(symbol, timeframe, limit);
     
-    // 检测买卖点
-    const detection = signalService.detectTradingSignals(result.data);
+    // 🆕 获取币种优先级等级（用于主升信号判断）
+    const priorityResult: any = await c.env.DB
+      .prepare('SELECT level FROM coin_priority WHERE symbol = ?')
+      .bind(symbol)
+      .first();
+    const coinLevel = priorityResult?.level || undefined;
+    
+    // 检测买卖点（传入币种等级）
+    const detection = signalService.detectTradingSignals(result.data, coinLevel);
     
     // 保存信号到数据库
     const signals = detection.signals || [];

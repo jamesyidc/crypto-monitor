@@ -6,7 +6,8 @@ export class SignalService {
     this.db = db;
   }
   // 识别买卖点信号
-  detectTradingSignals(klineData: any[]): any {
+  // coinLevel: 币种优先级等级（1-6），用于主升信号判断
+  detectTradingSignals(klineData: any[], coinLevel?: number): any {
     if (klineData.length < 30) {
       return { signals: [], stats: null, alerts: [] };
     }
@@ -196,6 +197,86 @@ export class SignalService {
       }
     }
 
+    // 🆕 === 主升信号检测 ===
+    // 条件：
+    // 1. 币种等级 >= 2
+    // 2. 下跌后在底部
+    // 3. 连续出现2个"震荡收敛"信号
+    if (coinLevel !== undefined && coinLevel >= 1 && coinLevel <= 2) {
+      // 查找连续的震荡收敛信号
+      const convergenceSignals: number[] = []; // 记录震荡收敛信号的索引
+      
+      for (let i = 0; i < klineData.length; i++) {
+        const k = klineData[i];
+        // 检查通道状态是否为"震荡收敛"
+        if (k.channelState && k.channelState.includes('震荡收敛')) {
+          convergenceSignals.push(i);
+        }
+      }
+      
+      // 检查是否有连续的2个震荡收敛信号
+      for (let i = 0; i < convergenceSignals.length - 1; i++) {
+        const idx1 = convergenceSignals[i];
+        const idx2 = convergenceSignals[i + 1];
+        
+        // 判断是否连续（间隔不超过3根K线）
+        if (idx2 - idx1 <= 3) {
+          const signal1 = klineData[idx1];
+          const signal2 = klineData[idx2];
+          
+          // 检查是否在底部：通过价格位置判断
+          // 计算最近20根K线的价格范围
+          const recentStart = Math.max(0, idx2 - 20);
+          const recentKlines = klineData.slice(recentStart, idx2 + 1);
+          const recentPrices = recentKlines.map(k => parseFloat(k.close));
+          const recentHigh = Math.max(...recentPrices);
+          const recentLow = Math.min(...recentPrices);
+          const priceRange = recentHigh - recentLow;
+          
+          // 当前价格在底部30%区域
+          const currentPrice = parseFloat(signal2.close);
+          const pricePosition = ((currentPrice - recentLow) / priceRange) * 100;
+          const isInBottomArea = pricePosition <= 30;
+          
+          // 检查是否从高位下跌：最近的最高价 > 当前价格的20%
+          const priceDropPercent = ((recentHigh - currentPrice) / recentHigh) * 100;
+          const hasDroppedFromHigh = priceDropPercent >= 20;
+          
+          // 如果在底部区域且从高位下跌，生成主升信号
+          if (isInBottomArea && hasDroppedFromHigh) {
+            const currentVolume = parseFloat(signal2.volume || '0');
+            const avgVolume = klineData.slice(0, idx2).reduce((sum, k) => sum + parseFloat(k.volume || '0'), 0) / idx2;
+            
+            signals.push({
+              symbol: signal2.symbol,
+              time: signal2.time,
+              type: 'BUY', // 做多信号
+              price: parseFloat(signal2.close),
+              reason: '主升信号 🚀',
+              details: {
+                convergenceCount: '2次连续',
+                coinLevel: `等级${coinLevel}`,
+                pricePosition: pricePosition.toFixed(1) + '%（底部）',
+                priceDropFromHigh: priceDropPercent.toFixed(1) + '%',
+                signal1Time: signal1.time,
+                signal2Time: signal2.time,
+                channelState: signal2.channelState || '震荡收敛',
+                currentVolume: currentVolume.toFixed(2),
+                volumeRatio: (currentVolume / avgVolume).toFixed(2) + 'x'
+              },
+              strength: this.calculateMainRiseStrength({
+                coinLevel,
+                pricePosition,
+                priceDropPercent,
+                volumeRatio: currentVolume / avgVolume
+              }),
+              keepBars: 30 // 主升信号保留30根K线观察
+            });
+          }
+        }
+      }
+    }
+
     // 统计信息
     const stats = {
       totalSignals: signals.length,
@@ -252,6 +333,46 @@ export class SignalService {
     return Math.min(100, strength);
   }
 
+  // 🆕 计算主升信号强度
+  private calculateMainRiseStrength(params: {
+    coinLevel: number;      // 币种等级（1-6）
+    pricePosition: number;  // 价格位置百分比（0-100，越小越靠近底部）
+    priceDropPercent: number; // 从高位下跌的百分比
+    volumeRatio: number;    // 成交量比率
+  }): number {
+    let strength = 0;
+
+    // 币种等级加分（0-40分）
+    // 等级越高（数字越小），加分越高
+    if (params.coinLevel === 1) strength += 40;
+    else if (params.coinLevel === 2) strength += 35;
+    else if (params.coinLevel === 3) strength += 25;
+    else if (params.coinLevel === 4) strength += 15;
+    else if (params.coinLevel === 5) strength += 10;
+    else if (params.coinLevel === 6) strength += 5;
+
+    // 价格位置加分（0-30分）
+    // 越靠近底部，加分越高
+    if (params.pricePosition <= 10) strength += 30;
+    else if (params.pricePosition <= 20) strength += 25;
+    else if (params.pricePosition <= 30) strength += 20;
+    else if (params.pricePosition <= 40) strength += 10;
+
+    // 下跌幅度加分（0-20分）
+    // 从高位下跌幅度越大，反弹潜力越大
+    if (params.priceDropPercent >= 50) strength += 20;
+    else if (params.priceDropPercent >= 40) strength += 18;
+    else if (params.priceDropPercent >= 30) strength += 15;
+    else if (params.priceDropPercent >= 20) strength += 10;
+
+    // 成交量加分（0-10分）
+    if (params.volumeRatio > 1.5) strength += 10;
+    else if (params.volumeRatio > 1.2) strength += 8;
+    else if (params.volumeRatio > 1) strength += 5;
+
+    return Math.min(100, strength);
+  }
+
   // 获取多个币种的买卖点信号
   async detectMultiSymbolSignals(
     symbols: string[],
@@ -259,10 +380,26 @@ export class SignalService {
   ): Promise<any> {
     const results: any = {};
 
+    // 🆕 批量获取所有币种的优先级等级
+    const priorityLevels = new Map<string, number>();
+    if (this.db) {
+      const prioritiesResult: any = await this.db
+        .prepare('SELECT symbol, level FROM coin_priority')
+        .all();
+      
+      if (prioritiesResult.results) {
+        prioritiesResult.results.forEach((p: any) => {
+          priorityLevels.set(p.symbol, p.level);
+        });
+      }
+    }
+
     for (const symbol of symbols) {
       try {
         const klineData = await getKlineData(symbol);
-        const detection = this.detectTradingSignals(klineData);
+        // 🆕 获取币种等级
+        const coinLevel = priorityLevels.get(symbol);
+        const detection = this.detectTradingSignals(klineData, coinLevel);
         
         results[symbol] = {
           success: true,
