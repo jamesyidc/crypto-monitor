@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>比价画面 - V5.5</title>
+    <title>比价 - V5.5</title>
     <style>
         * {
             margin: 0;
@@ -47,21 +47,55 @@
             font-weight: bold;
         }
 
-        /* 主容器 */
+        /* 主容器：三栏布局 */
         .main-container {
             height: calc(100vh - 95px);
             display: flex;
-            flex-direction: column;
+            gap: 2px;
+            background: #c0c0c0;
+            padding: 2px;
+        }
+
+        /* 左栏：最高价格 */
+        .left-panel {
+            flex: 1.2;
             background: white;
+            display: flex;
+            flex-direction: column;
             border: 1px solid #999;
-            margin: 2px;
+        }
+
+        /* 中栏：时间信息 */
+        .center-panel {
+            flex: 1;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #999;
+        }
+
+        /* 右栏：最低价格 */
+        .right-panel {
+            flex: 0.8;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #999;
+        }
+
+        /* 面板标题 */
+        .panel-header {
+            background: #e0e0e0;
+            border-bottom: 1px solid #999;
+            padding: 6px 8px;
+            font-weight: bold;
+            text-align: center;
         }
 
         /* 表格容器 */
         .table-wrapper {
             flex: 1;
             overflow: auto;
-            border: 1px solid #c0c0c0;
         }
 
         /* 数据表格 */
@@ -74,23 +108,24 @@
         .data-table thead {
             position: sticky;
             top: 0;
-            z-index: 100;
+            z-index: 10;
         }
 
         .data-table th {
-            background: #e0e0e0;
+            background: #d0d0d0;
             border: 1px solid #999;
-            padding: 4px 6px;
+            padding: 4px 4px;
             text-align: center;
             font-weight: bold;
+            font-size: 10px;
             white-space: nowrap;
-            font-size: 11px;
         }
 
         .data-table td {
             border: 1px solid #d0d0d0;
-            padding: 3px 6px;
+            padding: 2px 4px;
             text-align: right;
+            font-size: 11px;
             white-space: nowrap;
         }
 
@@ -98,10 +133,15 @@
             background: #e8f4ff;
         }
 
-        /* 序号和币名列左对齐 */
-        .data-table td:nth-child(1),
-        .data-table td:nth-child(2) {
-            text-align: center;
+        /* 币名列居中 */
+        .coin-name {
+            text-align: center !important;
+            font-weight: bold;
+        }
+
+        /* 计次列 */
+        .count-column {
+            text-align: center !important;
         }
 
         /* 颜色样式 */
@@ -128,8 +168,8 @@
             color: #000;
         }
 
-        .light-red-bg {
-            background: #ffb0b0 !important;
+        .light-yellow-bg {
+            background: #ffffcc !important;
             color: #000;
         }
 
@@ -159,7 +199,7 @@
             padding: 3px 6px;
             border: 1px solid #999;
             font-size: 12px;
-            width: 100px;
+            width: 120px;
             height: 22px;
         }
 
@@ -193,10 +233,10 @@
             align-items: center;
         }
 
-        /* 滚动条样式 */
+        /* 滚动条 */
         .table-wrapper::-webkit-scrollbar {
-            width: 14px;
-            height: 14px;
+            width: 12px;
+            height: 12px;
         }
 
         .table-wrapper::-webkit-scrollbar-track {
@@ -212,26 +252,28 @@
             background: #a0a0a0;
         }
 
-        /* 加载动画 */
+        /* 加载提示 */
         .loading {
             text-align: center;
-            padding: 40px;
+            padding: 20px;
             color: #666;
         }
 
-        /* 趋势箭头 */
-        .trend-up {
-            color: red;
+        /* 标记列样式 */
+        .mark-column {
+            text-align: center !important;
             font-weight: bold;
         }
 
-        .trend-down {
-            color: green;
-            font-weight: bold;
+        /* 时间列样式 */
+        .time-column {
+            text-align: center !important;
+            font-size: 10px;
         }
 
-        .trend-neutral {
-            color: #666;
+        /* 状态列样式 */
+        .status-column {
+            text-align: center !important;
         }
     </style>
 </head>
@@ -249,60 +291,110 @@
         <div class="toolbar-item">工具</div>
     </div>
 
-    <!-- 主容器 -->
+    <!-- 主容器：三栏布局 -->
     <div class="main-container">
-        <div class="table-wrapper">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th style="width: 30px;">序</th>
-                        <th style="width: 50px;">币名</th>
-                        <th style="width: 50px;">涨跌</th>
-                        <th style="width: 40px;">急涨</th>
-                        <th style="width: 40px;">急跌</th>
-                        <th style="width: 140px;">更新时间</th>
-                        <th style="width: 100px;">历史高点</th>
-                        <th style="width: 140px;">高点时间</th>
-                        <th style="width: 80px;">24小时</th>
-                        <th style="width: 60px;">24变幅</th>
-                        <th style="width: 50px;">+4%</th>
-                        <th style="width: 50px;">排行</th>
-                        <th style="width: 100px;">当前估价</th>
-                        <th style="width: 80px;">最高占比</th>
-                        <th style="width: 80px;">最低占比</th>
-                        <th style="width: 50px;">势力</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody">
-                    <tr>
-                        <td colspan="16" class="loading">加载中...</td>
-                    </tr>
-                </tbody>
-            </table>
+        <!-- 左栏：最高价格数据 -->
+        <div class="left-panel">
+            <div class="panel-header">最高价格</div>
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">币名</th>
+                            <th style="width: 100px;">最高价格</th>
+                            <th style="width: 50px;">计次</th>
+                            <th style="width: 100px;">最低价格</th>
+                            <th style="width: 50px;">计次</th>
+                            <th style="width: 60px;">最高占比</th>
+                            <th style="width: 60px;">最低占比</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leftTableBody">
+                        <tr>
+                            <td colspan="7" class="loading">加载中...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 中栏：时间信息 -->
+        <div class="center-panel">
+            <div class="panel-header">时间</div>
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">币名</th>
+                            <th style="width: 140px;">时间</th>
+                            <th style="width: 60px;">状态</th>
+                            <th style="width: 60px;">特播</th>
+                        </tr>
+                    </thead>
+                    <tbody id="centerTableBody">
+                        <tr>
+                            <td colspan="4" class="loading">加载中...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 右栏：统计数据 -->
+        <div class="right-panel">
+            <div class="panel-header">统计</div>
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">币名</th>
+                            <th style="width: 40px;">今天</th>
+                            <th style="width: 40px;">三日</th>
+                            <th style="width: 40px;">七天</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rightTableBody">
+                        <tr>
+                            <td colspan="4" class="loading">加载中...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
     <!-- 底部控制栏 -->
     <div class="control-bar">
         <div class="control-group">
-            <span class="control-label">输入筛选条件：</span>
-            <input type="text" class="control-input" id="filterInput" placeholder="币名筛选...">
+            <span class="control-label">币名</span>
+            <input type="text" class="control-input" id="filterInput" placeholder="筛选...">
         </div>
-        <button class="control-btn" id="filterBtn">筛选</button>
-        <button class="control-btn" id="refreshBtn">刷新</button>
+        <div class="control-group">
+            <span class="control-label">最大</span>
+            <input type="text" class="control-input" id="maxInput" placeholder="">
+        </div>
+        <div class="control-group">
+            <span class="control-label">最小</span>
+            <input type="text" class="control-input" id="minInput" placeholder="">
+        </div>
+        <button class="control-btn" id="addBtn">添加</button>
+        <button class="control-btn" id="deleteBtn">删除</button>
         <button class="control-btn" id="exportBtn">导出</button>
-        <button class="control-btn" id="settingsBtn">设置</button>
+        <button class="control-btn" id="importBtn">导入</button>
         <div style="flex: 1;"></div>
-        <button class="control-btn" id="autoRefreshBtn">■ 自动刷新</button>
+        <span id="summaryText" style="font-size: 11px;">比价榜单 5 1 &nbsp;&nbsp;&nbsp; 盘进榜单 计次 5 6</span>
     </div>
 
     <!-- 状态栏 -->
     <div class="status-bar">
         <div>
-            <span>比价画面 0 0</span>
-            <span style="margin-left: 20px;">盘进盘出 计次 0 2</span>
+            <span>推送 token</span>
+            <span style="margin-left: 20px;" id="tokenText">AT_IT2I.qtWJVJl3Gu.ewTg7uNh9F.ew8gBu.giJk</span>
         </div>
-        <div id="statusInfo">就绪 tok.en AT_IT2I.qtWJVJl3Gu.ewTg7uNh9F.ew8gBu.giJk</div>
+        <div>
+            <button class="control-btn" style="height: 18px; padding: 2px 8px;" id="configBtn">推送为因群桂</button>
+            <button class="control-btn" style="height: 18px; padding: 2px 8px; margin-left: 5px;" id="machineBtn">机器号</button>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
