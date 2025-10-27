@@ -90,7 +90,19 @@
         </div>
 
         <!-- 统计卡片 -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
+            <div class="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg shadow-md p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-white text-sm opacity-90">预警触发</p>
+                        <p class="text-3xl font-bold" id="totalAlerts">0</p>
+                    </div>
+                    <div class="bg-white bg-opacity-20 p-3 rounded-full">
+                        <i class="fas fa-exclamation-triangle text-white text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+
             <div class="bg-white rounded-lg shadow-md p-6">
                 <div class="flex items-center justify-between">
                     <div>
@@ -136,6 +148,28 @@
                     <div class="bg-purple-100 p-3 rounded-full">
                         <i class="fas fa-coins text-purple-600 text-2xl"></i>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 预警池 - 所有触发条件的K线 -->
+        <div class="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg shadow-lg p-6 mb-6 border-2 border-yellow-400">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-exclamation-triangle mr-2 text-yellow-600 animate-pulse"></i>
+                    预警池（所有触发条件）
+                </h2>
+                <div class="flex gap-2 text-sm">
+                    <span class="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full font-semibold">
+                        <i class="fas fa-bell mr-1"></i>
+                        <span id="alertPoolCount">0</span> 个预警
+                    </span>
+                </div>
+            </div>
+            <div id="alertPool" class="space-y-2 max-h-96 overflow-y-auto">
+                <div class="text-center text-gray-400 py-8">
+                    <i class="fas fa-spinner loading text-4xl mb-2"></i>
+                    <p>加载中...</p>
                 </div>
             </div>
         </div>

@@ -34,6 +34,7 @@ async function loadSignalData() {
     if (response.data.success) {
       signalData = response.data;
       updateStatistics(signalData.summary);
+      renderAlertPool(signalData.results);
       renderTopBuySignals(signalData.summary.topBuySignals);
       renderTopSellSignals(signalData.summary.topSellSignals);
       renderAllSignals(signalData.results);
@@ -66,6 +67,7 @@ async function load24HourSignalData() {
     if (response.data.success) {
       signalData = response.data;
       updateStatistics(signalData.summary);
+      renderAlertPool(signalData.results);
       renderTopBuySignals(signalData.summary.topBuySignals);
       renderTopSellSignals(signalData.summary.topSellSignals);
       renderAllSignals(signalData.results);
@@ -88,6 +90,145 @@ function updateStatistics(summary) {
   document.getElementById('buySignals').textContent = summary.totalBuySignals;
   document.getElementById('sellSignals').textContent = summary.totalSellSignals;
   document.getElementById('symbolsWithSignals').textContent = summary.symbolsWithSignals.length;
+}
+
+// 更新预警总数
+function updateAlertCount(count) {
+  const alertCountEl = document.getElementById('totalAlerts');
+  if (alertCountEl) {
+    alertCountEl.textContent = count;
+  }
+}
+
+// 渲染预警池（所有触发条件的K线）
+function renderAlertPool(results) {
+  const container = document.getElementById('alertPool');
+  const countEl = document.getElementById('alertPoolCount');
+  
+  // 收集所有币种的预警数据
+  const allAlerts = [];
+  
+  Object.entries(results).forEach(([symbol, data]) => {
+    if (data.success && data.alerts && data.alerts.length > 0) {
+      data.alerts.forEach(alert => {
+        allAlerts.push({
+          symbol,
+          ...alert
+        });
+      });
+    }
+  });
+  
+  // 按时间排序（最新的在前）
+  allAlerts.sort((a, b) => {
+    // 假设时间格式是 "YYYY-MM-DD HH:mm:ss"
+    return b.time.localeCompare(a.time);
+  });
+  
+  // 更新预警数量
+  countEl.textContent = allAlerts.length;
+  updateAlertCount(allAlerts.length);
+  updateAlertCount(allAlerts.length);
+  
+  if (allAlerts.length === 0) {
+    container.innerHTML = `
+      <div class="text-center text-gray-400 py-8">
+        <i class="fas fa-check-circle text-4xl mb-2 text-green-500"></i>
+        <p class="text-gray-600">暂无触发预警条件的K线</p>
+      </div>
+    `;
+    return;
+  }
+  
+  container.innerHTML = allAlerts.map(alert => `
+    <div class="bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition border-l-4 ${getBorderColor(alert.triggers)}">
+      <div class="flex justify-between items-start">
+        <div class="flex-1">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="font-bold text-lg text-gray-800">${alert.symbol}</span>
+            <span class="text-sm text-gray-500">${alert.time}</span>
+            ${getTriggerBadges(alert.triggers)}
+          </div>
+          
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs mt-2">
+            <div>
+              <span class="text-gray-500">成交量:</span>
+              <span class="font-semibold ml-1">${alert.data.volume}</span>
+              <span class="ml-1 px-1 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">${alert.data.volumeLevel}</span>
+            </div>
+            <div>
+              <span class="text-gray-500">涨跌幅:</span>
+              <span class="font-semibold ml-1 ${parseFloat(alert.data.changePercent) >= 0 ? 'text-green-600' : 'text-red-600'}">
+                ${alert.data.changePercent}
+              </span>
+            </div>
+            <div>
+              <span class="text-gray-500">波动率:</span>
+              <span class="font-semibold ml-1">${alert.data.volatility}</span>
+            </div>
+            <div>
+              <span class="text-gray-500">RSI(5m):</span>
+              <span class="font-semibold ml-1 ${getRSIColor(parseFloat(alert.data.rsi5min))}">${alert.data.rsi5min}</span>
+            </div>
+          </div>
+          
+          <div class="mt-2 flex flex-wrap gap-1">
+            ${alert.triggers.map(trigger => `
+              <span class="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
+                <i class="fas fa-bolt mr-1"></i>${trigger}
+              </span>
+            `).join('')}
+          </div>
+        </div>
+        
+        <div class="text-right ml-4">
+          <div class="text-xs text-gray-500">SAR变化</div>
+          <div class="font-bold ${parseFloat(alert.data.sarChangePercent) >= 0 ? 'text-green-600' : 'text-red-600'}">
+            ${alert.data.sarChangePercent}
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// 获取边框颜色（根据触发条件）
+function getBorderColor(triggers) {
+  if (triggers.some(t => t.includes('V1'))) return 'border-red-500';
+  if (triggers.some(t => t.includes('V2'))) return 'border-orange-500';
+  if (triggers.some(t => t.includes('涨幅'))) return 'border-green-500';
+  if (triggers.some(t => t.includes('跌幅'))) return 'border-red-500';
+  if (triggers.some(t => t.includes('震荡'))) return 'border-purple-500';
+  return 'border-yellow-500';
+}
+
+// 获取触发条件徽章
+function getTriggerBadges(triggers) {
+  const badges = [];
+  if (triggers.some(t => t.includes('V1'))) {
+    badges.push('<span class="px-2 py-0.5 bg-red-500 text-white rounded text-xs font-bold">V1</span>');
+  } else if (triggers.some(t => t.includes('V2'))) {
+    badges.push('<span class="px-2 py-0.5 bg-orange-500 text-white rounded text-xs font-bold">V2</span>');
+  }
+  
+  if (triggers.some(t => t.includes('涨幅'))) {
+    badges.push('<span class="px-2 py-0.5 bg-green-500 text-white rounded text-xs font-bold">↑涨</span>');
+  }
+  if (triggers.some(t => t.includes('跌幅'))) {
+    badges.push('<span class="px-2 py-0.5 bg-red-500 text-white rounded text-xs font-bold">↓跌</span>');
+  }
+  if (triggers.some(t => t.includes('震荡'))) {
+    badges.push('<span class="px-2 py-0.5 bg-purple-500 text-white rounded text-xs font-bold">震荡</span>');
+  }
+  
+  return badges.join('');
+}
+
+// 获取RSI颜色
+function getRSIColor(rsi) {
+  if (rsi >= 70) return 'text-red-600';
+  if (rsi <= 30) return 'text-green-600';
+  return 'text-gray-700';
 }
 
 // 渲染顶级做多信号
@@ -351,11 +492,20 @@ function updateDataRange(rangeText) {
 
 // 显示错误信息
 function showError(message) {
-  const containers = ['topBuySignals', 'topSellSignals', 'allSignals'];
+  const containers = ['alertPool', 'topBuySignals', 'topSellSignals', 'allSignals'];
   containers.forEach(id => {
     const container = document.getElementById(id);
     if (container) {
       container.innerHTML = `
+        <div class="text-center text-red-500 py-8">
+          <i class="fas fa-exclamation-triangle text-4xl mb-2"></i>
+          <p>${message}</p>
+        </div>
+      `;
+    }
+  });
+}
+iner.innerHTML = `
         <div class="text-center text-red-500 py-8">
           <i class="fas fa-exclamation-triangle text-4xl mb-2"></i>
           <p>${message}</p>
