@@ -732,7 +732,130 @@ tooltip: {
 
 ---
 
+## 7. K线起涨起跌结构识别
+
+### 需求描述
+用户需要识别每个币种K线数据中的**起涨**和**起跌**结构，通过向上（向前回溯）20根K线的累计涨跌幅来判断。
+
+**核心需求：**
+- 统计所有已存储数据的币种
+- 计算每行**向上20根K线**的累计涨跌幅（向前回溯，不是向下）
+- 高亮满足条件的行：
+  - 起涨结构：累计涨幅 > 2%
+  - 起跌结构：累计跌幅 < -3%
+
+### 计算逻辑
+
+**数据回溯方向：**
+- "向上20根K线" = 从当前行向表格前面方向回溯20根K线
+- K线表格按时间倒序排列（最新的在最上面）
+- 对于当前行 index，回溯范围是 [index, index+19]
+
+**累计涨跌幅计算公式：**
+```javascript
+cumulative20Change = sum(change[i]) where i ∈ [index, index+19]
+```
+
+**判断条件：**
+- 起涨结构（绿色）：`cumulative20Change > 2`
+- 起跌结构（红色）：`cumulative20Change < -3`
+- 数据不足（<20根）：不计算，不高亮
+
+### 实现方案
+
+**前端实现文件：** `/home/user/webapp/public/static/kline.js`
+
+**修改位置：** `renderTable()` 函数（第312-449行）
+
+**实现代码：**
+```javascript
+tbody.innerHTML = klineData.map((k, index) => {
+  // 计算向上20根K线的累计涨跌幅（向前回溯）
+  let cumulative20Change = 0;
+  let hasEnoughData = false;
+  
+  if (index + 20 <= klineData.length) {
+    // 从当前行向前回溯20根K线
+    for (let i = index; i < index + 20; i++) {
+      const changeStr = klineData[i].change;
+      if (changeStr) {
+        const changeValue = parseFloat(changeStr);
+        if (!isNaN(changeValue)) {
+          cumulative20Change += changeValue;
+        }
+      }
+    }
+    hasEnoughData = true;
+  }
+  
+  // 判断是否需要高亮（起涨 > 2% 或 起跌 < -3%）
+  const isRisingPattern = hasEnoughData && cumulative20Change > 2;
+  const isFallingPattern = hasEnoughData && cumulative20Change < -3;
+  const needHighlight = isRisingPattern || isFallingPattern;
+  
+  // 行背景色和边框（预警优先，否则检查起涨起跌）
+  let rowClass = '';
+  if (hasAlert) {
+    rowClass = 'bg-yellow-50 border-l-4 border-yellow-500';
+  } else if (isRisingPattern) {
+    rowClass = 'border-l-4 border-green-500 bg-green-50';
+  } else if (isFallingPattern) {
+    rowClass = 'border-l-4 border-red-500 bg-red-50';
+  }
+  
+  // 累计涨跌幅标记（显示在时间列旁边）
+  const cumulativeBadge = hasEnoughData 
+    ? `<span class="inline-block px-1 py-0.5 text-xs rounded ml-1 ${
+        isRisingPattern ? 'bg-green-600 text-white font-bold' : 
+        isFallingPattern ? 'bg-red-600 text-white font-bold' : 
+        'bg-gray-300 text-gray-700'
+      }" title="向上20根K线累计涨跌幅">${cumulative20Change > 0 ? '+' : ''}${cumulative20Change.toFixed(2)}%</span>`
+    : '';
+  
+  // 渲染行...
+});
+```
+
+### 视觉效果
+
+**行高亮样式：**
+- 起涨结构：左侧绿色边框 + 浅绿色背景 (`border-l-4 border-green-500 bg-green-50`)
+- 起跌结构：左侧红色边框 + 浅红色背景 (`border-l-4 border-red-500 bg-red-50`)
+- 预警优先：如果有预警标记，优先显示黄色预警样式
+
+**累计涨跌幅标记：**
+- 位置：时间列旁边
+- 起涨（>2%）：绿色背景，白色字体，粗体
+- 起跌（<-3%）：红色背景，白色字体，粗体
+- 其他：灰色背景，灰色字体
+- 格式：`+5.23%` 或 `-4.15%`
+- Tooltip：显示"向上20根K线累计涨跌幅"
+
+### 应用场景
+
+**用户目标：**
+- 快速识别处于起涨阶段的币种
+- 快速识别处于起跌阶段的币种
+- 结合技术指标判断最佳入场/离场时机
+
+**使用建议：**
+- 绿色高亮行：可能处于上涨初期，关注做多机会
+- 红色高亮行：可能处于下跌初期，关注做空机会或止损
+- 结合其他指标（RSI、BOLL、通道状态）综合判断
+
+**实现日期：** 2025-10-28 22:00
+
+---
+
 ## 版本历史
+
+### v1.8 - 2025-10-28 22:00
+- ✅ 新增K线起涨起跌结构识别功能
+- ✅ 向上20根K线累计涨跌幅计算（向前回溯）
+- ✅ 起涨结构判断（>2%）：绿色边框+背景高亮
+- ✅ 起跌结构判断（<-3%）：红色边框+背景高亮
+- ✅ 累计涨跌幅标记显示在时间列旁边
+- ✅ 支持Tooltip显示说明文字
 
 ### v1.7 - 2025-10-28 21:10
 - ✅ K线表格列顺序最终版：BOLL_LB → 占比下跌 → 占比上涨 → 带宽 → **通道状态（最右侧）**

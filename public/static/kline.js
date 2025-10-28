@@ -319,13 +319,42 @@ function renderTable(klineData, alerts = []) {
     alertMap[alert.index] = alert;
   });
   
-  tbody.innerHTML = klineData.map((k) => {
+  tbody.innerHTML = klineData.map((k, index) => {
     // 检查是否有预警
     const hasAlert = alertMap[k.index];
-    // 行背景色（预警优先）
-    const rowClass = hasAlert 
-      ? 'bg-yellow-50 border-l-4 border-yellow-500' 
-      : '';
+    
+    // 计算向上20根K线的累计涨跌幅（向前回溯）
+    let cumulative20Change = 0;
+    let hasEnoughData = false;
+    
+    if (index + 20 <= klineData.length) {
+      // 从当前行向前回溯20根K线
+      for (let i = index; i < index + 20; i++) {
+        const changeStr = klineData[i].change;
+        if (changeStr) {
+          const changeValue = parseFloat(changeStr);
+          if (!isNaN(changeValue)) {
+            cumulative20Change += changeValue;
+          }
+        }
+      }
+      hasEnoughData = true;
+    }
+    
+    // 判断是否需要高亮（起涨 > 2% 或 起跌 < -3%）
+    const isRisingPattern = hasEnoughData && cumulative20Change > 2;
+    const isFallingPattern = hasEnoughData && cumulative20Change < -3;
+    const needHighlight = isRisingPattern || isFallingPattern;
+    
+    // 行背景色和边框（预警优先，否则检查起涨起跌）
+    let rowClass = '';
+    if (hasAlert) {
+      rowClass = 'bg-yellow-50 border-l-4 border-yellow-500';
+    } else if (isRisingPattern) {
+      rowClass = 'border-l-4 border-green-500 bg-green-50';
+    } else if (isFallingPattern) {
+      rowClass = 'border-l-4 border-red-500 bg-red-50';
+    }
     
     // 基础K线数据 - 涨跌幅颜色
     const getChangeClass = (change) => {
@@ -367,10 +396,19 @@ function renderTable(klineData, alerts = []) {
       ? `<span class="inline-block px-1 py-0.5 bg-yellow-500 text-white text-xs rounded font-bold ml-1" title="${hasAlert.triggers.join(', ')}">⚠️</span>`
       : '';
 
+    // 累计涨跌幅标记
+    const cumulativeBadge = hasEnoughData 
+      ? `<span class="inline-block px-1 py-0.5 text-xs rounded ml-1 ${
+          isRisingPattern ? 'bg-green-600 text-white font-bold' : 
+          isFallingPattern ? 'bg-red-600 text-white font-bold' : 
+          'bg-gray-300 text-gray-700'
+        }" title="向上20根K线累计涨跌幅">${cumulative20Change > 0 ? '+' : ''}${cumulative20Change.toFixed(2)}%</span>`
+      : '';
+
     return `
       <tr class="border-b border-gray-100 hover:bg-gray-50 text-xs ${rowClass}">
-        <td class="py-2 px-1 text-gray-700 sticky left-0 ${hasAlert ? 'bg-yellow-50' : 'bg-white'}">
-          ${k.time || '-'}${alertBadge}
+        <td class="py-2 px-1 text-gray-700 sticky left-0 ${hasAlert ? 'bg-yellow-50' : needHighlight ? (isRisingPattern ? 'bg-green-50' : 'bg-red-50') : 'bg-white'}">
+          ${k.time || '-'}${alertBadge}${cumulativeBadge}
         </td>
         <td class="py-2 px-1 text-right font-mono">${k.open ? k.open.toFixed(4) : '-'}</td>
         <td class="py-2 px-1 text-right font-mono text-green-600">${k.high ? k.high.toFixed(4) : '-'}</td>
