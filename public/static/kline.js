@@ -386,14 +386,14 @@ function renderTable(klineData, alerts = []) {
         <td class="py-2 px-1 text-right font-mono text-purple-600 font-bold indicator-col">
           ${(k.boll_ub && k.boll_lb) ? (k.boll_ub - k.boll_lb).toFixed(4) : '-'}
         </td>
-        <td class="py-2 px-1 text-center indicator-col">
-          ${getChannelIcon(k.channel_state)}
-        </td>
         <td class="py-2 px-1 text-right font-mono indicator-col ${k.down_channel_exhaustion_ratio ? (k.down_channel_exhaustion_ratio > 50 ? 'text-red-600 font-bold' : 'text-gray-600') : 'text-gray-400'}">
           ${k.down_channel_exhaustion_ratio !== null && k.down_channel_exhaustion_ratio !== undefined ? k.down_channel_exhaustion_ratio.toFixed(2) + '%' : '-'}
         </td>
         <td class="py-2 px-1 text-right font-mono indicator-col ${k.up_channel_exhaustion_ratio ? (k.up_channel_exhaustion_ratio > 50 ? 'text-green-600 font-bold' : 'text-gray-600') : 'text-gray-400'}">
           ${k.up_channel_exhaustion_ratio !== null && k.up_channel_exhaustion_ratio !== undefined ? k.up_channel_exhaustion_ratio.toFixed(2) + '%' : '-'}
+        </td>
+        <td class="py-2 px-1 text-center indicator-col">
+          ${getChannelIcon(k.channel_state)}
         </td>
       </tr>
     `;
