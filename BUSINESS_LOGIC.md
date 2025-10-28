@@ -747,14 +747,21 @@ tooltip: {
 ### 计算逻辑
 
 **数据回溯方向：**
-- "向上20根K线" = 从当前行向表格前面方向回溯20根K线
-- K线表格按时间倒序排列（最新的在最上面）
-- 对于当前行 index，回溯范围是 [index, index+19]
+- K线表格按时间**倒序**排列（最新的在最上面，旧的在下面）
+- "向上20根K线" = 从当前行**往下看20行**（看过去的数据）
+- 计算**过去20根K线**对当前点的累计影响
+- 对于当前行 index，回溯范围是 [index-20, index-1]
 
 **累计涨跌幅计算公式：**
 ```javascript
-cumulative20Change = sum(change[i]) where i ∈ [index, index+19]
+// 只有当 index >= 20 时才有足够的历史数据
+cumulative20Change = sum(change[i]) where i ∈ [index-20, index-1]
 ```
+
+**逻辑说明：**
+- 如果过去20根K线累计涨幅 > 2%，说明当前点是**起涨结构**的当前点
+- 如果过去20根K线累计跌幅 < -3%，说明当前点是**起跌结构**的当前点
+- 这样可以识别出价格变化的**起点**和**当前状态**
 
 **判断条件：**
 - 起涨结构（绿色）：`cumulative20Change > 2`
@@ -770,13 +777,15 @@ cumulative20Change = sum(change[i]) where i ∈ [index, index+19]
 **实现代码：**
 ```javascript
 tbody.innerHTML = klineData.map((k, index) => {
-  // 计算向上20根K线的累计涨跌幅（向前回溯）
+  // 计算向上20根K线的累计涨跌幅（向下看20行，从旧到新）
+  // 表格从新到旧排列，向下看就是看过去的数据
   let cumulative20Change = 0;
   let hasEnoughData = false;
   
-  if (index + 20 <= klineData.length) {
-    // 从当前行向前回溯20根K线
-    for (let i = index; i < index + 20; i++) {
+  if (index >= 20) {
+    // 从当前行向上（向旧数据）回溯20根K线
+    // index-20 到 index-1 是过去的20根K线
+    for (let i = index - 20; i < index; i++) {
       const changeStr = klineData[i].change;
       if (changeStr) {
         const changeValue = parseFloat(changeStr);
@@ -809,12 +818,18 @@ tbody.innerHTML = klineData.map((k, index) => {
         isRisingPattern ? 'bg-green-600 text-white font-bold' : 
         isFallingPattern ? 'bg-red-600 text-white font-bold' : 
         'bg-gray-300 text-gray-700'
-      }" title="向上20根K线累计涨跌幅">${cumulative20Change > 0 ? '+' : ''}${cumulative20Change.toFixed(2)}%</span>`
+      }" title="过去20根K线累计涨跌幅（起涨/起跌点识别）">${cumulative20Change > 0 ? '+' : ''}${cumulative20Change.toFixed(2)}%</span>`
     : '';
   
   // 渲染行...
 });
 ```
+
+**关键理解：**
+- 表格**最上面的行**是最新数据（时间最近）
+- 表格**最下面的行**是最旧数据（时间最远）
+- "向上看20根K线" = 看**过去20根**（往表格下方看）
+- 累计涨跌幅反映的是**过去20根对当前的影响**
 
 ### 视觉效果
 
@@ -851,11 +866,12 @@ tbody.innerHTML = klineData.map((k, index) => {
 
 ### v1.8 - 2025-10-28 22:00
 - ✅ 新增K线起涨起跌结构识别功能
-- ✅ 向上20根K线累计涨跌幅计算（向前回溯）
-- ✅ 起涨结构判断（>2%）：绿色边框+背景高亮
-- ✅ 起跌结构判断（<-3%）：红色边框+背景高亮
+- ✅ 过去20根K线累计涨跌幅计算（向下看20行，从旧到新）
+- ✅ 起涨结构判断（累计>2%）：绿色边框+背景高亮
+- ✅ 起跌结构判断（累计<-3%）：红色边框+背景高亮
 - ✅ 累计涨跌幅标记显示在时间列旁边
 - ✅ 支持Tooltip显示说明文字
+- ✅ 2025-10-28 22:15 修正：计算方向改为向下看（过去数据），识别起涨起跌点
 
 ### v1.7 - 2025-10-28 21:10
 - ✅ K线表格列顺序最终版：BOLL_LB → 占比下跌 → 占比上涨 → 带宽 → **通道状态（最右侧）**

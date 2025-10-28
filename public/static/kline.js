@@ -323,13 +323,15 @@ function renderTable(klineData, alerts = []) {
     // 检查是否有预警
     const hasAlert = alertMap[k.index];
     
-    // 计算向上20根K线的累计涨跌幅（向前回溯）
+    // 计算向上20根K线的累计涨跌幅（向下看20行，从旧到新）
+    // 表格从新到旧排列，向下看就是看过去的数据
     let cumulative20Change = 0;
     let hasEnoughData = false;
     
-    if (index + 20 <= klineData.length) {
-      // 从当前行向前回溯20根K线
-      for (let i = index; i < index + 20; i++) {
+    if (index >= 20) {
+      // 从当前行向上（向旧数据）回溯20根K线
+      // index-20 到 index-1 是过去的20根K线
+      for (let i = index - 20; i < index; i++) {
         const changeStr = klineData[i].change;
         if (changeStr) {
           const changeValue = parseFloat(changeStr);
@@ -402,7 +404,7 @@ function renderTable(klineData, alerts = []) {
           isRisingPattern ? 'bg-green-600 text-white font-bold' : 
           isFallingPattern ? 'bg-red-600 text-white font-bold' : 
           'bg-gray-300 text-gray-700'
-        }" title="向上20根K线累计涨跌幅">${cumulative20Change > 0 ? '+' : ''}${cumulative20Change.toFixed(2)}%</span>`
+        }" title="过去20根K线累计涨跌幅（起涨/起跌点识别）">${cumulative20Change > 0 ? '+' : ''}${cumulative20Change.toFixed(2)}%</span>`
       : '';
 
     return `
