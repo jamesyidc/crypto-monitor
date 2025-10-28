@@ -18,7 +18,9 @@
     "scheduler:start": "pm2 start ecosystem.config.cjs --only kline-scheduler",
     "scheduler:stop": "pm2 stop kline-scheduler",
     "scheduler:restart": "pm2 restart kline-scheduler",
-    "scheduler:logs": "pm2 logs kline-scheduler --nostream"
+    "scheduler:logs": "pm2 logs kline-scheduler --nostream",
+    "sync": "bash sync-github.sh",
+    "sync:msg": "bash sync-github.sh"
   },
   "dependencies": {
     "better-sqlite3": "^12.4.1",
