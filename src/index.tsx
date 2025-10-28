@@ -1623,32 +1623,55 @@ app.post('/api/correct/save', async (c) => {
       return c.json({ success: false, error: '参数错误' }, 400);
     }
     
-    // 直接使用SQL更新，避免复杂的参数传递
-    const statements = updates.map((update: any) => 
-      c.env.DB
+    console.log(`📝 开始保存数据: 日期=${date}, 更新数量=${updates.length}`);
+    
+    // 使用 UPSERT 逻辑：如果记录不存在则插入，存在则更新
+    const statements = updates.map((update: any) => {
+      console.log(`  更新币种: ${update.symbol}, 急涨=${update.total_surges}, 急跌=${update.total_crashes}, 新高=${update.new_high_count}, 新低=${update.new_low_count}`);
+      
+      return c.env.DB
         .prepare(`
-          UPDATE daily_stats 
-          SET total_surges = ?, 
-              total_crashes = ?, 
-              new_high_count = ?, 
-              new_low_count = ?
-          WHERE date = ? AND symbol = ?
+          INSERT INTO daily_stats (date, symbol, total_surges, total_crashes, new_high_count, new_low_count)
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT(date, symbol) DO UPDATE SET
+            total_surges = excluded.total_surges,
+            total_crashes = excluded.total_crashes,
+            new_high_count = excluded.new_high_count,
+            new_low_count = excluded.new_low_count
         `)
         .bind(
+          date,
+          update.symbol,
           update.total_surges || 0,
           update.total_crashes || 0,
           update.new_high_count || 0,
-          update.new_low_count || 0,
-          date,
-          update.symbol
+          update.new_low_count || 0
         )
-    );
+    });
     
-    await c.env.DB.batch(statements);
+    const results = await c.env.DB.batch(statements);
+    console.log(`✅ 批量更新完成，结果数量: ${results.length}`);
     
-    return c.json({ success: true, message: '数据已保存' });
+    // 验证更新是否成功
+    let successCount = 0;
+    results.forEach((result, index) => {
+      if (result.success) {
+        successCount++;
+      } else {
+        console.error(`❌ 更新失败 [${updates[index].symbol}]:`, result.error);
+      }
+    });
+    
+    console.log(`✅ 保存成功: ${successCount}/${updates.length}`);
+    
+    return c.json({ 
+      success: true, 
+      message: `数据已保存 (${successCount}/${updates.length})`,
+      successCount,
+      totalCount: updates.length
+    });
   } catch (error: any) {
-    console.error('保存数据失败:', error);
+    console.error('❌ 保存数据失败:', error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });
@@ -1709,8 +1732,12 @@ app.post('/api/correct/rounds/save', async (c) => {
       return c.json({ success: false, error: '参数错误' }, 400);
     }
     
-    const statements = updates.map((update: any) => 
-      c.env.DB
+    console.log(`📝 开始保存轮次风险提示数据: 更新数量=${updates.length}`);
+    
+    const statements = updates.map((update: any) => {
+      console.log(`  更新轮次: ${update.round_time}, 风险提示=${update.risk_alert_count}`);
+      
+      return c.env.DB
         .prepare(`
           UPDATE round_stats 
           SET risk_alert_count = ?
@@ -1720,13 +1747,31 @@ app.post('/api/correct/rounds/save', async (c) => {
           update.risk_alert_count || 0,
           update.round_time
         )
-    );
+    });
     
-    await c.env.DB.batch(statements);
+    const results = await c.env.DB.batch(statements);
+    console.log(`✅ 批量更新完成，结果数量: ${results.length}`);
     
-    return c.json({ success: true, message: '风险提示数据已保存' });
+    // 验证更新是否成功
+    let successCount = 0;
+    results.forEach((result, index) => {
+      if (result.success) {
+        successCount++;
+      } else {
+        console.error(`❌ 更新失败 [${updates[index].round_time}]:`, result.error);
+      }
+    });
+    
+    console.log(`✅ 保存成功: ${successCount}/${updates.length}`);
+    
+    return c.json({ 
+      success: true, 
+      message: `风险提示数据已保存 (${successCount}/${updates.length})`,
+      successCount,
+      totalCount: updates.length
+    });
   } catch (error: any) {
-    console.error('保存风险提示数据失败:', error);
+    console.error('❌ 保存风险提示数据失败:', error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });
