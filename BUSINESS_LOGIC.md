@@ -189,7 +189,33 @@ BTC触发新高 →
 
 ---
 
+## 数据管理
+
+### 极值数据基准重置
+**执行日期：** 2025-10-28
+
+**操作内容：**
+1. 清除 `price_extremes` 表的所有旧数据
+2. 导入用户提供的29个币种新基准数据
+3. 保留 `extreme_records` 表（极值记录日志）不变
+
+**新基准数据特点：**
+- 29个币种的历史极值价格
+- 每个币种的高计次和低计次（累计触发次数）
+- 占比由当前价格动态计算
+
+**执行脚本：** `reset_price_extremes.sql`
+
+**币种列表：**
+OKB, DOT, LINK, ADA, FIL, XLM, HBAR, BCH, ETC, TON, TRX, SUI, DOGE, SOL, LTC, BNB, XRP, ETH, BTC, CRO, CFX, CRV, APT, NEAR, UNI, AAVE, STX, TAO, LDO
+
+---
+
 ## 版本历史
+
+### v1.1 - 2025-10-28
+- 添加极值数据基准重置记录
+- 记录29个币种的新基准数据
 
 ### v1.0 - 2025-10-28
 - 初始版本
