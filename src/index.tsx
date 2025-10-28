@@ -12,6 +12,7 @@ import { SimulatedTradingService } from './services/simulatedTradingService'
 import { PatternService } from './services/patternService'
 import { SettingsService } from './services/settingsService'
 import { TradingRuleService } from './services/tradingRuleService'
+import { SupportLineService } from './services/supportLineService'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
@@ -1739,13 +1740,14 @@ app.post('/api/correct/rounds/save', async (c) => {
       
       return c.env.DB
         .prepare(`
-          UPDATE round_stats 
-          SET risk_alert_count = ?
-          WHERE round_time = ?
+          INSERT INTO round_stats (round_time, risk_alert_count, green_count, red_count, surge_count, crash_count)
+          VALUES (?, ?, 0, 0, 0, 0)
+          ON CONFLICT(round_time) DO UPDATE SET
+            risk_alert_count = excluded.risk_alert_count
         `)
         .bind(
-          update.risk_alert_count || 0,
-          update.round_time
+          update.round_time,
+          update.risk_alert_count || 0
         )
     });
     
@@ -2268,6 +2270,142 @@ app.get('/api/trading-rules/allowed-by-risk', async (c) => {
     });
   } catch (error: any) {
     console.error('获取允许交易币种失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// ========================================
+// 支撑线低吸策略 API
+// ========================================
+
+// API: 获取今天的所有支撑线
+app.get('/api/support-lines', async (c) => {
+  try {
+    const supportLineService = new SupportLineService(c.env.DB);
+    const lines = await supportLineService.getTodaySupportLines();
+    
+    return c.json({
+      success: true,
+      lines,
+      count: lines.length
+    });
+  } catch (error: any) {
+    console.error('获取支撑线失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 检查低吸机会（必须在 :symbol 之前）
+app.get('/api/support-lines/opportunities', async (c) => {
+  try {
+    const supportLineService = new SupportLineService(c.env.DB);
+    const summary = await supportLineService.getOpportunitySummary();
+    
+    return c.json({
+      success: true,
+      ...summary
+    });
+  } catch (error: any) {
+    console.error('检查低吸机会失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 获取单个币种的支撑线
+app.get('/api/support-lines/:symbol', async (c) => {
+  try {
+    const symbol = c.req.param('symbol');
+    const supportLineService = new SupportLineService(c.env.DB);
+    const line = await supportLineService.getSupportLine(symbol);
+    
+    if (!line) {
+      return c.json({ success: false, error: '未找到该币种的支撑线' }, 404);
+    }
+    
+    return c.json({
+      success: true,
+      line
+    });
+  } catch (error: any) {
+    console.error('获取支撑线失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 设置或更新支撑线
+app.post('/api/support-lines', async (c) => {
+  try {
+    const { symbol, support_price, notes } = await c.req.json();
+    
+    if (!symbol || !support_price) {
+      return c.json({ success: false, error: '币种和支撑价格不能为空' }, 400);
+    }
+    
+    const supportLineService = new SupportLineService(c.env.DB);
+    await supportLineService.setSupportLine(symbol, support_price, notes);
+    
+    return c.json({
+      success: true,
+      message: `${symbol} 的支撑线已设置为 ${support_price}`
+    });
+  } catch (error: any) {
+    console.error('设置支撑线失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 批量设置支撑线（必须在 :symbol 之前）
+app.post('/api/support-lines/batch', async (c) => {
+  try {
+    const { lines } = await c.req.json();
+    
+    if (!lines || !Array.isArray(lines) || lines.length === 0) {
+      return c.json({ success: false, error: '参数错误' }, 400);
+    }
+    
+    const supportLineService = new SupportLineService(c.env.DB);
+    await supportLineService.batchSetSupportLines(lines);
+    
+    return c.json({
+      success: true,
+      message: `已批量设置 ${lines.length} 个支撑线`
+    });
+  } catch (error: any) {
+    console.error('批量设置支撑线失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 清零今天的所有支撑线（必须在 :symbol 之前）
+app.post('/api/support-lines/clear', async (c) => {
+  try {
+    const supportLineService = new SupportLineService(c.env.DB);
+    const count = await supportLineService.clearTodaySupportLines();
+    
+    return c.json({
+      success: true,
+      message: `已清零 ${count} 个支撑线`,
+      count
+    });
+  } catch (error: any) {
+    console.error('清零支撑线失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 删除支撑线
+app.delete('/api/support-lines/:symbol', async (c) => {
+  try {
+    const symbol = c.req.param('symbol');
+    const supportLineService = new SupportLineService(c.env.DB);
+    await supportLineService.deleteSupportLine(symbol);
+    
+    return c.json({
+      success: true,
+      message: `${symbol} 的支撑线已删除`
+    });
+  } catch (error: any) {
+    console.error('删除支撑线失败:', error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });
