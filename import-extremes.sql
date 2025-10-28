@@ -1,0 +1,33 @@
+-- 导入币种极值数据（覆盖模式）
+-- 生成时间: 2025-10-28
+-- 注意：使用数据库实际字段名 all_time_high, all_time_low, high_count, low_count
+
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('OKB', 235.51972, 1577, 162.60563, 486, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('DOT', 4.883676056338, 3057, 2.90639, 810, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('LINK', 26.37, 6268, 16.62113, 807, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('ADA', 0.953985915493, 3838, 0.62663, 807, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('FIL', 2.656661971831, 3839, 1.47924, 807, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('XLM', 0.41770, 6268, 0.30889, 807, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('HBAR', 0.2552676056338, 3838, 0.16373, 807, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('BCH', 650.823943662, 3128, 459.09296, 808, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('ETC', 24.32, 6267, 12.91532, 0, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('TON', 3.392, 6267, 2.12076, 517, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('TRX', 0.36644, 6267, 0.29508, 400, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('SUI', 3.981056338028, 3094, 2.41479, 449, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('DOGE', 0.3071549295775, 3838, 0.18701, 807, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('SOL', 253.3591549296, 3104, 183.80986, 568, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('LTC', 135.56901, 1134, 91.32113, 808, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('BNB', 1377.4831, 1033, 820.7, 6267, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('XRP', 3.190211267606, 3857, 2.33165, 807, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('ETH', 4830, 6267, 3837.73944, 486, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('BTC', 125370.20986, 1569, 106787.7831, 808, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('CRO', 0.3857746478873, 6069, 0.14214, 807, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('CFX', 0.1878309859155, 3094, 0.10773, 525, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('CRV', 0.8628732394366, 3698, 0.51941, 808, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('APT', 5.49327, 1570, 3.14277, 553, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('NEAR', 3.324084507042, 2839, 2.15015, 807, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('UNI', 10.3711971831, 3839, 5.99058, 807, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('AAVE', 322.6535211268, 3919, 213.46901, 810, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('STX', 0.7021126760563, 3698, 0.42073, 810, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('TAO', 476.82394, 847, 293.10704, 2057, 0, 0, datetime('now'));
+INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, extreme_up_count, extreme_down_count, last_updated) VALUES ('LDO', 1.354929577465, 2916, 0.86355, 810, 0, 0, datetime('now'));

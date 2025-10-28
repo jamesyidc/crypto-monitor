@@ -1,8 +1,9 @@
 # 开发手册 - 问题记录与解决方案
 
-> **最后更新**: 2025-10-28
+> **最后更新**: 2025-10-28 16:20
 > **系统状态**: ✅ 稳定运行
 > **公网访问**: https://3000-ij3odq6k2fvoix4jt5np8-c07dda5e.sandbox.novita.ai
+> **最新操作**: ✅ 导入29个币种的极值数据（ATH/ATL及计次）
 
 ---
 
@@ -77,6 +78,43 @@ ls -lht /home/user/webapp_db_backup_*.tar.gz
 # 恢复最新备份
 npm run db:restore
 ```
+
+---
+
+## 🔐 核心逻辑 4：比价系统数据保留策略
+
+**关键原则：币价数据永久保留，创新高/低计次每日0点清零**
+
+### 数据分类：
+
+#### ✅ 永久保留（永不清零）：
+1. **币价历史数据** (`coin_round_details` 表)
+   - `price` - 每轮次币价（最重要的数据资产）
+   - `prev_price` - 上一轮次价格
+   - `change_percent` - 涨跌幅
+   - **用途**：历史回看、趋势分析
+
+2. **极值价格记录** (`price_extremes` 表)
+   - `all_time_high` - 历史最高价（永久保留）
+   - `all_time_low` - 历史最低价（永久保留）
+   - `ath_date` - 创新高时间
+   - `atl_date` - 创新低时间
+
+3. **K线数据** (`kline_data` 表)
+   - 所有5分钟K线历史数据
+
+#### 🔄 每日0点清零（仅计次器）：
+1. **创新高/低计次** (`price_extremes` 表)
+   - `high_count` - 当日创新高次数（0点清零）
+   - `low_count` - 当日创新低次数（0点清零）
+
+2. **每日统计** (`daily_stats` 表)
+   - 当日累计数据（0点清零）
+
+### 实现位置：
+- 文件：`src/services/coinService.ts`
+- 函数：`resetAllDailyData()`
+- 触发：每日北京时间0点自动执行
 
 ---
 

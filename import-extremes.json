@@ -1,0 +1,205 @@
+[
+  {
+    "symbol": "OKB",
+    "ath": 235.51972,
+    "new_high_count": 1577,
+    "atl": 162.60563,
+    "new_low_count": 486
+  },
+  {
+    "symbol": "DOT",
+    "ath": 4.883676056338,
+    "new_high_count": 3057,
+    "atl": 2.90639,
+    "new_low_count": 810
+  },
+  {
+    "symbol": "LINK",
+    "ath": 26.37,
+    "new_high_count": 6268,
+    "atl": 16.62113,
+    "new_low_count": 807
+  },
+  {
+    "symbol": "ADA",
+    "ath": 0.953985915493,
+    "new_high_count": 3838,
+    "atl": 0.62663,
+    "new_low_count": 807
+  },
+  {
+    "symbol": "FIL",
+    "ath": 2.656661971831,
+    "new_high_count": 3839,
+    "atl": 1.47924,
+    "new_low_count": 807
+  },
+  {
+    "symbol": "XLM",
+    "ath": 0.41770,
+    "new_high_count": 6268,
+    "atl": 0.30889,
+    "new_low_count": 807
+  },
+  {
+    "symbol": "HBAR",
+    "ath": 0.2552676056338,
+    "new_high_count": 3838,
+    "atl": 0.16373,
+    "new_low_count": 807
+  },
+  {
+    "symbol": "BCH",
+    "ath": 650.823943662,
+    "new_high_count": 3128,
+    "atl": 459.09296,
+    "new_low_count": 808
+  },
+  {
+    "symbol": "ETC",
+    "ath": 24.32,
+    "new_high_count": 6267,
+    "atl": 12.91532,
+    "new_low_count": 0
+  },
+  {
+    "symbol": "TON",
+    "ath": 3.392,
+    "new_high_count": 6267,
+    "atl": 2.12076,
+    "new_low_count": 517
+  },
+  {
+    "symbol": "TRX",
+    "ath": 0.36644,
+    "new_high_count": 6267,
+    "atl": 0.29508,
+    "new_low_count": 400
+  },
+  {
+    "symbol": "SUI",
+    "ath": 3.981056338028,
+    "new_high_count": 3094,
+    "atl": 2.41479,
+    "new_low_count": 449
+  },
+  {
+    "symbol": "DOGE",
+    "ath": 0.3071549295775,
+    "new_high_count": 3838,
+    "atl": 0.18701,
+    "new_low_count": 807
+  },
+  {
+    "symbol": "SOL",
+    "ath": 253.3591549296,
+    "new_high_count": 3104,
+    "atl": 183.80986,
+    "new_low_count": 568
+  },
+  {
+    "symbol": "LTC",
+    "ath": 135.56901,
+    "new_high_count": 1134,
+    "atl": 91.32113,
+    "new_low_count": 808
+  },
+  {
+    "symbol": "BNB",
+    "ath": 1377.4831,
+    "new_high_count": 1033,
+    "atl": 820.7,
+    "new_low_count": 6267
+  },
+  {
+    "symbol": "XRP",
+    "ath": 3.190211267606,
+    "new_high_count": 3857,
+    "atl": 2.33165,
+    "new_low_count": 807
+  },
+  {
+    "symbol": "ETH",
+    "ath": 4830,
+    "new_high_count": 6267,
+    "atl": 3837.73944,
+    "new_low_count": 486
+  },
+  {
+    "symbol": "BTC",
+    "ath": 125370.20986,
+    "new_high_count": 1569,
+    "atl": 106787.7831,
+    "new_low_count": 808
+  },
+  {
+    "symbol": "CRO",
+    "ath": 0.3857746478873,
+    "new_high_count": 6069,
+    "atl": 0.14214,
+    "new_low_count": 807
+  },
+  {
+    "symbol": "CFX",
+    "ath": 0.1878309859155,
+    "new_high_count": 3094,
+    "atl": 0.10773,
+    "new_low_count": 525
+  },
+  {
+    "symbol": "CRV",
+    "ath": 0.8628732394366,
+    "new_high_count": 3698,
+    "atl": 0.51941,
+    "new_low_count": 808
+  },
+  {
+    "symbol": "APT",
+    "ath": 5.49327,
+    "new_high_count": 1570,
+    "atl": 3.14277,
+    "new_low_count": 553
+  },
+  {
+    "symbol": "NEAR",
+    "ath": 3.324084507042,
+    "new_high_count": 2839,
+    "atl": 2.15015,
+    "new_low_count": 807
+  },
+  {
+    "symbol": "UNI",
+    "ath": 10.3711971831,
+    "new_high_count": 3839,
+    "atl": 5.99058,
+    "new_low_count": 807
+  },
+  {
+    "symbol": "AAVE",
+    "ath": 322.6535211268,
+    "new_high_count": 3919,
+    "atl": 213.46901,
+    "new_low_count": 810
+  },
+  {
+    "symbol": "STX",
+    "ath": 0.7021126760563,
+    "new_high_count": 3698,
+    "atl": 0.42073,
+    "new_low_count": 810
+  },
+  {
+    "symbol": "TAO",
+    "ath": 476.82394,
+    "new_high_count": 847,
+    "atl": 293.10704,
+    "new_low_count": 2057
+  },
+  {
+    "symbol": "LDO",
+    "ath": 1.354929577465,
+    "new_high_count": 2916,
+    "atl": 0.86355,
+    "new_low_count": 810
+  }
+]
