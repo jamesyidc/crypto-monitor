@@ -386,7 +386,109 @@ pm2 start ecosystem.config.cjs
 
 ---
 
+## 买卖点信号系统
+
+### 信号发送规则（2025-10-28 新增 ✅ 已实现）
+
+**用户需求：** "买卖点系统 1个币5分钟K线内只允许发一个预警 且只允许发本小时的预警和上个小时最后10分钟 发过预警了的标注清楚不要多发 我可以手动设置哪些信号预警发tg"
+
+**核心规则：**
+
+1. **5分钟K线去重规则**
+   - 同一币种在同一个5分钟K线区间内，只能发送1个买卖点信号
+   - 通过`kline_time`字段标识K线区间（将分钟数向下取整到5的倍数）
+   - 使用`signal_send_log`表记录每个K线区间的发送情况
+   - 即使该K线内有多个信号，也只发送最新的一个
+
+2. **时间范围限制**
+   - **本小时**: 允许发送当前小时内的所有信号
+   - **上个小时最后10分钟**: 允许发送上个小时50-59分的信号
+   - **其他时间**: 不发送，直接跳过
+   - 使用北京时间（UTC+8）计算时间范围
+
+3. **已发送标注**
+   - `trading_signals`表的`telegram_sent`字段标记是否已发送
+   - `signal_send_log`表记录每个K线区间的发送历史
+   - 防止重复发送同一K线的信号
+
+4. **手动配置发送类型**
+   - 使用`signal_send_config`表配置哪些信号类型可以发送到Telegram
+   - 支持两类信号：
+     - `trading`: 买卖点信号（BUY/SELL）
+     - `alert`: 预警信号（成交量≥V1、涨幅≥1%等）
+   - 每种类型都有独立的启用/禁用开关
+   - 通过API接口可以动态修改配置
+
+**数据库表结构：**
+
+```sql
+-- 信号发送配置表
+CREATE TABLE signal_send_config (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  signal_category TEXT NOT NULL,    -- 'trading' 或 'alert'
+  signal_type TEXT NOT NULL,        -- 对于trading: 'BUY'/'SELL'
+  enabled INTEGER DEFAULT 1,         -- 1=启用, 0=禁用
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(signal_category, signal_type)
+);
+
+-- 信号发送日志表（用于K线去重）
+CREATE TABLE signal_send_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  symbol TEXT NOT NULL,
+  kline_time TEXT NOT NULL,          -- K线时间（5分钟K线的开始时间）
+  signal_category TEXT NOT NULL,     -- 'trading' 或 'alert'
+  signal_id INTEGER NOT NULL,        -- 对应的信号ID
+  sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(symbol, kline_time, signal_category)
+);
+
+-- trading_signals表新增字段
+ALTER TABLE trading_signals ADD COLUMN kline_time TEXT;
+```
+
+**API接口：**
+
+1. **获取信号配置**: `GET /api/signal-config`
+   - 返回所有信号类型的启用/禁用状态
+
+2. **更新单个配置**: `PUT /api/signal-config`
+   - Body: `{signal_category, signal_type, enabled}`
+   - 示例: `{signal_category: "trading", signal_type: "BUY", enabled: true}`
+
+3. **批量更新配置**: `POST /api/signal-config/batch`
+   - Body: `{configs: [{signal_category, signal_type, enabled}, ...]}`
+
+**过滤逻辑流程：**
+
+1. 从数据库获取所有未发送的买卖点信号
+2. 过滤器1: 检查信号类型是否在配置中启用
+3. 过滤器2: 检查信号时间是否在允许范围内（本小时或上小时最后10分钟）
+4. 过滤器3: 检查该K线区间是否已经发送过信号
+5. 去重: 每个K线区间只保留一个信号
+6. 发送到Telegram
+7. 标记为已发送并记录发送日志
+
+**实现文件：**
+- 数据库迁移: `/home/user/webapp/migrations_signal/0001_signal_config.sql`
+- 后端服务: `/home/user/webapp/src/services/signalService.ts`
+- API路由: `/home/user/webapp/src/index.tsx`
+
+**实现日期：** 2025-10-28 17:00
+
+---
+
 ## 版本历史
+
+### v1.5 - 2025-10-28 17:00
+- ✅ 买卖点信号系统新增：5分钟K线去重规则
+- ✅ 买卖点信号系统新增：时间范围限制（本小时+上小时最后10分钟）
+- ✅ 买卖点信号系统新增：已发送标注防重复
+- ✅ 买卖点信号系统新增：手动配置信号发送类型
+- ✅ 创建signal_send_config表和signal_send_log表
+- ✅ trading_signals表新增kline_time字段
+- ✅ 新增信号配置管理API接口
 
 ### v1.4 - 2025-10-28 16:30
 - ✅ K线查询页面新增两列：下降通道+下跌衰竭占比、上升通道+上升衰竭占比

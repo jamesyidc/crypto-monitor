@@ -456,8 +456,8 @@ app.get('/api/signal/all', async (c) => {
       }
     }
     
-    // 🆕 发送新出现的信号到Telegram
-    let telegramStatus = { totalSent: 0, totalFailed: 0, symbols: [] as string[] };
+    // 🆕 发送新出现的信号到Telegram（使用新的过滤逻辑）
+    let telegramStatus = { totalSent: 0, totalFailed: 0, totalSkipped: 0, symbols: [] as string[], details: [] as any[] };
     if (sendTelegram) {
       try {
         const telegramService = new TelegramService(
@@ -465,54 +465,68 @@ app.get('/api/signal/all', async (c) => {
           '-1003227444260'
         );
         
-        // 遍历所有币种，发送未发送的信号
-        for (const symbol of symbols) {
-          // 获取该币种未发送的买卖点信号（过去2小时内）
-          // 只取最新1条未发送信号，避免积压过多
-          const allUnsentSignals = await signalService.getUnsentTradingSignals(symbol, 2);
-          const unsentSignals = allUnsentSignals.slice(0, 1);
-          
-          if (unsentSignals.length > 0) {
-            console.log(`📤 ${symbol}: 发现 ${unsentSignals.length} 个新买卖点信号 (积压:${allUnsentSignals.length})`);
-            
-            // 发送买卖点信号（每条消息间隔3秒，避免429错误）
-            for (let i = 0; i < unsentSignals.length; i++) {
-              const signal = unsentSignals[i];
-              try {
-                console.log(`   [${i+1}/${unsentSignals.length}] 发送 ${symbol} ${signal.signal_type} 信号...`);
-                await telegramService.sendTradingSignal(signal);
-                telegramStatus.totalSent++;
-                
-                // 标记为已发送
-                await signalService.markTradingSignalsAsSent([signal.id]);
-                
-                // ⚠️ 每条消息后等待3秒，避免Telegram API 429限流
-                if (i < unsentSignals.length - 1) {
-                  console.log(`   ⏳ 等待3秒...`);
-                  await new Promise(resolve => setTimeout(resolve, 3000));
-                }
-              } catch (error: any) {
-                console.error(`❌ 发送买卖点信号失败 (${symbol}):`, error);
-                // 如果遇到429错误，等待更长时间
-                if (error.message && error.message.includes('429')) {
-                  console.log(`   ⏳ 遇到速率限制，等待10秒后继续...`);
-                  await new Promise(resolve => setTimeout(resolve, 10000));
-                }
-                telegramStatus.totalFailed++;
-              }
-            }
-            
-            if (!telegramStatus.symbols.includes(symbol)) {
-              telegramStatus.symbols.push(symbol);
-            }
-            
-            // 币种之间也等待3秒
-            await new Promise(resolve => setTimeout(resolve, 3000));
-          }
-        }
+        // 🔥 使用新的过滤逻辑获取符合条件的信号
+        // 规则：
+        // 1. 同一币种同一5分钟K线只发一个信号
+        // 2. 只发本小时和上个小时最后10分钟的信号
+        // 3. 遵守配置表的启用/禁用设置
+        const signalsToSend = await signalService.getSignalsToSend();
         
-        if (telegramStatus.totalSent > 0) {
+        console.log(`📊 信号过滤完成: ${signalsToSend.length} 个信号符合发送条件`);
+        
+        // 按币种分组统计
+        const symbolGroups = new Map<string, number>();
+        signalsToSend.forEach(signal => {
+          symbolGroups.set(signal.symbol, (symbolGroups.get(signal.symbol) || 0) + 1);
+        });
+        
+        if (signalsToSend.length > 0) {
+          console.log(`📤 开始发送信号到Telegram...`);
+          
+          // 发送买卖点信号（每条消息间隔3秒，避免429错误）
+          for (let i = 0; i < signalsToSend.length; i++) {
+            const signal = signalsToSend[i];
+            try {
+              console.log(`   [${i+1}/${signalsToSend.length}] 发送 ${signal.symbol} ${signal.signal_type} 信号 (K线: ${signal.kline_time})...`);
+              await telegramService.sendTradingSignal(signal);
+              telegramStatus.totalSent++;
+              
+              // 标记为已发送
+              await signalService.markTradingSignalsAsSent([signal.id]);
+              
+              // 记录发送日志（防止同一K线重复发送）
+              await signalService.recordSignalSent(signal.symbol, signal.kline_time, 'trading', signal.id);
+              
+              if (!telegramStatus.symbols.includes(signal.symbol)) {
+                telegramStatus.symbols.push(signal.symbol);
+              }
+              
+              telegramStatus.details.push({
+                symbol: signal.symbol,
+                type: signal.signal_type,
+                klineTime: signal.kline_time,
+                signalTime: signal.signal_time,
+                price: signal.price
+              });
+              
+              // ⚠️ 每条消息后等待3秒，避免Telegram API 429限流
+              if (i < signalsToSend.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 3000));
+              }
+            } catch (error: any) {
+              console.error(`❌ 发送买卖点信号失败 (${signal.symbol}):`, error);
+              // 如果遇到429错误，等待更长时间
+              if (error.message && error.message.includes('429')) {
+                console.log(`   ⏳ 遇到速率限制，等待10秒后继续...`);
+                await new Promise(resolve => setTimeout(resolve, 10000));
+              }
+              telegramStatus.totalFailed++;
+            }
+          }
+          
           console.log(`✅ Telegram发送完成: ${telegramStatus.totalSent} 条新信号已发送`);
+        } else {
+          console.log(`ℹ️  没有符合条件的信号需要发送`);
         }
       } catch (error: any) {
         console.error('❌ Telegram发送失败:', error);
@@ -1828,6 +1842,90 @@ app.post('/api/settings/reset', async (c) => {
     return c.json({ success: true, message: '设置已重置为默认值' });
   } catch (error: any) {
     console.error('重置设置失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// ========== 信号发送配置 API ==========
+
+// API: 获取所有信号发送配置
+app.get('/api/signal-config', async (c) => {
+  try {
+    const result = await c.env.DB
+      .prepare('SELECT * FROM signal_send_config ORDER BY signal_category, signal_type')
+      .all();
+
+    return c.json({
+      success: true,
+      configs: result.results
+    });
+  } catch (error: any) {
+    console.error('获取信号配置失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 更新信号发送配置
+app.put('/api/signal-config', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { signal_category, signal_type, enabled } = body;
+    
+    if (!signal_category || !signal_type || enabled === undefined) {
+      return c.json({ 
+        success: false, 
+        error: '缺少必需参数: signal_category, signal_type, enabled' 
+      }, 400);
+    }
+
+    await c.env.DB
+      .prepare(`
+        UPDATE signal_send_config 
+        SET enabled = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE signal_category = ? AND signal_type = ?
+      `)
+      .bind(enabled ? 1 : 0, signal_category, signal_type)
+      .run();
+
+    return c.json({ 
+      success: true, 
+      message: `信号配置已更新: ${signal_category}:${signal_type} = ${enabled ? '启用' : '禁用'}` 
+    });
+  } catch (error: any) {
+    console.error('更新信号配置失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 批量更新信号发送配置
+app.post('/api/signal-config/batch', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { configs } = body; // configs: [{signal_category, signal_type, enabled}, ...]
+    
+    if (!Array.isArray(configs)) {
+      return c.json({ success: false, error: 'configs必须是数组' }, 400);
+    }
+
+    for (const config of configs) {
+      const { signal_category, signal_type, enabled } = config;
+      
+      await c.env.DB
+        .prepare(`
+          UPDATE signal_send_config 
+          SET enabled = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE signal_category = ? AND signal_type = ?
+        `)
+        .bind(enabled ? 1 : 0, signal_category, signal_type)
+        .run();
+    }
+
+    return c.json({ 
+      success: true, 
+      message: `批量更新完成: ${configs.length} 个配置已更新` 
+    });
+  } catch (error: any) {
+    console.error('批量更新信号配置失败:', error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });

@@ -513,12 +513,15 @@ export class SignalService {
     if (!this.db) return;
 
     try {
+      // 提取K线时间（signal.time格式：2025/10/28 16:10:00）
+      const klineTime = this.extractKlineTime(signal.time);
+      
       await this.db
         .prepare(`
           INSERT INTO trading_signals (
             symbol, signal_time, signal_type, price, reason, 
-            strength, details, keep_bars
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            strength, details, keep_bars, kline_time
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `)
         .bind(
           signal.symbol,
@@ -528,11 +531,39 @@ export class SignalService {
           signal.reason || '',
           signal.strength || 0,
           JSON.stringify(signal.details || {}),
-          signal.keepBars || 0
+          signal.keepBars || 0,
+          klineTime
         )
         .run();
     } catch (error) {
       console.error('保存买卖点信号失败:', error);
+    }
+  }
+
+  // 从信号时间中提取K线时间（5分钟K线的开始时间）
+  private extractKlineTime(signalTime: string): string {
+    // signalTime格式: "2025/10/28 16:10:00"
+    // 需要将分钟数向下取整到5的倍数
+    try {
+      const parts = signalTime.split(' ');
+      if (parts.length !== 2) return signalTime;
+      
+      const datePart = parts[0];
+      const timePart = parts[1];
+      const timeComponents = timePart.split(':');
+      
+      if (timeComponents.length !== 3) return signalTime;
+      
+      const hour = timeComponents[0];
+      const minute = parseInt(timeComponents[1]);
+      
+      // 将分钟数向下取整到5的倍数
+      const klineMinute = Math.floor(minute / 5) * 5;
+      
+      return `${datePart} ${hour}:${klineMinute.toString().padStart(2, '0')}:00`;
+    } catch (error) {
+      console.error('提取K线时间失败:', error);
+      return signalTime;
     }
   }
 
@@ -796,6 +827,176 @@ export class SignalService {
       console.log(`✅ 标记 ${alertIds.length} 个预警信号为已发送`);
     } catch (error) {
       console.error('标记预警信号失败:', error);
+    }
+  }
+
+  // 🆕 获取信号发送配置
+  async getSignalSendConfig(): Promise<Map<string, boolean>> {
+    if (!this.db) return new Map();
+
+    try {
+      const result = await this.db
+        .prepare('SELECT signal_category, signal_type, enabled FROM signal_send_config')
+        .all();
+
+      const config = new Map<string, boolean>();
+      result.results.forEach((row: any) => {
+        const key = `${row.signal_category}:${row.signal_type}`;
+        config.set(key, row.enabled === 1);
+      });
+
+      return config;
+    } catch (error) {
+      console.error('获取信号发送配置失败:', error);
+      return new Map();
+    }
+  }
+
+  // 🆕 判断信号时间是否在允许发送的时间范围内
+  // 规则：只发送本小时和上个小时最后10分钟的信号
+  isTimeInAllowedRange(signalTime: string): boolean {
+    try {
+      // signalTime格式: "2025/10/28 16:10:00"
+      // 转换为北京时间Date对象
+      const parts = signalTime.replace(/\//g, '-').split(' ');
+      const datePart = parts[0];
+      const timePart = parts[1];
+      const signalDate = new Date(`${datePart}T${timePart}+08:00`); // 北京时间
+      
+      // 当前北京时间
+      const now = new Date();
+      const beijingOffset = 8 * 60 * 60 * 1000;
+      const beijingNow = new Date(now.getTime() + beijingOffset);
+      
+      // 提取信号的小时和分钟
+      const signalHour = signalDate.getUTCHours();
+      const signalMinute = signalDate.getUTCMinutes();
+      
+      // 提取当前的小时和分钟
+      const currentHour = beijingNow.getUTCHours();
+      const currentMinute = beijingNow.getUTCMinutes();
+      
+      // 判断是否是本小时
+      if (signalHour === currentHour) {
+        return true;
+      }
+      
+      // 判断是否是上个小时的最后10分钟（50-59分）
+      const prevHour = currentHour === 0 ? 23 : currentHour - 1;
+      if (signalHour === prevHour && signalMinute >= 50) {
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('判断时间范围失败:', error);
+      return false; // 解析失败则不发送
+    }
+  }
+
+  // 🆕 检查该5分钟K线区间是否已经发送过信号
+  async hasSignalSentForKline(symbol: string, klineTime: string, signalCategory: string): Promise<boolean> {
+    if (!this.db) return false;
+
+    try {
+      const result: any = await this.db
+        .prepare(`
+          SELECT COUNT(*) as count 
+          FROM signal_send_log 
+          WHERE symbol = ? AND kline_time = ? AND signal_category = ?
+        `)
+        .bind(symbol, klineTime, signalCategory)
+        .first();
+
+      return result.count > 0;
+    } catch (error) {
+      console.error('检查K线发送记录失败:', error);
+      return false;
+    }
+  }
+
+  // 🆕 记录信号发送日志
+  async recordSignalSent(symbol: string, klineTime: string, signalCategory: string, signalId: number): Promise<void> {
+    if (!this.db) return;
+
+    try {
+      await this.db
+        .prepare(`
+          INSERT OR REPLACE INTO signal_send_log (symbol, kline_time, signal_category, signal_id)
+          VALUES (?, ?, ?, ?)
+        `)
+        .bind(symbol, klineTime, signalCategory, signalId)
+        .run();
+    } catch (error) {
+      console.error('记录信号发送日志失败:', error);
+    }
+  }
+
+  // 🆕 获取符合条件的可发送买卖点信号
+  // 规则：
+  // 1. 同一币种同一5分钟K线只发一个信号
+  // 2. 只发本小时和上个小时最后10分钟的信号
+  // 3. 遵守配置表的启用/禁用设置
+  async getSignalsToSend(): Promise<any[]> {
+    if (!this.db) return [];
+
+    try {
+      // 获取发送配置
+      const config = await this.getSignalSendConfig();
+      
+      // 获取所有未发送的买卖点信号
+      const todayStart = getBeijingTodayStart();
+      const result = await this.db
+        .prepare(`
+          SELECT * FROM trading_signals 
+          WHERE telegram_sent = 0
+            AND created_at >= ?
+          ORDER BY symbol, kline_time DESC, created_at DESC
+        `)
+        .bind(todayStart)
+        .all();
+
+      const signals: any[] = [];
+      const processedKlines = new Set<string>(); // 用于去重：symbol:kline_time
+
+      for (const row of result.results) {
+        const signal: any = {
+          ...row,
+          details: JSON.parse(row.details || '{}')
+        };
+
+        // 检查配置是否启用
+        const configKey = `trading:${signal.signal_type}`;
+        if (!config.get(configKey)) {
+          continue; // 跳过未启用的信号类型
+        }
+
+        // 检查时间范围
+        if (!this.isTimeInAllowedRange(signal.signal_time)) {
+          continue; // 跳过不在允许时间范围内的信号
+        }
+
+        // 检查是否已经为该K线发送过信号
+        const klineKey = `${signal.symbol}:${signal.kline_time}`;
+        if (processedKlines.has(klineKey)) {
+          continue; // 跳过同一K线的重复信号
+        }
+
+        // 检查数据库中是否已有该K线的发送记录
+        const hasSent = await this.hasSignalSentForKline(signal.symbol, signal.kline_time, 'trading');
+        if (hasSent) {
+          continue;
+        }
+
+        // 通过所有检查，添加到发送列表
+        signals.push(signal);
+        processedKlines.add(klineKey);
+      }
+
+      return signals;
+    } catch (error) {
+      console.error('获取待发送信号失败:', error);
+      return [];
     }
   }
 }
