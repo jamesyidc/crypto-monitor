@@ -36,10 +36,12 @@ if [ -f "${BACKUP_FILE}" ]; then
     cp "${BACKUP_FILE}" /mnt/aidrive/ 2>/dev/null || echo "⚠️  AI Drive 同步失败（可忽略）"
   fi
   
-  # 清理超过7天的旧备份（保留最近7个备份）
-  echo "🧹 清理旧备份..."
+  # 清理旧备份（只保留最近3次备份）
+  echo "🧹 清理旧备份（保留最近3次）..."
   cd "${BACKUP_DIR}"
-  ls -t webapp_db_backup_*.tar.gz 2>/dev/null | tail -n +8 | xargs -r rm -f
+  ls -t webapp_db_backup_*.tar.gz 2>/dev/null | tail -n +4 | xargs -r rm -f
+  REMAINING=$(ls -t webapp_db_backup_*.tar.gz 2>/dev/null | wc -l)
+  echo "📦 当前保留 ${REMAINING} 个备份文件"
   echo "✅ 备份完成！"
 else
   echo "❌ 备份失败！"
