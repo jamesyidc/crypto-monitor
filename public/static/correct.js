@@ -302,7 +302,8 @@ async function saveAllData() {
     
     if (allSuccess) {
       showSuccess(`保存成功！已更新 ${dailyUpdates.length} 个币种数据和 ${roundUpdates.length} 个轮次数据`);
-      setTimeout(() => loadData(), 500);
+      // 不自动刷新，保持用户编辑的数据
+      // setTimeout(() => loadData(), 500);
     } else {
       showError('保存失败: ' + results.find(r => !r.success)?.error);
     }
@@ -344,6 +345,7 @@ async function resetToday() {
     
     if (data.success) {
       showSuccess('数据已清空！');
+      // 清空操作后需要重新加载数据
       setTimeout(() => loadData(), 500);
     } else {
       showError('清空失败: ' + data.error);
