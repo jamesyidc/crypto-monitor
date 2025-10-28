@@ -37,6 +37,20 @@ module.exports = {
       exec_mode: 'fork',
       restart_delay: 5000, // 重启延迟5秒
       max_restarts: 10 // 最多重启10次
+    },
+    {
+      name: 'signal-scheduler',
+      script: './signal-scheduler.cjs',
+      env: {
+        SIGNAL_ENDPOINT: 'http://localhost:3000/api/signal/all',
+        SIGNAL_INTERVAL: '60000', // 1分钟 = 60000毫秒
+        ENABLE_TELEGRAM: 'true'
+      },
+      watch: false,
+      instances: 1,
+      exec_mode: 'fork',
+      restart_delay: 10000, // 重启延迟10秒，等待服务完全启动
+      max_restarts: 10 // 最多重启10次
     }
   ]
 }
