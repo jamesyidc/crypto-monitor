@@ -1008,8 +1008,32 @@ function changeThreshold(threshold) {
   loadConsecutiveTable(currentThreshold);
 }
 
+async function analyzeHistory() {
+  if (!confirm('确定要分析所有历史K线数据吗？\n\n此操作会：\n1. 清空现有统计数据\n2. 回溯分析所有历史K线\n3. 重新计算连续统计\n\n可能需要较长时间，请耐心等待。')) return;
+  
+  try {
+    showInfo('正在分析历史数据，请稍候...');
+    
+    const response = await fetch('/api/consecutive-rise/analyze-history', {
+      method: 'POST'
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showSuccess(`分析完成！已处理 ${data.analyzedRounds} 轮K线数据`);
+      await loadConsecutiveRise();
+    } else {
+      showError(data.error || '分析失败');
+    }
+  } catch (error) {
+    console.error('分析历史数据失败:', error);
+    showError('分析失败');
+  }
+}
+
 async function updateConsecutiveStats() {
-  if (!confirm('确定要更新连续上涨统计吗？此操作会计算所有币种的连续天数。')) return;
+  if (!confirm('确定要更新连续上涨统计吗？此操作会计算当前最新K线的统计。')) return;
   
   try {
     showInfo('正在更新统计...');

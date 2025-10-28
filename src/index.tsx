@@ -2541,18 +2541,40 @@ app.get('/api/consecutive-rise/above-threshold', async (c) => {
 });
 
 // API: 手动更新每日连续上涨统计
-app.post('/api/consecutive-rise/update', async (c) => {
+// API: 回溯分析历史K线数据（修复后的正确版本）
+app.post('/api/consecutive-rise/analyze-history', async (c) => {
   try {
+    const timeframe = c.req.query('timeframe') || '5m';
+    const limit = parseInt(c.req.query('limit') || '1000');
+    
     const consecutiveRiseService = new ConsecutiveRiseService(c.env.DB);
-    const result = await consecutiveRiseService.updateKlineStats();
+    const result = await consecutiveRiseService.analyzeHistoricalData(timeframe, limit);
     
     return c.json({
       success: true,
-      message: '连续上涨统计已更新',
       ...result
     });
   } catch (error: any) {
-    console.error('更新连续上涨统计失败:', error);
+    console.error('分析历史数据失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 更新单个币种的K线统计
+app.post('/api/consecutive-rise/update/:symbol', async (c) => {
+  try {
+    const symbol = c.req.param('symbol');
+    const timeframe = c.req.query('timeframe') || '5m';
+    
+    const consecutiveRiseService = new ConsecutiveRiseService(c.env.DB);
+    await consecutiveRiseService.updateSymbolKline(symbol, timeframe);
+    
+    return c.json({
+      success: true,
+      message: `${symbol} 的连续统计已更新`
+    });
+  } catch (error: any) {
+    console.error('更新K线统计失败:', error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });
