@@ -2010,6 +2010,81 @@ app.get('/api/trading-rules', async (c) => {
   }
 });
 
+// 应用单边市场策略（必须在 :symbol 路由之前）
+app.post('/api/trading-rules/apply-unilateral-strategy', async (c) => {
+  try {
+    const tradingRuleService = new TradingRuleService(c.env.DB);
+    
+    // 获取今日市场统计
+    const stats = await tradingRuleService.getTodayMarketStats();
+    
+    // 应用单边策略
+    const result = await tradingRuleService.applyUnilateralStrategy(
+      stats.todaySurgeCount,
+      stats.todayCrashCount
+    );
+    
+    return c.json({
+      success: true,
+      message: `已应用单边策略：${result.strategy}`,
+      strategy: result.strategy,
+      todaySurgeCount: stats.todaySurgeCount,
+      todayCrashCount: stats.todayCrashCount,
+      long_allowed: result.long_allowed,
+      short_allowed: result.short_allowed
+    });
+  } catch (error: any) {
+    console.error('应用单边策略失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// 获取今日市场统计和策略建议（必须在 :symbol 路由之前）
+app.get('/api/trading-rules/market-strategy', async (c) => {
+  try {
+    const tradingRuleService = new TradingRuleService(c.env.DB);
+    
+    // 获取今日市场统计
+    const stats = await tradingRuleService.getTodayMarketStats();
+    
+    // 判断策略（不实际应用）
+    let strategy = '';
+    let long_allowed = true;
+    let short_allowed = true;
+    
+    if (stats.todaySurgeCount > 0 && stats.todayCrashCount === 0) {
+      strategy = '单边主升';
+      long_allowed = true;
+      short_allowed = false;
+    } else if (stats.todayCrashCount > 0 && stats.todaySurgeCount === 0) {
+      strategy = '单边主跌';
+      long_allowed = false;
+      short_allowed = true;
+    } else {
+      strategy = '双边震荡';
+      long_allowed = true;
+      short_allowed = true;
+    }
+    
+    return c.json({
+      success: true,
+      todaySurgeCount: stats.todaySurgeCount,
+      todayCrashCount: stats.todayCrashCount,
+      strategy,
+      long_allowed,
+      short_allowed,
+      recommendation: strategy === '单边主升' 
+        ? '建议：只做多单，禁止做空' 
+        : strategy === '单边主跌' 
+        ? '建议：只做空单，禁止做多' 
+        : '建议：可以做多做空'
+    });
+  } catch (error: any) {
+    console.error('获取市场策略失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
 // API: 获取单个币种的交易规则
 app.get('/api/trading-rules/:symbol', async (c) => {
   try {

@@ -1165,7 +1165,236 @@ async applyRiskBasedRules(riskLevel: string): Promise<void> {
 
 ---
 
+## 11. 单边市场交易策略
+
+### 需求描述
+根据当天市场的急涨急跌情况，自动判断市场类型并限制交易方向，防止在单边市场中逆势操作。
+
+### 市场类型判断规则
+
+| 市场类型 | 判断条件 | 允许做多 | 允许做空 | 说明 |
+|---------|---------|---------|---------|------|
+| **单边主升** | 今日有急涨(>0) 且 无急跌(=0) | ✅ 允许 | ❌ 禁止 | 市场单边上涨，禁止做空 |
+| **单边主跌** | 今日有急跌(>0) 且 无急涨(=0) | ❌ 禁止 | ✅ 允许 | 市场单边下跌,禁止做多 |
+| **双边震荡** | 其他情况 | ✅ 允许 | ✅ 允许 | 市场双向波动，允许双向交易 |
+
+**判断逻辑：**
+```
+IF (今日总急涨次数 > 0 AND 今日总急跌次数 = 0) THEN
+  市场类型 = "单边主升"
+  long_allowed = 1, short_allowed = 0
+ELSE IF (今日总急跌次数 > 0 AND 今日总急涨次数 = 0) THEN
+  市场类型 = "单边主跌"
+  long_allowed = 0, short_allowed = 1
+ELSE
+  市场类型 = "双边震荡"
+  long_allowed = 1, short_allowed = 1
+END IF
+```
+
+### 数据来源
+
+**daily_stats表**：
+- `date`: 日期（北京时间YYYY-MM-DD）
+- `symbol`: 币种符号
+- `total_surges`: 当日该币种急涨总次数
+- `total_crashes`: 当日该币种急跌总次数
+
+**统计方式**：
+```sql
+-- 获取今日所有币种的急涨急跌总和
+SELECT 
+  SUM(total_surges) as todaySurgeCount,
+  SUM(total_crashes) as todayCrashCount
+FROM daily_stats
+WHERE date = '2025-10-28'  -- 北京时间今天
+```
+
+### 实现方案
+
+#### 1. 后端服务方法
+
+**文件位置：** `/home/user/webapp/src/services/tradingRuleService.ts`
+
+**a) `getTodayMarketStats()`**
+- 功能：获取今日市场统计数据（急涨急跌总数）
+- 返回：`{ todaySurgeCount: number, todayCrashCount: number }`
+- 计算：查询daily_stats表，SUM聚合今天所有币种的数据
+
+**b) `applyUnilateralStrategy(todaySurgeCount, todayCrashCount)`**
+- 功能：根据今日市场数据应用单边策略
+- 参数：今日总急涨次数、今日总急跌次数
+- 返回：`{ strategy: string, long_allowed: boolean, short_allowed: boolean }`
+- 操作：批量更新trading_rules表的long_allowed和short_allowed字段
+
+**实现代码：**
+```typescript
+async applyUnilateralStrategy(
+  todaySurgeCount: number, 
+  todayCrashCount: number
+): Promise<{
+  strategy: string;
+  long_allowed: boolean;
+  short_allowed: boolean;
+}> {
+  let strategy = '';
+  let long_allowed = true;
+  let short_allowed = true;
+  let note = '';
+
+  if (todaySurgeCount > 0 && todayCrashCount === 0) {
+    // 单边主升：只有急涨，没有急跌
+    strategy = '单边主升';
+    long_allowed = true;
+    short_allowed = false;
+    note = '单边主升市场：禁止做空';
+    
+    await this.db
+      .prepare(`
+        UPDATE trading_rules 
+        SET long_allowed = 1,
+            short_allowed = 0,
+            notes = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE trading_allowed = 1
+      `)
+      .bind(note)
+      .run();
+      
+  } else if (todayCrashCount > 0 && todaySurgeCount === 0) {
+    // 单边主跌：只有急跌，没有急涨
+    strategy = '单边主跌';
+    long_allowed = false;
+    short_allowed = true;
+    note = '单边主跌市场：禁止做多';
+    
+    await this.db
+      .prepare(`
+        UPDATE trading_rules 
+        SET long_allowed = 0,
+            short_allowed = 1,
+            notes = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE trading_allowed = 1
+      `)
+      .bind(note)
+      .run();
+      
+  } else {
+    // 双边震荡
+    strategy = '双边震荡';
+    long_allowed = true;
+    short_allowed = true;
+    note = '双边震荡市场：允许做多做空';
+    
+    await this.db
+      .prepare(`
+        UPDATE trading_rules 
+        SET long_allowed = 1,
+            short_allowed = 1,
+            notes = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE trading_allowed = 1
+      `)
+      .bind(note)
+      .run();
+  }
+
+  return { strategy, long_allowed, short_allowed };
+}
+```
+
+#### 2. API接口
+
+**a) GET `/api/trading-rules/market-strategy`**
+- 功能：获取今日市场统计和策略建议（不实际应用）
+- 无需参数
+- 返回示例：
+```json
+{
+  "success": true,
+  "todaySurgeCount": 40,
+  "todayCrashCount": 38,
+  "strategy": "双边震荡",
+  "long_allowed": true,
+  "short_allowed": true,
+  "recommendation": "建议：可以做多做空"
+}
+```
+
+**b) POST `/api/trading-rules/apply-unilateral-strategy`**
+- 功能：自动检测市场类型并应用单边策略
+- 无需参数
+- 返回示例：
+```json
+{
+  "success": true,
+  "message": "已应用单边策略：双边震荡",
+  "strategy": "双边震荡",
+  "todaySurgeCount": 40,
+  "todayCrashCount": 38,
+  "long_allowed": true,
+  "short_allowed": true
+}
+```
+
+### 使用场景
+
+**自动策略应用：**
+1. 系统定时任务每小时检测市场状态
+2. 调用 `/api/trading-rules/apply-unilateral-strategy`
+3. 自动更新所有币种的交易方向限制
+4. 防止在单边市场中逆势操作
+
+**手动策略查询：**
+1. 用户在交易规则页面查看当前市场类型
+2. 调用 `/api/trading-rules/market-strategy` 获取建议
+3. 显示今日急涨急跌次数和推荐策略
+4. 用户可手动决定是否应用策略
+
+**风险控制逻辑：**
+- 单边主升市场：强势上涨，禁止做空避免被套
+- 单边主跌市场：强势下跌，禁止做多避免损失
+- 双边震荡市场：正常波动，允许灵活操作
+
+### 注意事项
+
+**路由优先级：**
+- 必须在 `/api/trading-rules/:symbol` 路由之前定义
+- 具体路径（market-strategy）优先于参数路由（:symbol）
+- 否则会被参数路由拦截导致404错误
+
+**数据时区：**
+- 使用北京时间（UTC+8）计算日期
+- `new Date().setHours(hours + 8)` 转换为北京时间
+- 确保与daily_stats表的date字段对齐
+
+**更新范围：**
+- 只更新 `trading_allowed = 1` 的币种
+- 如果币种已被禁止交易（trading_allowed = 0），不受策略影响
+- 保持一级开关（trading_allowed）的权限优先
+
+**实现文件：**
+- 后端服务：`/home/user/webapp/src/services/tradingRuleService.ts`
+- API路由：`/home/user/webapp/src/index.tsx`（第2013-2091行）
+
+**实现日期：** 2025-10-28 23:00
+
+---
+
 ## 版本历史
+
+### v1.11 - 2025-10-28 23:00
+- ✅ 新增单边市场交易策略系统
+- ✅ 自动判断市场类型（单边主升/单边主跌/双边震荡）
+- ✅ 根据今日急涨急跌次数自动限制交易方向
+- ✅ 新增 `getTodayMarketStats()` 方法
+- ✅ 新增 `applyUnilateralStrategy()` 方法
+- ✅ 新增策略查询API：`GET /api/trading-rules/market-strategy`
+- ✅ 新增策略应用API：`POST /api/trading-rules/apply-unilateral-strategy`
+- ✅ 单边主升：禁止做空
+- ✅ 单边主跌：禁止做多
+- ✅ 双边震荡：允许双向交易
 
 ### v1.10 - 2025-10-28 22:45
 - ✅ 新增"本轮平均涨跌幅"统计卡片

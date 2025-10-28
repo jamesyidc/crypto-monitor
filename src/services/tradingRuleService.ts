@@ -322,4 +322,119 @@ export class TradingRuleService {
 
     return result.results.map((row: any) => row.symbol);
   }
+
+  /**
+   * 根据今日市场趋势应用单边策略
+   * @param todaySurgeCount 今日总急涨次数
+   * @param todayCrashCount 今日总急跌次数
+   * 
+   * 策略：
+   * - 单边主升（只有急涨，没有急跌）：禁止做空
+   * - 单边主跌（只有急跌，没有急涨）：禁止做多
+   * - 双边震荡：允许做多做空
+   */
+  async applyUnilateralStrategy(todaySurgeCount: number, todayCrashCount: number): Promise<{
+    strategy: string;
+    long_allowed: boolean;
+    short_allowed: boolean;
+  }> {
+    let strategy = '';
+    let long_allowed = true;
+    let short_allowed = true;
+    let note = '';
+
+    // 判断市场类型
+    if (todaySurgeCount > 0 && todayCrashCount === 0) {
+      // 单边主升：只有急涨，没有急跌
+      strategy = '单边主升';
+      long_allowed = true;
+      short_allowed = false;
+      note = '单边主升市场：禁止做空';
+      
+      await this.db
+        .prepare(`
+          UPDATE trading_rules 
+          SET long_allowed = 1,
+              short_allowed = 0,
+              notes = ?,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE trading_allowed = 1
+        `)
+        .bind(note)
+        .run();
+        
+    } else if (todayCrashCount > 0 && todaySurgeCount === 0) {
+      // 单边主跌：只有急跌，没有急涨
+      strategy = '单边主跌';
+      long_allowed = false;
+      short_allowed = true;
+      note = '单边主跌市场：禁止做多';
+      
+      await this.db
+        .prepare(`
+          UPDATE trading_rules 
+          SET long_allowed = 0,
+              short_allowed = 1,
+              notes = ?,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE trading_allowed = 1
+        `)
+        .bind(note)
+        .run();
+        
+    } else {
+      // 双边震荡：既有急涨也有急跌，或者两者都没有
+      strategy = '双边震荡';
+      long_allowed = true;
+      short_allowed = true;
+      note = '双边震荡市场：允许做多做空';
+      
+      await this.db
+        .prepare(`
+          UPDATE trading_rules 
+          SET long_allowed = 1,
+              short_allowed = 1,
+              notes = ?,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE trading_allowed = 1
+        `)
+        .bind(note)
+        .run();
+    }
+
+    return {
+      strategy,
+      long_allowed,
+      short_allowed
+    };
+  }
+
+  /**
+   * 获取今日市场统计（急涨急跌总数）
+   */
+  async getTodayMarketStats(): Promise<{
+    todaySurgeCount: number;
+    todayCrashCount: number;
+  }> {
+    // 获取今天的日期（北京时间）
+    const now = new Date();
+    now.setHours(now.getHours() + 8); // 转换为北京时间
+    const today = now.toISOString().split('T')[0];
+
+    const result = await this.db
+      .prepare(`
+        SELECT 
+          SUM(total_surges) as total_surges,
+          SUM(total_crashes) as total_crashes
+        FROM daily_stats
+        WHERE date = ?
+      `)
+      .bind(today)
+      .first();
+
+    return {
+      todaySurgeCount: (result as any)?.total_surges || 0,
+      todayCrashCount: (result as any)?.total_crashes || 0
+    };
+  }
 }
