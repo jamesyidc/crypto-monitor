@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>比价 - V5.5</title>
+    <title>币价比价系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         * {
@@ -13,411 +14,340 @@
         }
 
         body {
-            font-family: "Microsoft YaHei", "SimSun", Arial, sans-serif;
-            font-size: 12px;
-            background: #f0f0f0;
-            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
         }
 
-        /* 顶部工具栏 */
-        .toolbar {
-            background: #e8e8e8;
-            border-bottom: 1px solid #999;
-            padding: 6px 10px;
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
             display: flex;
-            gap: 12px;
+            justify-content: space-between;
             align-items: center;
-            height: 32px;
         }
 
-        .toolbar-item {
-            cursor: pointer;
-            padding: 3px 10px;
-            user-select: none;
-            border: 1px solid transparent;
-            background: #e0e0e0;
-        }
-
-        .toolbar-item:hover {
-            background: #d0d0d0;
-        }
-
-        .toolbar-item.active {
-            background: #fff;
-            border: 1px solid #999;
+        .header h1 {
+            font-size: 28px;
+            color: #333;
             font-weight: bold;
         }
 
-        /* 主容器：三栏布局 */
-        .main-container {
-            height: calc(100vh - 95px);
+        .header-info {
             display: flex;
-            gap: 2px;
-            background: #c0c0c0;
-            padding: 2px;
+            gap: 30px;
+            align-items: center;
         }
 
-        /* 左栏：最高价格 */
-        .left-panel {
-            flex: 1.2;
+        .info-item {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .info-item strong {
+            color: #333;
+            margin-right: 5px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .filter-section {
             background: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
             display: flex;
-            flex-direction: column;
-            border: 1px solid #999;
+            gap: 15px;
+            align-items: center;
         }
 
-        /* 中栏：时间信息 */
-        .center-panel {
+        .filter-input {
             flex: 1;
-            background: white;
-            display: flex;
-            flex-direction: column;
-            border: 1px solid #999;
+            padding: 8px 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
         }
 
-        /* 右栏：最低价格 */
+        .filter-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .main-content {
+            display: flex;
+            gap: 20px;
+            min-height: 600px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .left-panel {
+            flex: 3;
+        }
+
+        .middle-panel {
+            flex: 2;
+        }
+
         .right-panel {
-            flex: 0.8;
-            background: white;
-            display: flex;
-            flex-direction: column;
-            border: 1px solid #999;
+            flex: 2;
         }
 
-        /* 面板标题 */
         .panel-header {
-            background: #e0e0e0;
-            border-bottom: 1px solid #999;
-            padding: 6px 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            font-size: 18px;
             font-weight: bold;
             text-align: center;
         }
 
-        /* 表格容器 */
         .table-wrapper {
+            overflow-y: auto;
             flex: 1;
-            overflow: auto;
         }
 
-        /* 数据表格 */
         .data-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 11px;
         }
 
         .data-table thead {
             position: sticky;
             top: 0;
+            background: #f8f9fa;
             z-index: 10;
         }
 
         .data-table th {
-            background: #d0d0d0;
-            border: 1px solid #999;
-            padding: 4px 4px;
+            padding: 12px 8px;
             text-align: center;
             font-weight: bold;
-            font-size: 10px;
-            white-space: nowrap;
+            color: #333;
+            border-bottom: 2px solid #dee2e6;
+            font-size: 14px;
         }
 
         .data-table td {
-            border: 1px solid #d0d0d0;
-            padding: 2px 4px;
-            text-align: right;
-            font-size: 11px;
-            white-space: nowrap;
+            padding: 10px 8px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+            color: #555;
         }
 
         .data-table tbody tr:hover {
-            background: #e8f4ff;
+            background: #f8f9fa;
         }
 
-        /* 币名列居中 */
         .coin-name {
-            text-align: center !important;
             font-weight: bold;
+            color: #667eea;
         }
 
-        /* 计次列 */
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+            font-size: 14px;
+        }
+
+        /* 计次列样式 */
         .count-column {
-            text-align: center !important;
+            background-color: #fff9c4 !important;
+            font-weight: bold;
         }
 
-        /* 颜色样式 */
+        /* 占比背景色 */
         .green-bg {
-            background: #00ff00 !important;
-            color: #000;
-            font-weight: bold;
-        }
-
-        .red-bg {
-            background: #ff0000 !important;
-            color: #fff;
-            font-weight: bold;
-        }
-
-        .yellow-bg {
-            background: #ffff00 !important;
-            color: #000;
+            background-color: #4caf50 !important;
+            color: white;
             font-weight: bold;
         }
 
         .light-green-bg {
-            background: #90ee90 !important;
-            color: #000;
+            background-color: #8bc34a !important;
+            color: white;
+        }
+
+        .yellow-bg {
+            background-color: #ffeb3b !important;
+            color: #333;
         }
 
         .light-yellow-bg {
-            background: #ffffcc !important;
-            color: #000;
-        }
-
-        /* 底部控制栏 */
-        .control-bar {
-            background: #f0f0f0;
-            padding: 8px 10px;
-            border-top: 1px solid #999;
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            height: 36px;
-        }
-
-        .control-group {
-            display: flex;
-            gap: 5px;
-            align-items: center;
-        }
-
-        .control-label {
-            font-size: 12px;
+            background-color: #fff59d !important;
             color: #333;
         }
 
-        .control-input {
-            padding: 3px 6px;
-            border: 1px solid #999;
+        /* 状态标签 */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
             font-size: 12px;
-            width: 120px;
-            height: 22px;
-        }
-
-        .control-btn {
-            padding: 3px 12px;
-            border: 1px solid #999;
-            background: #e0e0e0;
-            cursor: pointer;
-            font-size: 12px;
-            height: 24px;
-        }
-
-        .control-btn:hover {
-            background: #d0d0d0;
-        }
-
-        .control-btn:active {
-            background: #c0c0c0;
-        }
-
-        /* 状态栏 */
-        .status-bar {
-            background: #f0f0f0;
-            padding: 3px 10px;
-            border-top: 1px solid #999;
-            font-size: 11px;
-            color: #333;
-            display: flex;
-            justify-content: space-between;
-            height: 22px;
-            align-items: center;
-        }
-
-        /* 滚动条 */
-        .table-wrapper::-webkit-scrollbar {
-            width: 12px;
-            height: 12px;
-        }
-
-        .table-wrapper::-webkit-scrollbar-track {
-            background: #f0f0f0;
-        }
-
-        .table-wrapper::-webkit-scrollbar-thumb {
-            background: #c0c0c0;
-            border: 1px solid #999;
-        }
-
-        .table-wrapper::-webkit-scrollbar-thumb:hover {
-            background: #a0a0a0;
-        }
-
-        /* 加载提示 */
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: #666;
-        }
-
-        /* 标记列样式 */
-        .mark-column {
-            text-align: center !important;
             font-weight: bold;
         }
 
-        /* 时间列样式 */
-        .time-column {
-            text-align: center !important;
-            font-size: 10px;
+        .status-high {
+            background-color: #e8f5e9;
+            color: #2e7d32;
         }
 
-        /* 状态列样式 */
-        .status-column {
-            text-align: center !important;
+        .status-low {
+            background-color: #fff3e0;
+            color: #e65100;
+        }
+
+        /* 时间段计数样式 */
+        .count-cell {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .count-cell.has-value {
+            background-color: #e3f2fd;
         }
     </style>
 </head>
 <body>
-    <!-- 顶部工具栏 -->
-    <div class="toolbar">
-        <a href="/" class="toolbar-item" style="text-decoration: none; color: inherit;">
-            <i class="fas fa-home" style="margin-right: 4px;"></i>首页
-        </a>
-        <div class="toolbar-item">查询</div>
-        <div class="toolbar-item">趋势</div>
-        <div class="toolbar-item active">比价</div>
-        <div class="toolbar-item">监控比价</div>
-        <div class="toolbar-item">盘径</div>
-        <div class="toolbar-item">重点监控</div>
-        <div class="toolbar-item">查询</div>
-        <div class="toolbar-item">工具</div>
-    </div>
-
-    <!-- 主容器：三栏布局 -->
-    <div class="main-container">
-        <!-- 左栏：最高价格数据 -->
-        <div class="left-panel">
-            <div class="panel-header">最高价格</div>
-            <div class="table-wrapper">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 50px;">币名</th>
-                            <th style="width: 100px;">最高价格</th>
-                            <th style="width: 50px;">计次</th>
-                            <th style="width: 100px;">最低价格</th>
-                            <th style="width: 50px;">计次</th>
-                            <th style="width: 60px;">最高占比</th>
-                            <th style="width: 60px;">最低占比</th>
-                        </tr>
-                    </thead>
-                    <tbody id="leftTableBody">
-                        <tr>
-                            <td colspan="7" class="loading">加载中...</td>
-                        </tr>
-                    </tbody>
-                </table>
+    <div class="container">
+        <!-- 顶部导航 -->
+        <div class="header">
+            <h1><i class="fas fa-chart-line"></i> 币价比价系统</h1>
+            <div class="header-info">
+                <div class="info-item">
+                    <strong>更新时间:</strong>
+                    <span id="updateTime">--</span>
+                </div>
+                <button class="btn btn-primary" onclick="window.location.href='/'">
+                    <i class="fas fa-home"></i> 返回首页
+                </button>
+                <button class="btn btn-primary" onclick="refreshData()">
+                    <i class="fas fa-sync-alt"></i> 刷新
+                </button>
             </div>
         </div>
 
-        <!-- 中栏：时间信息 -->
-        <div class="center-panel">
-            <div class="panel-header">时间</div>
-            <div class="table-wrapper">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 50px;">币名</th>
-                            <th style="width: 140px;">时间</th>
-                            <th style="width: 60px;">状态</th>
-                            <th style="width: 60px;">价格</th>
-                        </tr>
-                    </thead>
-                    <tbody id="centerTableBody">
-                        <tr>
-                            <td colspan="4" class="loading">加载中...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+        <!-- 筛选区域 -->
+        <div class="filter-section">
+            <i class="fas fa-filter" style="color: #667eea;"></i>
+            <input 
+                type="text" 
+                class="filter-input" 
+                id="filterInput" 
+                placeholder="输入币名筛选..."
+                onkeyup="applyFilter()"
+            >
+            <button class="btn btn-primary" onclick="clearFilter()">
+                <i class="fas fa-times"></i> 清除筛选
+            </button>
         </div>
 
-        <!-- 右栏：统计数据（可切换最高/最低） -->
-        <div class="right-panel">
-            <div class="panel-header">
-                <span id="rightPanelTitle">最高</span>
-                <button id="toggleStatsBtn" style="margin-left: 10px; padding: 2px 8px; border: 1px solid #999; background: #f0f0f0; cursor: pointer; font-size: 11px;">切换</button>
+        <!-- 三栏布局 -->
+        <div class="main-content">
+            <!-- 左栏：汇总统计（7列） -->
+            <div class="panel left-panel">
+                <div class="panel-header">价格汇总统计</div>
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">币名</th>
+                                <th style="width: 120px;">最高价格</th>
+                                <th style="width: 60px;">计次</th>
+                                <th style="width: 120px;">最低价格</th>
+                                <th style="width: 60px;">计次</th>
+                                <th style="width: 80px;">最高占比</th>
+                                <th style="width: 80px;">最低占比</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leftTableBody">
+                            <tr>
+                                <td colspan="7" class="loading">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <div class="table-wrapper">
-                <!-- 最高统计表 -->
-                <table class="data-table" id="highStatsTable">
-                    <thead>
-                        <tr>
-                            <th style="width: 50px;">币名</th>
-                            <th style="width: 40px;">今天</th>
-                            <th style="width: 40px;">三日</th>
-                            <th style="width: 40px;">七天</th>
-                        </tr>
-                    </thead>
-                    <tbody id="highStatsBody">
-                        <tr>
-                            <td colspan="4" class="loading">加载中...</td>
-                        </tr>
-                    </tbody>
-                </table>
-                
-                <!-- 最低统计表（初始隐藏） -->
-                <table class="data-table" id="lowStatsTable" style="display: none;">
-                    <thead>
-                        <tr>
-                            <th style="width: 50px;">币名</th>
-                            <th style="width: 40px;">今天</th>
-                            <th style="width: 40px;">三日</th>
-                            <th style="width: 40px;">七天</th>
-                        </tr>
-                    </thead>
-                    <tbody id="lowStatsBody">
-                        <tr>
-                            <td colspan="4" class="loading">加载中...</td>
-                        </tr>
-                    </tbody>
-                </table>
+
+            <!-- 中栏：极值记录（4列） -->
+            <div class="panel middle-panel">
+                <div class="panel-header">极值记录</div>
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">币名</th>
+                                <th style="width: 150px;">时间</th>
+                                <th style="width: 80px;">状态</th>
+                                <th style="width: 80px;">跳播</th>
+                            </tr>
+                        </thead>
+                        <tbody id="middleTableBody">
+                            <tr>
+                                <td colspan="4" class="loading">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
-        </div>
-    </div>
 
-    <!-- 底部控制栏 -->
-    <div class="control-bar">
-        <div class="control-group">
-            <span class="control-label">币名</span>
-            <input type="text" class="control-input" id="filterInput" placeholder="筛选...">
-        </div>
-        <div class="control-group">
-            <span class="control-label">最大</span>
-            <input type="text" class="control-input" id="maxInput" placeholder="">
-        </div>
-        <div class="control-group">
-            <span class="control-label">最小</span>
-            <input type="text" class="control-input" id="minInput" placeholder="">
-        </div>
-        <button class="control-btn" id="addBtn">添加</button>
-        <button class="control-btn" id="deleteBtn">删除</button>
-        <button class="control-btn" id="exportBtn">导出</button>
-        <button class="control-btn" id="importBtn">导入</button>
-        <div style="flex: 1;"></div>
-        <span id="summaryText" style="font-size: 11px;">比价榜单 5 1 &nbsp;&nbsp;&nbsp; 盘进榜单 计次 5 6</span>
-    </div>
-
-    <!-- 状态栏 -->
-    <div class="status-bar">
-        <div>
-            <span>推送 token</span>
-            <span style="margin-left: 20px;" id="tokenText">AT_IT2I.qtWJVJl3Gu.ewTg7uNh9F.ew8gBu.giJk</span>
-        </div>
-        <div>
-            <button class="control-btn" style="height: 18px; padding: 2px 8px;" id="configBtn">推送为因群桂</button>
-            <button class="control-btn" style="height: 18px; padding: 2px 8px; margin-left: 5px;" id="machineBtn">机器号</button>
+            <!-- 右栏：时间段统计（4列） -->
+            <div class="panel right-panel">
+                <div class="panel-header">时间段统计</div>
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">币名</th>
+                                <th style="width: 80px;">今天</th>
+                                <th style="width: 80px;">三日</th>
+                                <th style="width: 80px;">七天</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rightTableBody">
+                            <tr>
+                                <td colspan="4" class="loading">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 

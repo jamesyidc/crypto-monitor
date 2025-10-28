@@ -765,6 +765,76 @@ export class CoinService {
     
     return v1Counts;
   }
+
+  // 🆕 获取时间段统计（今天、三日、七天的极值触发次数）
+  async getTimeRangeStats() {
+    // 获取所有币种列表
+    const coins = await this.getAllCoins();
+    
+    // 计算时间边界（使用北京时间 UTC+8）
+    const now = new Date();
+    const beijingOffset = 8 * 60 * 60 * 1000; // 8小时的毫秒数
+    const beijingNow = new Date(now.getTime() + beijingOffset);
+    
+    // 北京时间今天0点
+    const beijingTodayStart = new Date(
+      beijingNow.getFullYear(),
+      beijingNow.getMonth(),
+      beijingNow.getDate()
+    );
+    const todayStart = new Date(beijingTodayStart.getTime() - beijingOffset);
+    
+    const threeDaysAgo = new Date(todayStart.getTime() - 3 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000);
+    
+    const todayStartStr = todayStart.toISOString();
+    const threeDaysAgoStr = threeDaysAgo.toISOString();
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString();
+    
+    // 获取所有币种的统计数据
+    const stats = await Promise.all(
+      (coins as any[]).map(async (coin: any) => {
+        // 今天的极值记录数
+        const todayResult = await this.db
+          .prepare(`
+            SELECT COUNT(*) as count
+            FROM extreme_records
+            WHERE symbol = ? AND timestamp >= ?
+          `)
+          .bind(coin.symbol, todayStartStr)
+          .first();
+        
+        // 三天内的极值记录数
+        const threeDayResult = await this.db
+          .prepare(`
+            SELECT COUNT(*) as count
+            FROM extreme_records
+            WHERE symbol = ? AND timestamp >= ?
+          `)
+          .bind(coin.symbol, threeDaysAgoStr)
+          .first();
+        
+        // 七天内的极值记录数
+        const sevenDayResult = await this.db
+          .prepare(`
+            SELECT COUNT(*) as count
+            FROM extreme_records
+            WHERE symbol = ? AND timestamp >= ?
+          `)
+          .bind(coin.symbol, sevenDaysAgoStr)
+          .first();
+        
+        return {
+          symbol: coin.symbol,
+          today: (todayResult as any)?.count || 0,
+          three_days: (threeDayResult as any)?.count || 0,
+          seven_days: (sevenDayResult as any)?.count || 0
+        };
+      })
+    );
+    
+    return stats;
+  }
 }
 
 // 将 CoinGecko ID 转换为符号

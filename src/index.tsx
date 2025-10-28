@@ -166,6 +166,94 @@ app.get('/api/compare', async (c) => {
   }
 });
 
+// 🆕 API: 比价页面 - 汇总统计（左栏）
+app.get('/api/compare/summary', async (c) => {
+  try {
+    const coinService = new CoinService(c.env.DB);
+    
+    // 获取所有极值数据（包含计次）
+    const extremes: any = await coinService.getAllPriceExtremes();
+    
+    // 获取最新的币种详情（当前价格）
+    const latestRounds: any = await coinService.getLatestRoundStats(1);
+    const latestRound = latestRounds[0];
+    
+    if (!latestRound) {
+      return c.json({ success: false, error: '暂无数据' }, 404);
+    }
+    
+    const coinDetails: any = await coinService.getLatestCoinDetails(latestRound.round_time);
+    
+    // 组合数据：动态计算占比
+    const coins = extremes.map((extreme: any) => {
+      const detail = coinDetails.find((d: any) => d.symbol === extreme.symbol);
+      const currentPrice = detail ? detail.price : 0;
+      
+      // 实时计算占比
+      const highRatio = extreme.all_time_high > 0 
+        ? (currentPrice / extreme.all_time_high) * 100 
+        : 0;
+      
+      const lowRatio = extreme.all_time_low > 0 
+        ? (currentPrice / extreme.all_time_low) * 100 
+        : 0;
+      
+      return {
+        symbol: extreme.symbol,
+        highPrice: extreme.all_time_high,
+        highCount: extreme.high_count,
+        lowPrice: extreme.all_time_low,
+        lowCount: extreme.low_count,
+        currentPrice: currentPrice,
+        highRatio: highRatio,
+        lowRatio: lowRatio
+      };
+    });
+    
+    return c.json({
+      success: true,
+      updateTime: latestRound.round_time,
+      coins: coins
+    });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// 🆕 API: 比价页面 - 极值记录（中栏）
+app.get('/api/compare/records', async (c) => {
+  try {
+    const limit = parseInt(c.req.query('limit') || '100');
+    const coinService = new CoinService(c.env.DB);
+    
+    const records = await coinService.getLatestExtremeRecords(limit);
+    
+    return c.json({
+      success: true,
+      records: records
+    });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// 🆕 API: 比价页面 - 时间段统计（右栏）
+app.get('/api/compare/timestats', async (c) => {
+  try {
+    const coinService = new CoinService(c.env.DB);
+    
+    // 获取时间段统计
+    const stats = await coinService.getTimeRangeStats();
+    
+    return c.json({
+      success: true,
+      stats: stats
+    });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
 // API: 获取极值记录（用于比价页面左栏显示）
 app.get('/api/extreme-records', async (c) => {
   try {
