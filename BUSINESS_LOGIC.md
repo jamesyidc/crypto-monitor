@@ -191,8 +191,10 @@ BTC触发新高 →
 
 ## 数据管理
 
-### 极值数据基准重置
-**执行日期：** 2025-10-28
+### 操作记录
+
+#### 1. 极值数据基准重置
+**执行日期：** 2025-10-28 15:40
 
 **操作内容：**
 1. 清除 `price_extremes` 表的所有旧数据
@@ -204,18 +206,64 @@ BTC触发新高 →
 - 每个币种的高计次和低计次（累计触发次数）
 - 占比由当前价格动态计算
 
+**执行命令：**
+```bash
+npx wrangler d1 execute webapp-production --local --file=./reset_price_extremes.sql
+```
+
 **执行脚本：** `reset_price_extremes.sql`
 
 **币种列表：**
 OKB, DOT, LINK, ADA, FIL, XLM, HBAR, BCH, ETC, TON, TRX, SUI, DOGE, SOL, LTC, BNB, XRP, ETH, BTC, CRO, CFX, CRV, APT, NEAR, UNI, AAVE, STX, TAO, LDO
 
+**结果：**
+- ✅ 成功删除所有旧数据
+- ✅ 成功导入29个币种新数据
+- ✅ 比价页面左栏显示新的基准数据
+
+---
+
+#### 2. 清零今天的极值记录
+**执行日期：** 2025-10-28 15:45
+
+**用户需求：** "把今天的极值记录清零"
+
+**操作内容：**
+1. 删除 `extreme_records` 表中今天（北京时间）的所有记录
+2. 不影响 `price_extremes` 表的汇总数据
+
+**执行命令：**
+```bash
+npx wrangler d1 execute webapp-production --local --command="DELETE FROM extreme_records WHERE DATE(timestamp) = DATE('now', '+8 hours')"
+```
+
+**影响范围：**
+- `extreme_records` 表：删除今天的所有记录
+- 比价页面中栏：清空，显示"暂无记录"
+- 比价页面右栏：今天、三日、七天的统计归零
+- `price_extremes` 表：不受影响
+
+**结果：**
+- ✅ 成功删除今天的所有极值记录
+- ✅ 剩余记录数：0 条
+- ✅ 比价页面中栏和右栏已清空
+
+**后续行为：**
+- 当下次执行分析触发新的极值时，记录会重新开始累积
+- 计次会在原有基础上继续 +1（不清零）
+
 ---
 
 ## 版本历史
 
-### v1.1 - 2025-10-28
+### v1.2 - 2025-10-28 15:45
+- 记录清零今天的极值记录操作
+- 详细说明操作命令和影响范围
+
+### v1.1 - 2025-10-28 15:40
 - 添加极值数据基准重置记录
 - 记录29个币种的新基准数据
+- 添加操作记录章节
 
 ### v1.0 - 2025-10-28
 - 初始版本
