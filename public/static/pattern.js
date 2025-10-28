@@ -973,19 +973,19 @@ function renderConsecutiveTable(coins) {
         <td class="py-3 px-4 font-bold">${coin.symbol}</td>
         <td class="py-3 px-4 text-center">
           <span class="text-xl font-bold text-red-600">${coin.max_streak || 0}</span>
-          <span class="text-xs text-gray-500">天</span>
+          <span class="text-xs text-gray-500">根</span>
         </td>
         <td class="py-3 px-4 text-center text-sm text-gray-600">
-          ${coin.max_streak_start_date || '-'}
+          ${coin.max_streak_start_time || '-'}
         </td>
         <td class="py-3 px-4 text-center text-sm text-gray-600">
-          ${coin.max_streak_end_date || '-'}
+          ${coin.max_streak_end_time || '-'}
         </td>
         <td class="py-3 px-4 text-center">
           ${isCurrentlyRising 
             ? `<span class="text-lg font-bold text-green-600">${coin.current_streak}</span>` 
             : '<span class="text-gray-400">0</span>'}
-          <span class="text-xs text-gray-500">天</span>
+          <span class="text-xs text-gray-500">根</span>
         </td>
         <td class="py-3 px-4 text-center font-bold text-blue-600">
           ${highRatio}%

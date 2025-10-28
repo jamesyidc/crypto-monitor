@@ -1,5 +1,5 @@
 // 连续上涨占优统计服务
-// 统计币种连续上涨占比大于下跌占比的天数
+// 统计币种连续上涨占比大于下跌占比的K线数量
 
 export class ConsecutiveRiseService {
   private db: D1Database;
@@ -9,11 +9,20 @@ export class ConsecutiveRiseService {
   }
 
   /**
-   * 每日检查并更新连续上涨占优统计
+   * 每次K线数据更新后调用，检查并更新连续统计
    */
-  async updateDailyStats() {
+  async updateKlineStats() {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      // 获取最新的round_time
+      const latestRoundResult = await this.db
+        .prepare('SELECT MAX(round_time) as round_time FROM round_stats')
+        .first();
+      
+      if (!latestRoundResult || !latestRoundResult.round_time) {
+        throw new Error('没有找到最新的round_time');
+      }
+
+      const roundTime = latestRoundResult.round_time as string;
 
       // 获取所有币种的当前占比数据
       const result = await this.db
@@ -35,10 +44,9 @@ export class ConsecutiveRiseService {
             END as low_ratio
           FROM price_extremes pe
           JOIN coin_round_details cd ON pe.symbol = cd.symbol
-          WHERE cd.round_time = (
-            SELECT MAX(round_time) FROM coin_round_details
-          )
+          WHERE cd.round_time = ?
         `)
+        .bind(roundTime)
         .all();
 
       const coins = result.results;
@@ -48,14 +56,14 @@ export class ConsecutiveRiseService {
           coin.symbol as string,
           coin.high_ratio as number,
           coin.low_ratio as number,
-          today
+          roundTime
         );
       }
 
       return {
         success: true,
         processedCoins: coins.length,
-        date: today
+        roundTime: roundTime
       };
     } catch (error: any) {
       console.error('更新连续上涨统计失败:', error);
@@ -70,7 +78,7 @@ export class ConsecutiveRiseService {
     symbol: string,
     highRatio: number,
     lowRatio: number,
-    checkDate: string
+    checkTime: string
   ) {
     try {
       // 获取现有记录
@@ -90,46 +98,49 @@ export class ConsecutiveRiseService {
           .prepare(`
             INSERT INTO consecutive_rise_dominance (
               symbol, current_streak, max_streak, 
-              max_streak_start_date, max_streak_end_date,
-              last_check_date, last_high_ratio, last_low_ratio
+              max_streak_start_time, max_streak_end_time,
+              last_check_time, last_high_ratio, last_low_ratio
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
           `)
           .bind(
             symbol,
             isRiseDominant ? 1 : 0,
             isRiseDominant ? 1 : 0,
-            isRiseDominant ? checkDate : null,
-            isRiseDominant ? checkDate : null,
-            checkDate,
+            isRiseDominant ? checkTime : null,
+            isRiseDominant ? checkTime : null,
+            checkTime,
             highRatio,
             lowRatio
           )
           .run();
       } else {
         // 现有币种：更新统计
-        const lastCheckDate = existing.last_check_date as string;
+        const lastCheckTime = existing.last_check_time as string;
         const currentStreak = existing.current_streak as number;
         const maxStreak = existing.max_streak as number;
 
-        // 检查是否是连续的天（避免重复统计同一天）
-        if (lastCheckDate === checkDate) {
-          return; // 今天已经统计过了
+        // 检查是否是重复的round_time（避免重复统计）
+        if (lastCheckTime === checkTime) {
+          return; // 这个K线已经统计过了
         }
 
         let newCurrentStreak: number;
         let newMaxStreak: number = maxStreak;
-        let newMaxStreakStart: string | null = existing.max_streak_start_date as string;
-        let newMaxStreakEnd: string | null = existing.max_streak_end_date as string;
+        let newMaxStreakStart: string | null = existing.max_streak_start_time as string;
+        let newMaxStreakEnd: string | null = existing.max_streak_end_time as string;
 
         if (isRiseDominant) {
-          // 上涨占优：连续天数+1
+          // 上涨占优：连续K线数+1
           newCurrentStreak = currentStreak + 1;
 
           // 判断是否打破历史记录
           if (newCurrentStreak > maxStreak) {
             newMaxStreak = newCurrentStreak;
-            newMaxStreakStart = existing.max_streak_start_date as string || checkDate;
-            newMaxStreakEnd = checkDate;
+            // 如果是新的连续开始，记录开始时间；否则保持原开始时间
+            if (currentStreak === 0) {
+              newMaxStreakStart = checkTime;
+            }
+            newMaxStreakEnd = checkTime;
           }
         } else {
           // 下跌占优或平：连续中断，重置为0
@@ -142,9 +153,9 @@ export class ConsecutiveRiseService {
             SET 
               current_streak = ?,
               max_streak = ?,
-              max_streak_start_date = ?,
-              max_streak_end_date = ?,
-              last_check_date = ?,
+              max_streak_start_time = ?,
+              max_streak_end_time = ?,
+              last_check_time = ?,
               last_high_ratio = ?,
               last_low_ratio = ?,
               updated_at = CURRENT_TIMESTAMP
@@ -155,7 +166,7 @@ export class ConsecutiveRiseService {
             newMaxStreak,
             newMaxStreakStart,
             newMaxStreakEnd,
-            checkDate,
+            checkTime,
             highRatio,
             lowRatio,
             symbol
@@ -169,7 +180,7 @@ export class ConsecutiveRiseService {
   }
 
   /**
-   * 获取连续天数超过指定阈值的币种
+   * 获取连续K线数超过指定阈值的币种
    */
   async getCoinsAboveThreshold(threshold: number = 40) {
     try {

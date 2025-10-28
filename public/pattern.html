@@ -337,15 +337,15 @@
                 </div>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div class="text-center p-4 bg-yellow-50 rounded-lg">
-                        <div class="text-gray-500 mb-1">连续≥40天</div>
+                        <div class="text-gray-500 mb-1">连续≥40根</div>
                         <div id="above40Count" class="text-2xl font-bold text-yellow-600">-</div>
                     </div>
                     <div class="text-center p-4 bg-orange-50 rounded-lg">
-                        <div class="text-gray-500 mb-1">连续≥60天</div>
+                        <div class="text-gray-500 mb-1">连续≥60根</div>
                         <div id="above60Count" class="text-2xl font-bold text-orange-600">-</div>
                     </div>
                     <div class="text-center p-4 bg-red-50 rounded-lg">
-                        <div class="text-gray-500 mb-1">连续≥80天</div>
+                        <div class="text-gray-500 mb-1">连续≥80根</div>
                         <div id="above80Count" class="text-2xl font-bold text-red-600">-</div>
                     </div>
                     <div class="text-center p-4 bg-purple-50 rounded-lg">
@@ -362,10 +362,10 @@
                     <div>
                         <p class="font-bold text-blue-800 mb-1">统计说明</p>
                         <p class="text-sm text-blue-700">
-                            • 上涨占优：当天占比上涨（当前价/历史最高）> 占比下跌（当前价/历史最低）<br>
-                            • 连续天数：上涨占优持续的天数，中断后重新计数<br>
-                            • 最大连续：历史上最长的连续上涨占优天数<br>
-                            • 阈值40天：连续上涨占优达到40天及以上的币种会被记录
+                            • 上涨占优：每根K线检查，占比上涨（当前价/历史最高）> 占比下跌（当前价/历史最低）<br>
+                            • 连续K线数：上涨占优持续的K线根数，中断后重新计数<br>
+                            • 最大连续：历史上最长的连续上涨占优K线数<br>
+                            • 阈值40根：连续上涨占优达到40根K线及以上的币种会被记录
                         </p>
                     </div>
                 </div>
@@ -375,16 +375,16 @@
             <div class="bg-white rounded-lg shadow-md p-6">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-bold text-gray-800">
-                        <i class="fas fa-list mr-2"></i>连续上涨占优记录（≥40天）
+                        <i class="fas fa-list mr-2"></i>连续上涨占优记录（≥40根K线）
                     </h3>
                     <div class="flex items-center gap-2">
                         <label class="text-sm text-gray-600">阈值：</label>
                         <select id="thresholdSelect" onchange="changeThreshold(this.value)" class="px-3 py-1 border rounded">
-                            <option value="40" selected>≥40天</option>
-                            <option value="50">≥50天</option>
-                            <option value="60">≥60天</option>
-                            <option value="80">≥80天</option>
-                            <option value="100">≥100天</option>
+                            <option value="40" selected>≥40根</option>
+                            <option value="50">≥50根</option>
+                            <option value="60">≥60根</option>
+                            <option value="80">≥80根</option>
+                            <option value="100">≥100根</option>
                         </select>
                     </div>
                 </div>
@@ -393,9 +393,9 @@
                         <thead>
                             <tr class="border-b-2 border-gray-200">
                                 <th class="text-left py-3 px-4">币种</th>
-                                <th class="text-center py-3 px-4">最大连续天数</th>
-                                <th class="text-center py-3 px-4">开始日期</th>
-                                <th class="text-center py-3 px-4">结束日期</th>
+                                <th class="text-center py-3 px-4">最大连续K线数</th>
+                                <th class="text-center py-3 px-4">开始时间</th>
+                                <th class="text-center py-3 px-4">结束时间</th>
                                 <th class="text-center py-3 px-4">当前连续</th>
                                 <th class="text-center py-3 px-4">占比上涨</th>
                                 <th class="text-center py-3 px-4">占比下跌</th>

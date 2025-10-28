@@ -2544,7 +2544,7 @@ app.get('/api/consecutive-rise/above-threshold', async (c) => {
 app.post('/api/consecutive-rise/update', async (c) => {
   try {
     const consecutiveRiseService = new ConsecutiveRiseService(c.env.DB);
-    const result = await consecutiveRiseService.updateDailyStats();
+    const result = await consecutiveRiseService.updateKlineStats();
     
     return c.json({
       success: true,
