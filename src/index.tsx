@@ -2524,7 +2524,7 @@ app.get('/api/consecutive-rise/all', async (c) => {
 // API: 获取连续天数超过阈值的币种
 app.get('/api/consecutive-rise/above-threshold', async (c) => {
   try {
-    const threshold = parseInt(c.req.query('threshold') || '40');
+    const threshold = parseInt(c.req.query('threshold') || '20');
     const consecutiveRiseService = new ConsecutiveRiseService(c.env.DB);
     const coins = await consecutiveRiseService.getCoinsAboveThreshold(threshold);
     

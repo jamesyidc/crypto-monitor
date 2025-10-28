@@ -912,7 +912,7 @@ function showToast(message, type) {
 // 连续上涨占优统计
 // ========================================
 
-let currentThreshold = 40;
+let currentThreshold = 20;
 
 async function loadConsecutiveRise() {
   try {
@@ -931,9 +931,9 @@ async function loadConsecutiveOverview() {
     
     if (data.success && data.overview) {
       const overview = data.overview;
+      document.getElementById('above20Count').textContent = overview.above_20 || 0;
+      document.getElementById('above30Count').textContent = overview.above_30 || 0;
       document.getElementById('above40Count').textContent = overview.above_40 || 0;
-      document.getElementById('above60Count').textContent = overview.above_60 || 0;
-      document.getElementById('above80Count').textContent = overview.above_80 || 0;
       document.getElementById('maxStreakOverall').textContent = overview.max_streak_overall || 0;
     }
   } catch (error) {
@@ -941,7 +941,7 @@ async function loadConsecutiveOverview() {
   }
 }
 
-async function loadConsecutiveTable(threshold = 40) {
+async function loadConsecutiveTable(threshold = 20) {
   try {
     const response = await fetch(`/api/consecutive-rise/above-threshold?threshold=${threshold}`);
     const data = await response.json();

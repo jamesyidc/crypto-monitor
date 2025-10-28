@@ -182,7 +182,7 @@ export class ConsecutiveRiseService {
   /**
    * 获取连续K线数超过指定阈值的币种
    */
-  async getCoinsAboveThreshold(threshold: number = 40) {
+  async getCoinsAboveThreshold(threshold: number = 20) {
     try {
       const result = await this.db
         .prepare(`
@@ -244,10 +244,9 @@ export class ConsecutiveRiseService {
         .prepare(`
           SELECT 
             COUNT(*) as total_coins,
+            COUNT(CASE WHEN max_streak >= 20 THEN 1 END) as above_20,
+            COUNT(CASE WHEN max_streak >= 30 THEN 1 END) as above_30,
             COUNT(CASE WHEN max_streak >= 40 THEN 1 END) as above_40,
-            COUNT(CASE WHEN max_streak >= 60 THEN 1 END) as above_60,
-            COUNT(CASE WHEN max_streak >= 80 THEN 1 END) as above_80,
-            COUNT(CASE WHEN max_streak >= 100 THEN 1 END) as above_100,
             COUNT(CASE WHEN current_streak > 0 THEN 1 END) as currently_rising,
             MAX(max_streak) as max_streak_overall,
             AVG(max_streak) as avg_max_streak
