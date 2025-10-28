@@ -1,7 +1,14 @@
 // 连续上涨占优统计服务
-// 统计币种连续上涨占比大于下跌占比的K线数量
 // 
-// 重要：使用 kline_data 表的真实K线数据，而非 coin_round_details 的采集轮次
+// 核心定义：
+// - 占比下跌 = 往前40根K线中，(下降通道 + 下跌衰竭) 的K线占比
+// - 占比上涨 = 往前40根K线中，(上升通道 + 上升衰竭) 的K线占比
+// - 上涨占优 = up_channel_exhaustion_ratio > down_channel_exhaustion_ratio
+//
+// 数据来源：从 klineService.getKlineWithIndicators() 获取带技术指标的K线数据
+// 重要：必须使用已计算好的 up/down_channel_exhaustion_ratio 字段
+
+import { KlineService } from './klineService';
 
 export class ConsecutiveRiseService {
   private db: D1Database;
@@ -12,7 +19,7 @@ export class ConsecutiveRiseService {
 
   /**
    * 回溯分析所有历史K线数据，重新计算连续统计
-   * 使用 kline_data 表的真实K线数据
+   * 使用 indicatorService 获取带占比字段的K线数据
    */
   async analyzeHistoricalData(timeframe: string = '5m', limit: number = 1000) {
     try {
@@ -65,55 +72,39 @@ export class ConsecutiveRiseService {
 
   /**
    * 分析单个币种的所有K线数据
+   * 使用 klineService 获取带占比字段的K线数据
    */
   private async analyzeSymbolKlines(symbol: string, timeframe: string, limit: number) {
-    // 获取该币种的历史K线数据（最近N根）
-    const klinesResult = await this.db
-      .prepare(`
-        SELECT 
-          kd.open_time,
-          kd.close as price,
-          pe.all_time_high,
-          pe.all_time_low
-        FROM kline_data kd
-        JOIN price_extremes pe ON kd.symbol = pe.symbol
-        WHERE kd.symbol = ? 
-          AND kd.timeframe = ?
-        ORDER BY kd.open_time DESC
-        LIMIT ?
-      `)
-      .bind(symbol, timeframe, limit)
-      .all();
+    // 使用 klineService 获取带技术指标的K线数据
+    const klineService = new KlineService(this.db);
+    const result = await klineService.getKlineWithIndicators(symbol, timeframe, limit);
 
-    const klines = klinesResult.results.reverse(); // 按时间正序
-
-    if (klines.length === 0) {
+    if (!result || !result.data || result.data.length === 0) {
       return; // 没有K线数据，跳过
     }
+
+    // getKlineWithIndicators返回的数据已经是从新到旧排列
+    // 需要反转为从旧到新，以便按时间顺序分析
+    const klines = result.data.reverse();
 
     // 统计连续上涨占优
     let currentStreak = 0;
     let maxStreak = 0;
     let maxStreakStartTime: string | null = null;
     let maxStreakEndTime: string | null = null;
-    let lastHighRatio = 0;
-    let lastLowRatio = 0;
+    let lastUpRatio = 0;
+    let lastDownRatio = 0;
 
     for (const kline of klines) {
-      const price = kline.price as number;
-      const allTimeHigh = kline.all_time_high as number;
-      const allTimeLow = kline.all_time_low as number;
-      const openTime = new Date(kline.open_time as number).toISOString();
+      const upRatio = kline.up_channel_exhaustion_ratio || 0;
+      const downRatio = kline.down_channel_exhaustion_ratio || 0;
+      const openTime = kline.time; // 格式：2025/10/28 21:55:00
 
-      // 计算占比
-      const highRatio = allTimeHigh > 0 ? (price * 100.0 / allTimeHigh) : 0;
-      const lowRatio = allTimeLow > 0 ? (price * 100.0 / allTimeLow) : 0;
+      lastUpRatio = upRatio;
+      lastDownRatio = downRatio;
 
-      lastHighRatio = highRatio;
-      lastLowRatio = lowRatio;
-
-      // 判断是否上涨占优
-      const isRiseDominant = highRatio > lowRatio;
+      // 判断是否上涨占优：占比上涨 > 占比下跌
+      const isRiseDominant = upRatio > downRatio;
 
       if (isRiseDominant) {
         if (currentStreak === 0) {
@@ -129,9 +120,10 @@ export class ConsecutiveRiseService {
           maxStreakEndTime = openTime;
           
           // 计算开始时间（往前推N根K线）
-          const startIndex = klines.findIndex(k => new Date(k.open_time as number).toISOString() === openTime) - currentStreak + 1;
+          const currentIndex = klines.findIndex(k => k.time === openTime);
+          const startIndex = currentIndex - currentStreak + 1;
           if (startIndex >= 0) {
-            maxStreakStartTime = new Date(klines[startIndex].open_time as number).toISOString();
+            maxStreakStartTime = klines[startIndex].time;
           } else {
             maxStreakStartTime = openTime;
           }
@@ -158,8 +150,8 @@ export class ConsecutiveRiseService {
         maxStreakStartTime,
         maxStreakEndTime,
         new Date().toISOString(),
-        lastHighRatio,
-        lastLowRatio
+        lastUpRatio,   // 存储占比上涨
+        lastDownRatio  // 存储占比下跌
       )
       .run();
   }
@@ -169,37 +161,21 @@ export class ConsecutiveRiseService {
    */
   async updateSymbolKline(symbol: string, timeframe: string = '5m') {
     try {
-      // 获取该币种最新的K线
-      const latestKline = await this.db
-        .prepare(`
-          SELECT 
-            kd.open_time,
-            kd.close as price,
-            pe.all_time_high,
-            pe.all_time_low
-          FROM kline_data kd
-          JOIN price_extremes pe ON kd.symbol = pe.symbol
-          WHERE kd.symbol = ? 
-            AND kd.timeframe = ?
-          ORDER BY kd.open_time DESC
-          LIMIT 1
-        `)
-        .bind(symbol, timeframe)
-        .first();
+      // 使用 klineService 获取最新的K线数据（带技术指标）
+      const klineService = new KlineService(this.db);
+      const result = await klineService.getKlineWithIndicators(symbol, timeframe, 1);
 
-      if (!latestKline) {
+      if (!result || !result.data || result.data.length === 0) {
         return; // 没有K线数据
       }
 
-      const price = latestKline.price as number;
-      const allTimeHigh = latestKline.all_time_high as number;
-      const allTimeLow = latestKline.all_time_low as number;
-      const openTime = new Date(latestKline.open_time as number).toISOString();
+      const latestKline = result.data[0];
+      const upRatio = latestKline.up_channel_exhaustion_ratio || 0;
+      const downRatio = latestKline.down_channel_exhaustion_ratio || 0;
+      const openTime = latestKline.time;
 
-      // 计算占比
-      const highRatio = allTimeHigh > 0 ? (price * 100.0 / allTimeHigh) : 0;
-      const lowRatio = allTimeLow > 0 ? (price * 100.0 / allTimeLow) : 0;
-      const isRiseDominant = highRatio > lowRatio;
+      // 判断是否上涨占优：占比上涨 > 占比下跌
+      const isRiseDominant = upRatio > downRatio;
 
       // 获取现有统计
       const existing = await this.db
@@ -224,8 +200,8 @@ export class ConsecutiveRiseService {
             isRiseDominant ? openTime : null,
             isRiseDominant ? openTime : null,
             openTime,
-            highRatio,
-            lowRatio
+            upRatio,
+            downRatio
           )
           .run();
       } else {
@@ -272,8 +248,8 @@ export class ConsecutiveRiseService {
             newMaxStreakStart,
             newMaxStreakEnd,
             openTime,
-            highRatio,
-            lowRatio,
+            upRatio,
+            downRatio,
             symbol
           )
           .run();
