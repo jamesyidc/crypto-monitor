@@ -389,6 +389,12 @@ function renderTable(klineData, alerts = []) {
         <td class="py-2 px-1 text-center indicator-col">
           ${getChannelIcon(k.channel_state)}
         </td>
+        <td class="py-2 px-1 text-right font-mono indicator-col ${k.down_channel_exhaustion_ratio ? (k.down_channel_exhaustion_ratio > 50 ? 'text-red-600 font-bold' : 'text-gray-600') : 'text-gray-400'}">
+          ${k.down_channel_exhaustion_ratio !== null && k.down_channel_exhaustion_ratio !== undefined ? k.down_channel_exhaustion_ratio.toFixed(2) + '%' : '-'}
+        </td>
+        <td class="py-2 px-1 text-right font-mono indicator-col ${k.up_channel_exhaustion_ratio ? (k.up_channel_exhaustion_ratio > 50 ? 'text-green-600 font-bold' : 'text-gray-600') : 'text-gray-400'}">
+          ${k.up_channel_exhaustion_ratio !== null && k.up_channel_exhaustion_ratio !== undefined ? k.up_channel_exhaustion_ratio.toFixed(2) + '%' : '-'}
+        </td>
       </tr>
     `;
   }).join('');
@@ -607,18 +613,18 @@ function formatVolume(volume) {
 // 显示加载状态
 function showLoading() {
   const tbody = document.getElementById('klineTableBody');
-  tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>加载中...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="23" class="text-center py-8 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>加载中...</td></tr>';
 }
 
 // 显示无数据
 function showNoData() {
   const tbody = document.getElementById('klineTableBody');
-  tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500">暂无数据，请点击"同步数据"按钮获取</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="23" class="text-center py-8 text-gray-500">暂无数据，请点击"同步数据"按钮获取</td></tr>';
   document.getElementById('statsPanel').classList.add('hidden');
 }
 
 // 显示错误
 function showError(message) {
   const tbody = document.getElementById('klineTableBody');
-  tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-red-500"><i class="fas fa-exclamation-circle mr-2"></i>${message}</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="23" class="text-center py-8 text-red-500"><i class="fas fa-exclamation-circle mr-2"></i>${message}</td></tr>`;
 }

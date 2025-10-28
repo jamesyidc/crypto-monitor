@@ -249,7 +249,10 @@ export class IndicatorService {
         boll_sar_diff: bollSarDiff ? parseFloat(bollSarDiff.toFixed(4)) : null,
         boll_angle_mb: chState.angle_MB,
         boll_width_change: chState.width_change,
-        channel_state: chState.state
+        channel_state: chState.state,
+        // 占比字段将在后处理中计算
+        down_channel_exhaustion_ratio: null,
+        up_channel_exhaustion_ratio: null
       });
     }
 
@@ -268,6 +271,41 @@ export class IndicatorService {
       (k as any).is_v1 = volumeV1 === 1;
       (k as any).is_v2 = volumeV2 === 1;
       (k as any).volume_level = volumeV1 === 1 ? 'V1' : volumeV2 === 1 ? 'V2' : 'Normal';
+    });
+
+    // 🆕 计算40根K线滚动窗口的通道状态占比
+    // 遍历每根K线，计算其往前40根K线的通道状态占比
+    result.forEach((k, idx) => {
+      // 确定窗口范围：从当前K线往前数40根（包含当前）
+      // 注意：如果不足40根，就从第0根开始
+      const windowStart = Math.max(0, idx - 39);
+      const windowEnd = idx + 1; // slice不包含结束索引，所以+1
+      const window = result.slice(windowStart, windowEnd);
+      const windowSize = window.length;
+
+      // 统计符合条件的K线数量
+      let downCount = 0;
+      let upCount = 0;
+
+      window.forEach(item => {
+        const state = item.channel_state;
+        // 下降通道 + 下跌衰竭
+        if (state === '下降通道 📉' || state === '下跌衰竭 ⚠️') {
+          downCount++;
+        }
+        // 上升通道 + 上升衰竭
+        if (state === '上升通道 📈' || state === '上升衰竭 ⚠️') {
+          upCount++;
+        }
+      });
+
+      // 计算占比（百分比）
+      const downRatio = windowSize > 0 ? (downCount / windowSize) * 100 : 0;
+      const upRatio = windowSize > 0 ? (upCount / windowSize) * 100 : 0;
+
+      // 赋值
+      (k as any).down_channel_exhaustion_ratio = parseFloat(downRatio.toFixed(2));
+      (k as any).up_channel_exhaustion_ratio = parseFloat(upRatio.toFixed(2));
     });
 
     return result;
