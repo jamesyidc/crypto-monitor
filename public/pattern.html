@@ -32,41 +32,21 @@
                         </a>
                     </div>
                 </div>
-                <button onclick="analyzePatterns()" id="analyzeBtn" class="px-4 py-2 bg-green-500 hover:bg-green-600 rounded-lg font-bold transition">
-                    <i class="fas fa-sync mr-2"></i>重新分析
-                </button>
             </div>
         </div>
     </nav>
 
     <div class="max-w-7xl mx-auto px-4 py-6">
-        <!-- 统计卡片 -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <!-- 起涨统计 -->
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-lg font-bold text-green-600 mb-4">
-                    <i class="fas fa-arrow-trend-up mr-2"></i>起涨模式统计
-                </h2>
-                <div id="surgeStats" class="space-y-2 text-sm">
-                    <div class="flex justify-between"><span>模式总数:</span><span id="surgeTotal" class="font-bold">-</span></div>
-                    <div class="flex justify-between"><span>平均涨幅:</span><span id="surgeAvgChange" class="font-bold text-green-600">-</span></div>
-                    <div class="flex justify-between"><span>伴随V1成交量:</span><span id="surgeV1" class="font-bold">-</span></div>
-                    <div class="flex justify-between"><span>价格突破:</span><span id="surgeBreakout" class="font-bold">-</span></div>
-                    <div class="flex justify-between"><span>连续同向:</span><span id="surgeContinuous" class="font-bold">-</span></div>
-                </div>
-            </div>
-
-            <!-- 起跌统计 -->
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-lg font-bold text-red-600 mb-4">
-                    <i class="fas fa-arrow-trend-down mr-2"></i>起跌模式统计
-                </h2>
-                <div id="crashStats" class="space-y-2 text-sm">
-                    <div class="flex justify-between"><span>模式总数:</span><span id="crashTotal" class="font-bold">-</span></div>
-                    <div class="flex justify-between"><span>平均跌幅:</span><span id="crashAvgChange" class="font-bold text-red-600">-</span></div>
-                    <div class="flex justify-between"><span>伴随V1成交量:</span><span id="crashV1" class="font-bold">-</span></div>
-                    <div class="flex justify-between"><span>价格跌破:</span><span id="crashBreakout" class="font-bold">-</span></div>
-                    <div class="flex justify-between"><span>连续同向:</span><span id="crashContinuous" class="font-bold">-</span></div>
+        <!-- 全局交易策略 -->
+        <div class="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg shadow-lg p-6 mb-6 text-white">
+            <h2 class="text-2xl font-bold mb-4">
+                <i class="fas fa-trophy mr-2"></i>全局交易策略池
+            </h2>
+            <div id="strategiesGrid" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- 策略卡片将在这里动态加载 -->
+                <div class="bg-white/20 backdrop-blur rounded-lg p-4 text-center">
+                    <i class="fas fa-spinner fa-spin text-2xl"></i>
+                    <p class="mt-2">加载中...</p>
                 </div>
             </div>
         </div>
@@ -74,31 +54,32 @@
         <!-- Tabs -->
         <div class="bg-white rounded-lg shadow-md mb-6">
             <div class="flex border-b">
-                <button onclick="switchTab('surge')" id="tabSurge" class="px-6 py-3 font-bold text-green-600 border-b-2 border-green-600">
-                    <i class="fas fa-arrow-trend-up mr-2"></i>起涨模式
-                </button>
-                <button onclick="switchTab('crash')" id="tabCrash" class="px-6 py-3 font-bold text-gray-500 hover:text-red-600">
-                    <i class="fas fa-arrow-trend-down mr-2"></i>起跌模式
+                <button onclick="switchTab('strategies')" id="tabStrategies" class="px-6 py-3 font-bold text-purple-600 border-b-2 border-purple-600">
+                    <i class="fas fa-chess mr-2"></i>策略详情
                 </button>
                 <button onclick="switchTab('rules')" id="tabRules" class="px-6 py-3 font-bold text-gray-500 hover:text-blue-600">
                     <i class="fas fa-gavel mr-2"></i>交易规则
                 </button>
+                <button onclick="switchTab('support')" id="tabSupport" class="px-6 py-3 font-bold text-gray-500 hover:text-green-600">
+                    <i class="fas fa-chart-line mr-2"></i>支撑线管理
+                </button>
+                <button onclick="switchTab('priority')" id="tabPriority" class="px-6 py-3 font-bold text-gray-500 hover:text-orange-600">
+                    <i class="fas fa-star mr-2"></i>币种优先级
+                </button>
             </div>
         </div>
 
-        <!-- 起涨模式列表 -->
-        <div id="surgeContent" class="space-y-4">
-            <div class="text-center py-8 text-gray-500">
-                <i class="fas fa-spinner fa-spin text-3xl mb-4"></i>
-                <p>加载中...</p>
-            </div>
-        </div>
-
-        <!-- 起跌模式列表 -->
-        <div id="crashContent" class="space-y-4 hidden">
-            <div class="text-center py-8 text-gray-500">
-                <i class="fas fa-spinner fa-spin text-3xl mb-4"></i>
-                <p>加载中...</p>
+        <!-- 策略详情内容 -->
+        <div id="strategiesContent">
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-lg font-bold text-gray-800 mb-4">
+                    <i class="fas fa-chess mr-2"></i>已配置交易策略
+                </h2>
+                <div id="strategiesDetailList" class="space-y-4">
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-spinner fa-spin mr-2"></i>加载中...
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -177,6 +158,159 @@
                         <tbody id="rulesTableBody">
                             <tr>
                                 <td colspan="6" class="text-center py-8 text-gray-500">
+                                    <i class="fas fa-spinner fa-spin mr-2"></i>加载中...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 支撑线管理内容 -->
+        <div id="supportContent" class="hidden">
+            <!-- 支撑线统计卡片 -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-lg font-bold text-gray-800 mb-4">
+                    <i class="fas fa-chart-line mr-2"></i>支撑线低吸策略
+                </h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div class="text-center p-4 bg-blue-50 rounded-lg">
+                        <div class="text-gray-500 mb-1">已设置支撑线</div>
+                        <div id="supportTotal" class="text-2xl font-bold text-blue-600">-</div>
+                    </div>
+                    <div class="text-center p-4 bg-green-50 rounded-lg">
+                        <div class="text-gray-500 mb-1">低吸机会</div>
+                        <div id="supportOpportunities" class="text-2xl font-bold text-green-600">-</div>
+                    </div>
+                    <div class="text-center p-4 bg-yellow-50 rounded-lg">
+                        <div class="text-gray-500 mb-1">接近支撑线</div>
+                        <div id="supportNearCount" class="text-2xl font-bold text-yellow-600">-</div>
+                    </div>
+                    <div class="text-center p-4 bg-purple-50 rounded-lg">
+                        <div class="text-gray-500 mb-1">市场策略</div>
+                        <div id="marketStrategy" class="text-xl font-bold text-purple-600">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 快速操作 -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">
+                    <i class="fas fa-bolt mr-2"></i>快速操作
+                </h3>
+                <div class="flex flex-wrap gap-3">
+                    <button onclick="checkOpportunities()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
+                        <i class="fas fa-search mr-2"></i>检查低吸机会
+                    </button>
+                    <button onclick="clearAllSupport()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition">
+                        <i class="fas fa-trash mr-2"></i>清零所有支撑线
+                    </button>
+                    <button onclick="saveAllSupport()" class="ml-auto px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition font-bold">
+                        <i class="fas fa-save mr-2"></i>保存所有更改
+                    </button>
+                </div>
+            </div>
+
+            <!-- 支撑线设置表格 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">
+                    <i class="fas fa-list mr-2"></i>支撑线设置（仅等级1-2币种）
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b-2 border-gray-200">
+                                <th class="text-left py-3 px-4">币种</th>
+                                <th class="text-center py-3 px-4">等级</th>
+                                <th class="text-center py-3 px-4">当前价格</th>
+                                <th class="text-center py-3 px-4">支撑线价格</th>
+                                <th class="text-center py-3 px-4">距离</th>
+                                <th class="text-center py-3 px-4">状态</th>
+                                <th class="text-left py-3 px-4">备注</th>
+                                <th class="text-center py-3 px-4">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="supportTableBody">
+                            <tr>
+                                <td colspan="8" class="text-center py-8 text-gray-500">
+                                    <i class="fas fa-spinner fa-spin mr-2"></i>加载中...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 币种优先级内容 -->
+        <div id="priorityContent" class="hidden">
+            <!-- 优先级统计 -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-lg font-bold text-gray-800 mb-4">
+                    <i class="fas fa-star mr-2"></i>币种优先级分布
+                </h2>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                    <div class="text-center p-4 bg-yellow-50 rounded-lg border-2 border-yellow-300">
+                        <div class="text-gray-500 mb-1">等级1</div>
+                        <div id="level1Count" class="text-2xl font-bold text-yellow-600">-</div>
+                    </div>
+                    <div class="text-center p-4 bg-green-50 rounded-lg border-2 border-green-300">
+                        <div class="text-gray-500 mb-1">等级2</div>
+                        <div id="level2Count" class="text-2xl font-bold text-green-600">-</div>
+                    </div>
+                    <div class="text-center p-4 bg-blue-50 rounded-lg border-2 border-blue-300">
+                        <div class="text-gray-500 mb-1">等级3</div>
+                        <div id="level3Count" class="text-2xl font-bold text-blue-600">-</div>
+                    </div>
+                    <div class="text-center p-4 bg-orange-50 rounded-lg border-2 border-orange-300">
+                        <div class="text-gray-500 mb-1">等级4</div>
+                        <div id="level4Count" class="text-2xl font-bold text-orange-600">-</div>
+                    </div>
+                    <div class="text-center p-4 bg-gray-50 rounded-lg border-2 border-gray-300">
+                        <div class="text-gray-500 mb-1">等级5+</div>
+                        <div id="level5Count" class="text-2xl font-bold text-gray-600">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 说明信息 -->
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+                <div class="flex items-start">
+                    <i class="fas fa-info-circle text-blue-500 text-xl mr-3 mt-1"></i>
+                    <div>
+                        <p class="font-bold text-blue-800 mb-1">等级说明</p>
+                        <p class="text-sm text-blue-700">
+                            等级1：最高质量币种（可设置支撑线）<br>
+                            等级2：高质量币种（可设置支撑线）<br>
+                            等级3-4：中等质量币种<br>
+                            等级5+：较低质量币种
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 优先级表格 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">
+                    <i class="fas fa-list mr-2"></i>币种优先级设置
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b-2 border-gray-200">
+                                <th class="text-left py-3 px-4">币种</th>
+                                <th class="text-center py-3 px-4">当前等级</th>
+                                <th class="text-center py-3 px-4">最低占比</th>
+                                <th class="text-center py-3 px-4">最高占比</th>
+                                <th class="text-center py-3 px-4">交易状态</th>
+                                <th class="text-center py-3 px-4">支撑线</th>
+                                <th class="text-center py-3 px-4">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="priorityTableBody">
+                            <tr>
+                                <td colspan="7" class="text-center py-8 text-gray-500">
                                     <i class="fas fa-spinner fa-spin mr-2"></i>加载中...
                                 </td>
                             </tr>

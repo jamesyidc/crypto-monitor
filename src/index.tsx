@@ -2275,6 +2275,79 @@ app.get('/api/trading-rules/allowed-by-risk', async (c) => {
 });
 
 // ========================================
+// 币种优先级 API
+// ========================================
+
+// API: 获取所有币种优先级
+// API: 获取所有交易策略
+app.get('/api/trading-strategies', async (c) => {
+  try {
+    const result = await c.env.DB
+      .prepare(`
+        SELECT * FROM trading_strategies
+        ORDER BY is_active DESC, strategy_type
+      `)
+      .all();
+    
+    return c.json({
+      success: true,
+      strategies: result.results,
+      count: result.results.length
+    });
+  } catch (error: any) {
+    console.error('获取交易策略失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 更新交易策略状态
+app.put('/api/trading-strategies/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    const { is_active, config } = await c.req.json();
+    
+    await c.env.DB
+      .prepare(`
+        UPDATE trading_strategies
+        SET is_active = ?, 
+            config = COALESCE(?, config),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `)
+      .bind(is_active, config, id)
+      .run();
+    
+    return c.json({
+      success: true,
+      message: '策略已更新'
+    });
+  } catch (error: any) {
+    console.error('更新交易策略失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+app.get('/api/coin-priority', async (c) => {
+  try {
+    const result = await c.env.DB
+      .prepare(`
+        SELECT * FROM coin_priority
+        ORDER BY level, symbol
+      `)
+      .all();
+    
+    return c.json({
+      success: true,
+      coins: result.results,
+      count: result.results.length
+    });
+  } catch (error: any) {
+    console.error('获取币种优先级失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// ========================================
 // 支撑线低吸策略 API
 // ========================================
 
