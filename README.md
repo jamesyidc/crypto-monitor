@@ -27,6 +27,9 @@
 ### 辅助功能
 - **历史回看**：查看任意轮次的完整市场数据
 - **比价比对**：跨币种的价格位置对比分析
+  - **极值记录日志**：实时显示创新高/创新低事件（币名、时间、状态、价格）
+  - **历史追溯**：按时间倒序查看最新100条极值突破记录
+  - **颜色编码**：创新高=绿色，创新低=红色
 - **买卖点信号**：基于布林带和RSI的交易信号生成
 - **模拟交易**：虚拟账户交易模拟和收益追踪
 - **持仓追踪**：实时持仓监控和盈亏分析
@@ -173,6 +176,7 @@ npx wrangler pages deploy dist --project-name crypto-monitor
 - `POST /api/analyze` - 执行一轮市场分析
 - `GET /api/dashboard` - 获取仪表板数据
 - `GET /api/rounds` - 获取历史轮次统计
+- `GET /api/extreme-records` - 获取极值记录日志（支持limit参数）
 
 ### K线数据
 - `GET /api/kline/:symbol` - 获取指定币种K线数据
@@ -216,6 +220,7 @@ export const VOLUME_THRESHOLDS: Record<string, VolumeThresholds> = {
 - `coins` - 币种基础信息
 - `price_records` - 价格历史记录
 - `price_extremes` - 价格极值和计次
+- `extreme_records` - 极值事件日志（记录每次创新高/新低）
 - `round_stats` - 轮次统计数据
 - `coin_round_details` - 单币轮次详情
 - `daily_stats` - 日统计数据（急涨急跌、创新高低）
