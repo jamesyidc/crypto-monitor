@@ -5,6 +5,70 @@ let countdownInterval = null;
 let nextAnalysisTime = null;
 let isAutoRunning = true;
 
+// 根据时间段和风险提示次数计算风险等级
+function calculateRiskLevel(riskAlertCount) {
+  const now = new Date();
+  const hour = now.getHours();
+  
+  let level = '低风险';
+  let color = 'green';
+  
+  // 0-6点: <3低风险, 3-4中风险, 4+高风险
+  if (hour >= 0 && hour < 6) {
+    if (riskAlertCount >= 4) {
+      level = '高风险';
+      color = 'red';
+    } else if (riskAlertCount >= 3) {
+      level = '中风险';
+      color = 'orange';
+    } else {
+      level = '低风险';
+      color = 'green';
+    }
+  }
+  // 6-12点: <4低风险, 4-5中风险, 5+高风险
+  else if (hour >= 6 && hour < 12) {
+    if (riskAlertCount >= 5) {
+      level = '高风险';
+      color = 'red';
+    } else if (riskAlertCount >= 4) {
+      level = '中风险';
+      color = 'orange';
+    } else {
+      level = '低风险';
+      color = 'green';
+    }
+  }
+  // 12-18点: <5低风险, 5-6中风险, 6+高风险
+  else if (hour >= 12 && hour < 18) {
+    if (riskAlertCount >= 6) {
+      level = '高风险';
+      color = 'red';
+    } else if (riskAlertCount >= 5) {
+      level = '中风险';
+      color = 'orange';
+    } else {
+      level = '低风险';
+      color = 'green';
+    }
+  }
+  // 18-24点: <6低风险, 6-7中风险, 7+高风险
+  else if (hour >= 18 && hour < 24) {
+    if (riskAlertCount >= 7) {
+      level = '高风险';
+      color = 'red';
+    } else if (riskAlertCount >= 6) {
+      level = '中风险';
+      color = 'orange';
+    } else {
+      level = '低风险';
+      color = 'green';
+    }
+  }
+  
+  return { level, color };
+}
+
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
   loadDashboard();
@@ -125,8 +189,21 @@ function renderStatsCards(latestRound) {
       title: '风险提示',
       value: latestRound.risk_alert_count,
       icon: 'fa-shield-alt',
-      color: latestRound.risk_alert_count > 0 ? 'red' : 'gray',
-      detail: latestRound.risk_alert_count > 0 ? '⚠️ 全部下跌，注意风险' : '市场正常'
+      color: (() => {
+        const risk = calculateRiskLevel(latestRound.risk_alert_count);
+        return risk.color;
+      })(),
+      detail: (() => {
+        const risk = calculateRiskLevel(latestRound.risk_alert_count);
+        const now = new Date();
+        const hour = now.getHours();
+        let timeRange = '';
+        if (hour >= 0 && hour < 6) timeRange = '0-6点';
+        else if (hour >= 6 && hour < 12) timeRange = '6-12点';
+        else if (hour >= 12 && hour < 18) timeRange = '12-18点';
+        else timeRange = '18-24点';
+        return `${risk.level} (${timeRange})`;
+      })()
     }
   ];
   
