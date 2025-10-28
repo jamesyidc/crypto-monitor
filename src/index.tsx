@@ -823,6 +823,9 @@ app.get('/', (c) => {
                         <a href="/correct.html" class="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2 rounded-lg transition">
                             <i class="fas fa-edit mr-2"></i>数据纠错
                         </a>
+                        <a href="/import.html" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition">
+                            <i class="fas fa-file-import mr-2"></i>批量导入
+                        </a>
                         <button id="analyzeBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition">
                             <i class="fas fa-play mr-2"></i>执行分析
                         </button>
@@ -1600,6 +1603,25 @@ app.post('/api/correct/rounds/save', async (c) => {
     return c.json({ success: true, message: '风险提示数据已保存' });
   } catch (error: any) {
     console.error('保存风险提示数据失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 更新价格极值
+app.post('/api/price/extreme/update', async (c) => {
+  try {
+    const { symbol, type, price } = await c.req.json();
+    
+    if (!symbol || !type || !price) {
+      return c.json({ success: false, error: '参数不完整' }, 400);
+    }
+    
+    const coinService = new CoinService(c.env.DB);
+    await coinService.updatePriceExtreme(symbol, type, price);
+    
+    return c.json({ success: true, message: `${symbol} 的${type === 'high' ? '最高' : '最低'}价格已更新` });
+  } catch (error: any) {
+    console.error('更新价格极值失败:', error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });
