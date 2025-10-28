@@ -22,8 +22,16 @@ document.addEventListener('DOMContentLoaded', () => {
 // 加载仪表板数据
 async function loadDashboard() {
   try {
-    const response = await axios.get('/api/dashboard');
-    currentData = response.data;
+    // 并行获取首页数据和比价数据
+    const [dashboardResponse, compareResponse] = await Promise.all([
+      axios.get('/api/dashboard'),
+      axios.get('/api/compare')
+    ]);
+    
+    currentData = dashboardResponse.data;
+    // 🆕 添加比价系统的数据（用于显示占比）
+    currentData.compareData = compareResponse.data.coins;
+    
     renderDashboard(currentData);
   } catch (error) {
     console.error('加载数据失败:', error);
@@ -290,8 +298,21 @@ function renderCoinTable(coinDetails, extremes, priorities) {
     const extreme = extremes.find(e => e.symbol === coin.symbol);
     const priority = priorities.find(p => p.symbol === coin.symbol);
     
-    const highRatio = extreme ? ((coin.price / extreme.all_time_high) * 100).toFixed(2) : '-';
-    const lowRatio = extreme ? ((coin.price / extreme.all_time_low) * 100).toFixed(2) : '-';
+    // 🆕 优先使用比价系统的占比数据（更准确）
+    let highRatio = '-';
+    let lowRatio = '-';
+    
+    if (currentData.compareData) {
+      const compareItem = currentData.compareData.find(c => c.symbol === coin.symbol);
+      if (compareItem) {
+        highRatio = compareItem.highRatio.toFixed(2);
+        lowRatio = compareItem.lowRatio.toFixed(2);
+      }
+    } else if (extreme) {
+      // 降级方案：如果没有比价数据，使用本地计算
+      highRatio = ((coin.price / extreme.all_time_high) * 100).toFixed(2);
+      lowRatio = ((coin.price / extreme.all_time_low) * 100).toFixed(2);
+    }
     
     // 序号
     const sequenceNum = index + 1;
