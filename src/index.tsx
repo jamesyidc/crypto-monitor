@@ -106,15 +106,15 @@ app.post('/api/debug/reset', async (c) => {
   }
 });
 
-// API: 获取比价数据（使用固定占比，不动态计算）
+// API: 获取比价数据（动态计算占比，极值和计次会自动更新）
 app.get('/api/compare', async (c) => {
   try {
     const coinService = new CoinService(c.env.DB);
     
-    // 获取所有极值数据（包含固定占比）
+    // 获取所有极值数据（包含计次）
     const extremes: any = await coinService.getAllPriceExtremes();
     
-    // 获取最新的币种详情（当前价格，仅用于显示）
+    // 获取最新的币种详情（当前价格）
     const latestRounds: any = await coinService.getLatestRoundStats(1);
     const latestRound = latestRounds[0];
     
@@ -124,10 +124,21 @@ app.get('/api/compare', async (c) => {
     
     const coinDetails: any = await coinService.getLatestCoinDetails(latestRound.round_time);
     
-    // 组合数据：直接使用数据库中的固定占比
+    // 组合数据：动态计算占比
     const coins = extremes.map((extreme: any) => {
       const detail = coinDetails.find((d: any) => d.symbol === extreme.symbol);
       const currentPrice = detail ? detail.price : 0;
+      
+      // 实时计算占比
+      // 最高占比 = (当前价格 / 历史最高价) × 100%
+      const highRatio = extreme.all_time_high > 0 
+        ? (currentPrice / extreme.all_time_high) * 100 
+        : 0;
+      
+      // 最低占比 = (当前价格 / 历史最低价) × 100%
+      const lowRatio = extreme.all_time_low > 0 
+        ? (currentPrice / extreme.all_time_low) * 100 
+        : 0;
       
       return {
         symbol: extreme.symbol,
@@ -136,8 +147,8 @@ app.get('/api/compare', async (c) => {
         lowPrice: extreme.all_time_low,
         lowCount: extreme.low_count,
         currentPrice: currentPrice,
-        highRatio: extreme.high_ratio || 0,  // 直接使用数据库中的固定占比
-        lowRatio: extreme.low_ratio || 0,    // 直接使用数据库中的固定占比
+        highRatio: highRatio,  // 动态计算
+        lowRatio: lowRatio,    // 动态计算
         ath_date: extreme.ath_date,
         atl_date: extreme.atl_date,
         last_updated: extreme.last_updated
