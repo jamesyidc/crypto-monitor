@@ -18,6 +18,12 @@
 
 ### 高级功能
 - **K线数据查询**：支持多时间周期（5m/15m/1h/4h/1d）的OKX历史K线数据
+  - **等级分组显示**：按币种优先级等级分组展示（1级TAO → 2级BNB/BCH → 4级XRP → 5级BTC → 3级 → 6级ETH/SOL等）
+    - 等级1: ⭐ 1个币种 (TAO)
+    - 等级2: ⭐⭐ 2个币种 (BNB, BCH)
+    - 等级4: ⭐⭐⭐⭐ 1个币种 (XRP)
+    - 等级5: ⭐⭐⭐⭐⭐ 1个币种 (BTC)
+    - 等级6: ⭐⭐⭐⭐⭐⭐ 24个币种 (ETH, SOL等)
   - **起涨起跌识别**：向下回溯20根K线，识别起涨点（累计>2%）和起跌点（累计<-3%）
   - **图表百分比坐标系**：Y轴显示相对涨跌幅百分比，基准价格在底部0%位置
   - **通道衰竭占比**：40根K线滚动窗口统计上升/下降通道占比
@@ -198,6 +204,7 @@ npx wrangler pages deploy dist --project-name crypto-monitor
 - `GET /api/extreme-records` - 获取极值记录日志（支持limit参数）
 
 ### K线数据
+- `GET /api/coins/with-priority` - 获取带优先级等级的币种列表
 - `GET /api/kline/:symbol` - 获取指定币种K线数据
 - `GET /api/kline/:symbol/indicators` - 获取技术指标数据
 - `POST /api/kline/sync/auto` - 自动同步所有币种K线
