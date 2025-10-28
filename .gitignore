@@ -31,3 +31,24 @@ lerna-debug.log*
 
 # misc
 .DS_Store
+
+# PM2
+.pm2/
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Backups
+*.backup
+*.bak
+*.tar.gz
+*.zip
+
+# OS
+Thumbs.db
+
+# IDEs
+*.swp
+*.swo
+*~
