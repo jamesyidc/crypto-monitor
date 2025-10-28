@@ -18,12 +18,13 @@ export class ConsecutiveRiseService {
   }
 
   /**
-   * 回溯分析所有历史K线数据，重新计算连续统计
-   * 使用 indicatorService 获取带占比字段的K线数据
+   * 分析今天的K线数据，重新计算连续统计（每天0点清零）
+   * 使用 klineService 获取带技术指标的K线数据
+   * 注意：仅统计今天（当天0点到现在）的K线，不包括历史数据
    */
-  async analyzeHistoricalData(timeframe: string = '5m', limit: number = 1000) {
+  async analyzeHistoricalData(timeframe: string = '5m', limit: number = 300) {
     try {
-      console.log(`开始分析历史K线数据 (timeframe: ${timeframe}, limit: ${limit})...`);
+      console.log(`开始分析今天的K线数据 (timeframe: ${timeframe}, limit: ${limit})...`);
 
       // 清空现有统计数据
       await this.db
@@ -55,7 +56,7 @@ export class ConsecutiveRiseService {
         }
       }
 
-      console.log(`历史数据分析完成，共处理 ${processedCount} 个币种`);
+      console.log(`今天数据分析完成，共处理 ${processedCount} 个币种`);
 
       return {
         success: true,
@@ -71,7 +72,7 @@ export class ConsecutiveRiseService {
   }
 
   /**
-   * 分析单个币种的所有K线数据
+   * 分析单个币种今天的K线数据（每天0点清零，仅统计当天）
    * 使用 klineService 获取带占比字段的K线数据
    */
   private async analyzeSymbolKlines(symbol: string, timeframe: string, limit: number) {
@@ -83,11 +84,29 @@ export class ConsecutiveRiseService {
       return; // 没有K线数据，跳过
     }
 
+    // 获取今天0点的时间戳（UTC+8时区）
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    todayStart.setHours(todayStart.getHours() - 8); // 调整为UTC时间
+    const todayStartTime = todayStart.toISOString();
+
     // getKlineWithIndicators返回的数据已经是从新到旧排列
     // 需要反转为从旧到新，以便按时间顺序分析
-    const klines = result.data.reverse();
+    let klines = result.data.reverse();
 
-    // 统计连续上涨占优
+    // 过滤出今天的K线（time格式：2025/10/28 21:55:00）
+    klines = klines.filter(k => {
+      // 将时间格式转换为可比较的格式
+      const klineDate = new Date(k.time.replace(/\//g, '-').replace(' ', 'T') + 'Z');
+      return klineDate >= todayStart;
+    });
+
+    if (klines.length === 0) {
+      // 今天没有K线数据
+      return;
+    }
+
+    // 统计今天的连续上涨占优
     let currentStreak = 0;
     let maxStreak = 0;
     let maxStreakStartTime: string | null = null;
@@ -114,7 +133,7 @@ export class ConsecutiveRiseService {
           currentStreak++;
         }
 
-        // 更新最大连续记录
+        // 更新今天的最大连续记录
         if (currentStreak > maxStreak) {
           maxStreak = currentStreak;
           maxStreakEndTime = openTime;

@@ -1009,10 +1009,10 @@ function changeThreshold(threshold) {
 }
 
 async function analyzeHistory() {
-  if (!confirm('确定要分析所有历史K线数据吗？\n\n此操作会：\n1. 清空现有统计数据\n2. 回溯分析所有历史K线\n3. 重新计算连续统计\n\n可能需要较长时间，请耐心等待。')) return;
+  if (!confirm('确定要分析今天的K线数据吗？\n\n此操作会：\n1. 清空现有统计数据\n2. 分析今天（0点到现在）的K线\n3. 重新计算今天的连续统计\n\n注意：每天0点自动清零，仅统计当天数据。')) return;
   
   try {
-    showInfo('正在分析历史数据，请稍候...');
+    showInfo('正在分析今天数据，请稍候...');
     
     const response = await fetch('/api/consecutive-rise/analyze-history', {
       method: 'POST'
