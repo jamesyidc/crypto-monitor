@@ -638,18 +638,19 @@ CREATE TABLE trading_rules (
 
 **最终顺序：**
 ```
-... → BOLL_MB → BOLL_UB → BOLL_LB → 带宽 → 占比下跌 → 占比上涨 → 通道状态
+... → BOLL_MB → BOLL_UB → BOLL_LB → 占比下跌 → 占比上涨 → 带宽 → 通道状态
 ```
 
 **列位置说明：**
 - **通道状态**：最右侧（最后一列）
 - **带宽**：通道状态前一列
-- **占比下跌/占比上涨**：带宽前两列
+- **占比上涨**：带宽前一列
+- **占比下跌**：占比上涨前一列
 
 **调整理由：**
-- 用户明确要求："通道状态在最右侧"
-- 保持"通道状态"作为所有技术指标的总结性列
-- "带宽"紧邻"通道状态"，便于对比分析
+- 用户明确要求："占比下跌 占比上涨 带宽 通道状态 这么排序"
+- 保持"通道状态"作为所有技术指标的总结性列在最右侧
+- 通道相关指标（占比、带宽、状态）集中在一起，便于分析
 
 **修改文件：**
 - `/home/user/webapp/public/kline.html` - 表头列顺序
@@ -659,43 +660,61 @@ CREATE TABLE trading_rules (
 
 **用户需求：** "图上表上涨幅的百分比"
 
-**实现方式1：Y轴标签显示涨幅**
-- Y轴（价格轴）每个刻度标签格式：`$价格 (涨幅%)`
-- 示例：`$103.45 (+2.5%)` 或 `$98.20 (-1.8%)`
-- 涨幅基准：图表中第一个K线的收盘价
-- 自动计算相对涨幅并显示在价格旁边
+**实现方式1：Y轴纯百分比显示（2025-10-28 21:30更新）**
+- Y轴完全转换为百分比坐标系
+- Y轴标题显示：`涨幅 (%) - 基准: $价格`
+- Y轴刻度格式：`+2.5%`、`0%`、`-1.8%`
+- 图表底部（0%）= 第一个K线的收盘价（基准价格）
+- 向上增加显示正百分比（涨幅）
+- 向下显示负百分比（跌幅）
 
-**实现方式2：Tooltip悬停显示涨幅**
+**实现方式2：Tooltip悬停显示详细信息**
 - 鼠标悬停在图表任意数据点时
-- Tooltip额外显示：`涨幅: +X.XX%` 或 `涨幅: -X.XX%`
-- 提供更详细的涨幅信息
+- Tooltip显示两行信息：
+  - `涨幅: +X.XX%` 或 `涨幅: -X.XX%`
+  - `价格: $XXX.XXXX`
+- 同时提供百分比和实际价格信息
 
 **计算逻辑：**
 ```javascript
 // 基准价格：图表中第一个K线的收盘价
 const firstPrice = prices[0];
 
-// 每个点的涨幅
+// 计算每个点相对基准价格的涨跌幅
 const changes = prices.map(price => {
   return ((price - firstPrice) / firstPrice * 100);
 });
 
-// Y轴标签格式化
+// 图表使用百分比数据而不是价格数据
+datasets: [{
+  label: '涨幅 (%)',
+  data: changes,  // 直接使用百分比数组
+  // ...
+}]
+
+// Y轴标题显示基准价格
+title: {
+  text: '涨幅 (%) - 基准: $' + firstPrice.toFixed(2)
+}
+
+// Y轴刻度显示纯百分比
 ticks: {
   callback: function(value) {
-    const change = ((value - firstPrice) / firstPrice * 100);
-    const changeText = change >= 0 ? `+${change.toFixed(1)}%` : `${change.toFixed(1)}%`;
-    return `$${value.toFixed(2)} (${changeText})`;
+    return value >= 0 ? `+${value.toFixed(1)}%` : `${value.toFixed(1)}%`;
   }
 }
 
-// Tooltip额外信息
+// Tooltip显示涨幅和价格
 tooltip: {
   callbacks: {
-    afterLabel: function(context) {
-      const change = changes[context.dataIndex];
-      const changeText = change >= 0 ? `+${change.toFixed(2)}%` : `${change.toFixed(2)}%`;
-      return `涨幅: ${changeText}`;
+    label: function(context) {
+      const index = context.dataIndex;
+      const change = changes[index];
+      const price = prices[index];
+      return [
+        `涨幅: ${change >= 0 ? '+' : ''}${change.toFixed(2)}%`,
+        `价格: $${price.toFixed(4)}`
+      ];
     }
   }
 }
@@ -716,11 +735,15 @@ tooltip: {
 ## 版本历史
 
 ### v1.7 - 2025-10-28 21:10
-- ✅ K线表格列顺序调整：BOLL_LB → 带宽 → 占比下跌 → 占比上涨 → **通道状态（最右侧）**
-- ✅ K线图表Y轴标签显示涨幅百分比
-- ✅ K线图表Tooltip悬停显示涨幅百分比
+- ✅ K线表格列顺序最终版：BOLL_LB → 占比下跌 → 占比上涨 → 带宽 → **通道状态（最右侧）**
+- ✅ K线图表Y轴完全转换为百分比坐标系
+- ✅ Y轴底部为0%（基准价格），向上增加显示涨幅百分比
+- ✅ Y轴标题显示基准价格信息
+- ✅ Tooltip显示涨幅和实际价格
 - ✅ 涨幅计算基于图表第一个K线价格
-- ✅ 2025-10-28 21:25 修正：将"通道状态"列移到最右侧（原为倒数第二列）
+- ✅ 2025-10-28 21:25 修正：将"通道状态"列移到最右侧
+- ✅ 2025-10-28 21:30 优化：调整列顺序为"占比下跌→占比上涨→带宽→通道状态"
+- ✅ 2025-10-28 21:30 优化：Y轴改为纯百分比显示，底部0%为基准价格
 
 ### v1.6 - 2025-10-28 20:50
 - ✅ 交易规则系统上线（trading_rules表）

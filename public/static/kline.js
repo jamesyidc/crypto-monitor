@@ -236,8 +236,8 @@ function renderChart(klineData) {
       labels: labels,
       datasets: [
         {
-          label: '价格',
-          data: prices,
+          label: '涨幅 (%)',
+          data: changes,  // 使用百分比数据而不是价格数据
           borderColor: 'rgb(59, 130, 246)',
           backgroundColor: 'rgba(59, 130, 246, 0.1)',
           borderWidth: 2,
@@ -264,12 +264,16 @@ function renderChart(klineData) {
         },
         tooltip: {
           callbacks: {
-            // 自定义tooltip显示涨幅百分比
-            afterLabel: function(context) {
+            // 自定义tooltip显示价格和涨幅
+            label: function(context) {
               const index = context.dataIndex;
               const change = changes[index];
+              const price = prices[index];
               const changeText = change >= 0 ? `+${change.toFixed(2)}%` : `${change.toFixed(2)}%`;
-              return `涨幅: ${changeText}`;
+              return [
+                `涨幅: ${changeText}`,
+                `价格: $${price.toFixed(4)}`
+              ];
             }
           }
         }
@@ -289,15 +293,14 @@ function renderChart(klineData) {
           position: 'left',
           title: {
             display: true,
-            text: '价格 (USD)'
+            text: '涨幅 (%) - 基准: $' + (firstPrice ? firstPrice.toFixed(2) : '0')
           },
-          // 在Y轴标签上显示涨幅
+          // 强制Y轴从0开始（0% = 基准价格）
+          beginAtZero: false,
+          // Y轴显示百分比
           ticks: {
-            callback: function(value, index, ticks) {
-              // 计算相对于第一个价格的涨幅
-              const change = firstPrice ? ((value - firstPrice) / firstPrice * 100) : 0;
-              const changeText = change >= 0 ? `+${change.toFixed(1)}%` : `${change.toFixed(1)}%`;
-              return `$${value.toFixed(2)} (${changeText})`;
+            callback: function(value) {
+              return value >= 0 ? `+${value.toFixed(1)}%` : `${value.toFixed(1)}%`;
             }
           }
         }
@@ -410,9 +413,6 @@ function renderTable(klineData, alerts = []) {
         <td class="py-2 px-1 text-right font-mono text-gray-500 indicator-col">
           ${k.boll_lb ? k.boll_lb.toFixed(4) : '-'}
         </td>
-        <td class="py-2 px-1 text-right font-mono text-purple-600 font-bold indicator-col">
-          ${(k.boll_ub && k.boll_lb) ? (k.boll_ub - k.boll_lb).toFixed(4) : '-'}
-        </td>
         <td class="py-2 px-1 text-right font-mono indicator-col ${
           (() => {
             const downRatio = k.down_channel_exhaustion_ratio || 0;
@@ -436,6 +436,9 @@ function renderTable(klineData, alerts = []) {
           })()
         }">
           ${k.up_channel_exhaustion_ratio !== null && k.up_channel_exhaustion_ratio !== undefined ? k.up_channel_exhaustion_ratio.toFixed(2) + '%' : '-'}
+        </td>
+        <td class="py-2 px-1 text-right font-mono text-purple-600 font-bold indicator-col">
+          ${(k.boll_ub && k.boll_lb) ? (k.boll_ub - k.boll_lb).toFixed(4) : '-'}
         </td>
         <td class="py-2 px-1 text-center indicator-col">
           ${getChannelIcon(k.channel_state)}
