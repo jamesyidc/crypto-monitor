@@ -23,6 +23,9 @@ app.use('/api/*', cors())
 // 静态文件服务
 app.use('/static/*', serveStatic({ root: './public' }))
 
+// HTML页面服务（直接从public目录服务.html文件）
+app.use('/*.html', serveStatic({ root: './public' }))
+
 // API: 执行一轮分析
 app.post('/api/analyze', async (c) => {
   const coinService = new CoinService(c.env.DB);
