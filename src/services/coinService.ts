@@ -692,6 +692,24 @@ export class CoinService {
     return result.results;
   }
 
+  // 获取最新的极值记录（用于比价页面左栏显示）
+  async getLatestExtremeRecords(limit: number = 100) {
+    const result = await this.db
+      .prepare(`
+        SELECT 
+          symbol,
+          record_type,
+          price,
+          timestamp
+        FROM extreme_records
+        ORDER BY timestamp DESC
+        LIMIT ?
+      `)
+      .bind(limit)
+      .all();
+    return result.results;
+  }
+
   // 获取所有优先级
   async getAllCoinPriorities() {
     const result = await this.db

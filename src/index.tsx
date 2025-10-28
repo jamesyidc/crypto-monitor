@@ -166,6 +166,24 @@ app.get('/api/compare', async (c) => {
   }
 });
 
+// API: 获取极值记录（用于比价页面左栏显示）
+app.get('/api/extreme-records', async (c) => {
+  try {
+    const limit = parseInt(c.req.query('limit') || '100');
+    const coinService = new CoinService(c.env.DB);
+    
+    const records = await coinService.getLatestExtremeRecords(limit);
+    
+    return c.json({
+      success: true,
+      records: records,
+      count: records.length
+    });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
 // ========== K线数据 API ==========
 
 // API: 同步所有币种的 K线数据
