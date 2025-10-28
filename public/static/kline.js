@@ -221,6 +221,13 @@ function renderChart(klineData) {
   });
   const prices = data.map(k => k.close);
   const volumes = data.map(k => k.volume);
+  
+  // 计算涨幅百分比（相对于第一个价格）
+  const firstPrice = prices[0] || 0;
+  const changes = prices.map(price => {
+    if (!firstPrice) return 0;
+    return ((price - firstPrice) / firstPrice * 100);
+  });
 
   // 创建新图表
   klineChart = new Chart(ctx, {
@@ -254,6 +261,17 @@ function renderChart(klineData) {
         title: {
           display: true,
           text: `${currentSymbol} - ${currentTimeframe} K线图`
+        },
+        tooltip: {
+          callbacks: {
+            // 自定义tooltip显示涨幅百分比
+            afterLabel: function(context) {
+              const index = context.dataIndex;
+              const change = changes[index];
+              const changeText = change >= 0 ? `+${change.toFixed(2)}%` : `${change.toFixed(2)}%`;
+              return `涨幅: ${changeText}`;
+            }
+          }
         }
       },
       scales: {
@@ -272,6 +290,15 @@ function renderChart(klineData) {
           title: {
             display: true,
             text: '价格 (USD)'
+          },
+          // 在Y轴标签上显示涨幅
+          ticks: {
+            callback: function(value, index, ticks) {
+              // 计算相对于第一个价格的涨幅
+              const change = firstPrice ? ((value - firstPrice) / firstPrice * 100) : 0;
+              const changeText = change >= 0 ? `+${change.toFixed(1)}%` : `${change.toFixed(1)}%`;
+              return `$${value.toFixed(2)} (${changeText})`;
+            }
           }
         }
       }
@@ -383,17 +410,35 @@ function renderTable(klineData, alerts = []) {
         <td class="py-2 px-1 text-right font-mono text-gray-500 indicator-col">
           ${k.boll_lb ? k.boll_lb.toFixed(4) : '-'}
         </td>
-        <td class="py-2 px-1 text-right font-mono text-purple-600 font-bold indicator-col">
-          ${(k.boll_ub && k.boll_lb) ? (k.boll_ub - k.boll_lb).toFixed(4) : '-'}
-        </td>
-        <td class="py-2 px-1 text-right font-mono indicator-col ${k.down_channel_exhaustion_ratio ? (k.down_channel_exhaustion_ratio > 50 ? 'text-red-600 font-bold' : 'text-gray-600') : 'text-gray-400'}">
+        <td class="py-2 px-1 text-right font-mono indicator-col ${
+          (() => {
+            const downRatio = k.down_channel_exhaustion_ratio || 0;
+            const upRatio = k.up_channel_exhaustion_ratio || 0;
+            if (downRatio > upRatio) {
+              return 'bg-red-200 text-red-900 font-bold';
+            }
+            return 'text-gray-600';
+          })()
+        }">
           ${k.down_channel_exhaustion_ratio !== null && k.down_channel_exhaustion_ratio !== undefined ? k.down_channel_exhaustion_ratio.toFixed(2) + '%' : '-'}
         </td>
-        <td class="py-2 px-1 text-right font-mono indicator-col ${k.up_channel_exhaustion_ratio ? (k.up_channel_exhaustion_ratio > 50 ? 'text-green-600 font-bold' : 'text-gray-600') : 'text-gray-400'}">
+        <td class="py-2 px-1 text-right font-mono indicator-col ${
+          (() => {
+            const downRatio = k.down_channel_exhaustion_ratio || 0;
+            const upRatio = k.up_channel_exhaustion_ratio || 0;
+            if (upRatio > downRatio) {
+              return 'bg-green-200 text-green-900 font-bold';
+            }
+            return 'text-gray-600';
+          })()
+        }">
           ${k.up_channel_exhaustion_ratio !== null && k.up_channel_exhaustion_ratio !== undefined ? k.up_channel_exhaustion_ratio.toFixed(2) + '%' : '-'}
         </td>
         <td class="py-2 px-1 text-center indicator-col">
           ${getChannelIcon(k.channel_state)}
+        </td>
+        <td class="py-2 px-1 text-right font-mono text-purple-600 font-bold indicator-col">
+          ${(k.boll_ub && k.boll_lb) ? (k.boll_ub - k.boll_lb).toFixed(4) : '-'}
         </td>
       </tr>
     `;

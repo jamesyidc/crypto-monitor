@@ -479,7 +479,256 @@ ALTER TABLE trading_signals ADD COLUMN kline_time TEXT;
 
 ---
 
+## 交易规则系统（2025-10-28 新增 ✅ 已实现）
+
+### 系统概述
+
+**用户需求：** "交易规则系统 大的规则制定 这个是决定能不能开单 能开多单还是能开空单 还是都能开的一个系统 把他和特征库合并放在一个页面内"
+
+**功能定位：**
+交易规则系统用于制定每个币种的交易权限，决定：
+1. **能否开单**（交易许可）
+2. **能开多单还是空单**（方向限制）
+3. **还是都能开**（双向交易）
+
+### 数据库表结构
+
+```sql
+-- 交易规则表
+CREATE TABLE trading_rules (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  symbol TEXT NOT NULL UNIQUE,                    -- 币种符号 (如 BTC, ETH)
+  trading_allowed INTEGER DEFAULT 1,              -- 是否允许交易 (1=允许, 0=禁止)
+  long_allowed INTEGER DEFAULT 1,                 -- 是否允许做多 (1=允许, 0=禁止)
+  short_allowed INTEGER DEFAULT 1,                -- 是否允许做空 (1=允许, 0=禁止)
+  notes TEXT,                                     -- 备注说明
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+**索引：**
+- `idx_trading_rules_symbol` - 按币种快速查询
+- `idx_trading_rules_allowed` - 按交易状态筛选
+
+**默认数据：**
+- 系统自动为所有29个币种创建默认规则
+- 默认状态：允许所有交易（trading_allowed=1, long_allowed=1, short_allowed=1）
+
+### 权限判断逻辑
+
+**三级权限控制：**
+
+1. **trading_allowed（一级开关）**
+   - `1` = 允许交易，继续检查二级开关
+   - `0` = 禁止所有交易，直接拒绝（优先级最高）
+
+2. **long_allowed（二级开关）**
+   - 前提：trading_allowed = 1
+   - `1` = 允许开多单
+   - `0` = 禁止开多单
+
+3. **short_allowed（二级开关）**
+   - 前提：trading_allowed = 1
+   - `1` = 允许开空单
+   - `0` = 禁止开空单
+
+**组合场景：**
+
+| trading_allowed | long_allowed | short_allowed | 交易权限 |
+|----------------|--------------|---------------|---------|
+| 1 | 1 | 1 | 允许多空双向 |
+| 1 | 1 | 0 | 仅允许做多 |
+| 1 | 0 | 1 | 仅允许做空 |
+| 0 | - | - | 禁止所有交易 |
+
+### 服务层方法
+
+**TradingRuleService** (`/home/user/webapp/src/services/tradingRuleService.ts`)
+
+**查询方法：**
+- `getAllRules()` - 获取所有币种规则
+- `getRuleBySymbol(symbol)` - 获取单个币种规则
+- `isTradingAllowed(symbol)` - 检查是否允许交易
+- `isLongAllowed(symbol)` - 检查是否允许做多
+- `isShortAllowed(symbol)` - 检查是否允许做空
+- `getTradingStats()` - 获取统计信息
+
+**更新方法：**
+- `updateRule(update)` - 更新单个规则
+- `batchUpdateRules(updates)` - 批量更新规则
+
+**快速设置方法：**
+- `resetAllRules()` - 重置所有规则（允许所有交易）
+- `disableAllTrading()` - 禁止所有交易
+- `setLongOnly()` - 仅允许做多
+- `setShortOnly()` - 仅允许做空
+
+### API接口
+
+**基础CRUD：**
+- `GET /api/trading-rules` - 获取所有规则
+- `GET /api/trading-rules/:symbol` - 获取单个规则
+- `PUT /api/trading-rules/:symbol` - 更新单个规则
+- `POST /api/trading-rules/batch` - 批量更新规则
+
+**统计与快速设置：**
+- `GET /api/trading-rules/stats` - 获取统计信息
+- `POST /api/trading-rules/reset` - 重置所有规则
+- `POST /api/trading-rules/disable-all` - 禁止所有交易
+- `POST /api/trading-rules/long-only` - 仅允许做多
+- `POST /api/trading-rules/short-only` - 仅允许做空
+
+### 前端界面
+
+**页面位置：** 特征库页面（`/pattern.html`）第三个标签页
+
+**布局结构：**
+1. **统计卡片**（5个指标）
+   - 币种总数
+   - 允许交易
+   - 允许做多
+   - 允许做空
+   - 禁止交易
+
+2. **批量快速设置按钮**（4个操作）
+   - 重置全部（绿色）
+   - 禁止所有交易（红色）
+   - 仅允许做多（蓝色）
+   - 仅允许做空（橙色）
+   - 保存所有更改（紫色）
+
+3. **交易规则表格**（29行，6列）
+   - 币种名称
+   - 允许交易（开关）
+   - 允许做多（开关）
+   - 允许做空（开关）
+   - 备注（可编辑文本框）
+   - 操作（单独保存按钮）
+
+**交互功能：**
+- 实时开关切换（不立即保存）
+- 修改追踪（变更标记）
+- 单个规则保存
+- 批量保存所有修改
+- 快速设置一键应用
+- 保存后自动刷新统计
+
+**实现文件：**
+- 数据库迁移: `/home/user/webapp/migrations/0018_trading_rules.sql`
+- 后端服务: `/home/user/webapp/src/services/tradingRuleService.ts`
+- API路由: `/home/user/webapp/src/index.tsx`（添加导入和9个API端点）
+- 前端HTML: `/home/user/webapp/public/pattern.html`（新增标签页和UI）
+- 前端JS: `/home/user/webapp/public/static/pattern.js`（已包含完整交互逻辑）
+
+**访问方式：**
+1. 访问 `/pattern.html` 特征库页面
+2. 点击顶部导航的"交易规则"标签
+3. 查看和管理29个币种的交易权限
+
+**实现日期：** 2025-10-28 20:50
+
+---
+
+## K线图表优化（2025-10-28 新增 ✅ 已实现）
+
+### 表格列顺序调整
+
+**用户需求：** "带宽放在通道状态的旁边 调整一下"
+
+**调整前顺序：**
+```
+... → BOLL_MB → BOLL_UB → BOLL_LB → 带宽 → 占比下跌 → 占比上涨 → 通道状态
+```
+
+**调整后顺序：**
+```
+... → BOLL_MB → BOLL_UB → BOLL_LB → 占比下跌 → 占比上涨 → 通道状态 → 带宽
+```
+
+**调整理由：**
+- "带宽"和"通道状态"都是基于布林带计算的指标
+- 将两者相邻放置，便于对比分析
+- "通道状态"在中间，"带宽"在最后
+
+**修改文件：**
+- `/home/user/webapp/public/kline.html` - 表头列顺序
+- `/home/user/webapp/public/static/kline.js` - 表格渲染列顺序（第383-416行）
+
+### K线图表涨幅显示
+
+**用户需求：** "图上表上涨幅的百分比"
+
+**实现方式1：Y轴标签显示涨幅**
+- Y轴（价格轴）每个刻度标签格式：`$价格 (涨幅%)`
+- 示例：`$103.45 (+2.5%)` 或 `$98.20 (-1.8%)`
+- 涨幅基准：图表中第一个K线的收盘价
+- 自动计算相对涨幅并显示在价格旁边
+
+**实现方式2：Tooltip悬停显示涨幅**
+- 鼠标悬停在图表任意数据点时
+- Tooltip额外显示：`涨幅: +X.XX%` 或 `涨幅: -X.XX%`
+- 提供更详细的涨幅信息
+
+**计算逻辑：**
+```javascript
+// 基准价格：图表中第一个K线的收盘价
+const firstPrice = prices[0];
+
+// 每个点的涨幅
+const changes = prices.map(price => {
+  return ((price - firstPrice) / firstPrice * 100);
+});
+
+// Y轴标签格式化
+ticks: {
+  callback: function(value) {
+    const change = ((value - firstPrice) / firstPrice * 100);
+    const changeText = change >= 0 ? `+${change.toFixed(1)}%` : `${change.toFixed(1)}%`;
+    return `$${value.toFixed(2)} (${changeText})`;
+  }
+}
+
+// Tooltip额外信息
+tooltip: {
+  callbacks: {
+    afterLabel: function(context) {
+      const change = changes[context.dataIndex];
+      const changeText = change >= 0 ? `+${change.toFixed(2)}%` : `${change.toFixed(2)}%`;
+      return `涨幅: ${changeText}`;
+    }
+  }
+}
+```
+
+**显示效果：**
+- 涨幅为正：显示绿色，格式 `+2.50%`
+- 涨幅为负：显示红色，格式 `-1.80%`
+- 涨幅为零：显示灰色，格式 `0.00%`
+
+**修改文件：**
+- `/home/user/webapp/public/static/kline.js` - renderChart函数（第198-286行）
+
+**实现日期：** 2025-10-28 21:10
+
+---
+
 ## 版本历史
+
+### v1.7 - 2025-10-28 21:10
+- ✅ K线表格列顺序调整："带宽"移到"通道状态"旁边
+- ✅ K线图表Y轴标签显示涨幅百分比
+- ✅ K线图表Tooltip悬停显示涨幅百分比
+- ✅ 涨幅计算基于图表第一个K线价格
+
+### v1.6 - 2025-10-28 20:50
+- ✅ 交易规则系统上线（trading_rules表）
+- ✅ 三级权限控制（交易/做多/做空）
+- ✅ TradingRuleService服务（11个核心方法）
+- ✅ 9个API接口（CRUD + 统计 + 快速设置）
+- ✅ 特征库页面新增"交易规则"标签页
+- ✅ 完整的前端交互界面（统计卡片 + 快速设置 + 规则表格）
+- ✅ 自动初始化29个币种默认规则
 
 ### v1.5 - 2025-10-28 17:00
 - ✅ 买卖点信号系统新增：5分钟K线去重规则

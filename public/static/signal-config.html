@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>信号发送配置 - 加密货币监控</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        <!-- 导航 -->
+        <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+            <div class="flex items-center justify-between">
+                <div class="flex gap-4">
+                    <a href="/" class="text-blue-600 hover:text-blue-700">
+                        <i class="fas fa-home mr-1"></i>首页
+                    </a>
+                    <a href="/kline.html" class="text-pink-600 hover:text-pink-700">
+                        <i class="fas fa-chart-line mr-1"></i>K线查询
+                    </a>
+                    <a href="/compare.html" class="text-green-600 hover:text-green-700">
+                        <i class="fas fa-balance-scale mr-1"></i>比价页面
+                    </a>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-cog mr-2"></i>信号发送配置
+                </h1>
+                <div class="flex gap-2">
+                    <button id="saveBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition">
+                        <i class="fas fa-save mr-2"></i>保存配置
+                    </button>
+                    <button id="refreshBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition">
+                        <i class="fas fa-sync mr-2"></i>刷新
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 说明面板 -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <h2 class="text-lg font-bold text-blue-800 mb-2">
+                <i class="fas fa-info-circle mr-2"></i>配置说明
+            </h2>
+            <div class="text-sm text-blue-700 space-y-1">
+                <p><strong>买卖点信号（Trading）：</strong>系统检测到的买入/卖出信号</p>
+                <p><strong>预警信号（Alert）：</strong>满足特定条件的预警通知（成交量、涨跌幅等）</p>
+                <p><strong>启用/禁用：</strong>切换开关控制是否发送该类型信号到Telegram</p>
+                <p class="text-red-600"><strong>⚠️ 注意：</strong>修改配置后需要点击"保存配置"按钮才能生效</p>
+            </div>
+        </div>
+
+        <!-- 买卖点信号配置 -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">
+                <i class="fas fa-chart-line mr-2 text-green-600"></i>买卖点信号（Trading）
+            </h2>
+            <div class="space-y-4" id="tradingConfig">
+                <!-- 配置项将在这里动态生成 -->
+            </div>
+        </div>
+
+        <!-- 预警信号配置 -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">
+                <i class="fas fa-bell mr-2 text-yellow-600"></i>预警信号（Alert）
+            </h2>
+            <div class="space-y-4" id="alertConfig">
+                <!-- 配置项将在这里动态生成 -->
+            </div>
+        </div>
+
+        <!-- 状态提示 -->
+        <div id="statusMessage" class="fixed bottom-4 right-4 hidden">
+            <div class="bg-white rounded-lg shadow-lg p-4 border-l-4">
+                <div class="flex items-center">
+                    <i class="fas fa-check-circle text-2xl mr-3"></i>
+                    <div>
+                        <div class="font-bold" id="statusTitle">成功</div>
+                        <div class="text-sm text-gray-600" id="statusText">配置已保存</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script src="/static/signal-config.js"></script>
+</body>
+</html>

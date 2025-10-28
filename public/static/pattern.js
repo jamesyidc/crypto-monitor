@@ -1,6 +1,10 @@
 // 当前选中的tab
 let currentTab = 'surge';
 
+// 交易规则数据
+let allRules = [];
+let ruleChanges = {}; // 记录修改的规则
+
 // 页面加载时初始化
 document.addEventListener('DOMContentLoaded', () => {
   loadStats();
@@ -12,19 +16,27 @@ function switchTab(tab) {
   currentTab = tab;
   
   // 更新Tab样式
+  document.getElementById('tabSurge').className = 'px-6 py-3 font-bold text-gray-500 hover:text-green-600';
+  document.getElementById('tabCrash').className = 'px-6 py-3 font-bold text-gray-500 hover:text-red-600';
+  document.getElementById('tabRules').className = 'px-6 py-3 font-bold text-gray-500 hover:text-blue-600';
+  
+  document.getElementById('surgeContent').classList.add('hidden');
+  document.getElementById('crashContent').classList.add('hidden');
+  document.getElementById('rulesContent').classList.add('hidden');
+  
   if (tab === 'surge') {
     document.getElementById('tabSurge').className = 'px-6 py-3 font-bold text-green-600 border-b-2 border-green-600';
-    document.getElementById('tabCrash').className = 'px-6 py-3 font-bold text-gray-500 hover:text-red-600';
     document.getElementById('surgeContent').classList.remove('hidden');
-    document.getElementById('crashContent').classList.add('hidden');
-  } else {
-    document.getElementById('tabSurge').className = 'px-6 py-3 font-bold text-gray-500 hover:text-green-600';
+    loadPatterns(tab);
+  } else if (tab === 'crash') {
     document.getElementById('tabCrash').className = 'px-6 py-3 font-bold text-red-600 border-b-2 border-red-600';
-    document.getElementById('surgeContent').classList.add('hidden');
     document.getElementById('crashContent').classList.remove('hidden');
+    loadPatterns(tab);
+  } else if (tab === 'rules') {
+    document.getElementById('tabRules').className = 'px-6 py-3 font-bold text-blue-600 border-b-2 border-blue-600';
+    document.getElementById('rulesContent').classList.remove('hidden');
+    loadTradingRules();
   }
-  
-  loadPatterns(tab);
 }
 
 // 加载统计数据
@@ -210,5 +222,279 @@ async function analyzePatterns() {
   } finally {
     btn.disabled = false;
     btn.innerHTML = originalText;
+  }
+}
+
+// ==================== 交易规则相关函数 ====================
+
+// 加载交易规则
+async function loadTradingRules() {
+  try {
+    // 加载规则列表
+    const rulesResponse = await fetch('/api/trading-rules');
+    const rulesData = await rulesResponse.json();
+    
+    if (rulesData.success) {
+      allRules = rulesData.rules;
+      renderRulesTable();
+    }
+    
+    // 加载统计信息
+    const statsResponse = await fetch('/api/trading-rules/stats');
+    const statsData = await statsResponse.json();
+    
+    if (statsData.success) {
+      renderRulesStats(statsData.stats);
+    }
+    
+    // 清空未保存的修改
+    ruleChanges = {};
+    
+  } catch (error) {
+    console.error('加载交易规则失败:', error);
+    document.getElementById('rulesTableBody').innerHTML = `
+      <tr><td colspan="6" class="text-center py-8 text-red-500">
+        <i class="fas fa-exclamation-triangle mr-2"></i>加载失败: ${error.message}
+      </td></tr>
+    `;
+  }
+}
+
+// 渲染统计信息
+function renderRulesStats(stats) {
+  document.getElementById('statsTotal').textContent = stats.total || 0;
+  document.getElementById('statsTradingAllowed').textContent = stats.trading_allowed || 0;
+  document.getElementById('statsLongAllowed').textContent = stats.long_allowed || 0;
+  document.getElementById('statsShortAllowed').textContent = stats.short_allowed || 0;
+  document.getElementById('statsTradingDisabled').textContent = stats.trading_disabled || 0;
+}
+
+// 渲染规则表格
+function renderRulesTable() {
+  const tbody = document.getElementById('rulesTableBody');
+  
+  tbody.innerHTML = allRules.map((rule, index) => {
+    const tradingAllowed = rule.trading_allowed === 1;
+    const longAllowed = rule.long_allowed === 1;
+    const shortAllowed = rule.short_allowed === 1;
+    
+    // 状态描述
+    let statusText = '';
+    let statusClass = '';
+    if (!tradingAllowed) {
+      statusText = '❌ 禁止交易';
+      statusClass = 'text-red-600 font-bold';
+    } else if (longAllowed && shortAllowed) {
+      statusText = '✅ 双向交易';
+      statusClass = 'text-green-600 font-bold';
+    } else if (longAllowed) {
+      statusText = '📈 仅做多';
+      statusClass = 'text-blue-600 font-bold';
+    } else if (shortAllowed) {
+      statusText = '📉 仅做空';
+      statusClass = 'text-orange-600 font-bold';
+    } else {
+      statusText = '⚠️ 配置异常';
+      statusClass = 'text-yellow-600 font-bold';
+    }
+    
+    return `
+      <tr class="border-b border-gray-100 hover:bg-gray-50">
+        <td class="py-3 px-4 font-bold text-gray-700">${rule.symbol}</td>
+        <td class="py-3 px-4 text-center">
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" ${tradingAllowed ? 'checked' : ''} 
+                   onchange="toggleRule('${rule.symbol}', 'trading_allowed', this.checked)"
+                   class="sr-only peer">
+            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+          </label>
+        </td>
+        <td class="py-3 px-4 text-center">
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" ${longAllowed ? 'checked' : ''} 
+                   ${!tradingAllowed ? 'disabled' : ''}
+                   onchange="toggleRule('${rule.symbol}', 'long_allowed', this.checked)"
+                   class="sr-only peer">
+            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer ${!tradingAllowed ? 'opacity-50' : ''} peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+          </label>
+        </td>
+        <td class="py-3 px-4 text-center">
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" ${shortAllowed ? 'checked' : ''} 
+                   ${!tradingAllowed ? 'disabled' : ''}
+                   onchange="toggleRule('${rule.symbol}', 'short_allowed', this.checked)"
+                   class="sr-only peer">
+            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer ${!tradingAllowed ? 'opacity-50' : ''} peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-600"></div>
+          </label>
+        </td>
+        <td class="py-3 px-4 text-sm text-gray-600">
+          <input type="text" 
+                 value="${rule.notes || ''}" 
+                 onchange="updateRuleNotes('${rule.symbol}', this.value)"
+                 placeholder="添加备注..."
+                 class="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </td>
+        <td class="py-3 px-4 text-center ${statusClass}">${statusText}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// 切换规则开关
+function toggleRule(symbol, field, value) {
+  if (!ruleChanges[symbol]) {
+    ruleChanges[symbol] = { symbol };
+  }
+  ruleChanges[symbol][field] = value ? 1 : 0;
+  
+  // 如果禁止交易，自动禁用做多做空
+  if (field === 'trading_allowed' && !value) {
+    ruleChanges[symbol].long_allowed = 0;
+    ruleChanges[symbol].short_allowed = 0;
+  }
+  
+  // 更新本地数据
+  const rule = allRules.find(r => r.symbol === symbol);
+  if (rule) {
+    rule[field] = value ? 1 : 0;
+    if (field === 'trading_allowed' && !value) {
+      rule.long_allowed = 0;
+      rule.short_allowed = 0;
+    }
+  }
+  
+  // 重新渲染表格
+  renderRulesTable();
+  
+  console.log('规则修改:', ruleChanges);
+}
+
+// 更新规则备注
+function updateRuleNotes(symbol, notes) {
+  if (!ruleChanges[symbol]) {
+    ruleChanges[symbol] = { symbol };
+  }
+  ruleChanges[symbol].notes = notes;
+  
+  console.log('备注修改:', ruleChanges);
+}
+
+// 保存所有更改
+async function saveAllRules() {
+  const changesCount = Object.keys(ruleChanges).length;
+  
+  if (changesCount === 0) {
+    alert('没有需要保存的更改');
+    return;
+  }
+  
+  const confirmed = confirm(`即将保存 ${changesCount} 个币种的规则修改，是否继续？`);
+  if (!confirmed) return;
+  
+  try {
+    const updates = Object.values(ruleChanges);
+    
+    const response = await fetch('/api/trading-rules/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ updates })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      alert(data.message);
+      ruleChanges = {};
+      loadTradingRules(); // 重新加载
+    } else {
+      alert('保存失败: ' + data.error);
+    }
+  } catch (error) {
+    console.error('保存失败:', error);
+    alert('保存失败: ' + error.message);
+  }
+}
+
+// 快速设置 - 重置所有规则
+async function quickSetReset() {
+  const confirmed = confirm('即将重置所有币种为默认规则（允许所有交易），是否继续？');
+  if (!confirmed) return;
+  
+  try {
+    const response = await fetch('/api/trading-rules/reset', { method: 'POST' });
+    const data = await response.json();
+    
+    if (data.success) {
+      alert(data.message);
+      loadTradingRules();
+    } else {
+      alert('操作失败: ' + data.error);
+    }
+  } catch (error) {
+    console.error('操作失败:', error);
+    alert('操作失败: ' + error.message);
+  }
+}
+
+// 快速设置 - 禁止所有交易
+async function quickSetDisableAll() {
+  const confirmed = confirm('即将禁止所有币种的交易，是否继续？');
+  if (!confirmed) return;
+  
+  try {
+    const response = await fetch('/api/trading-rules/disable-all', { method: 'POST' });
+    const data = await response.json();
+    
+    if (data.success) {
+      alert(data.message);
+      loadTradingRules();
+    } else {
+      alert('操作失败: ' + data.error);
+    }
+  } catch (error) {
+    console.error('操作失败:', error);
+    alert('操作失败: ' + error.message);
+  }
+}
+
+// 快速设置 - 仅允许做多
+async function quickSetLongOnly() {
+  const confirmed = confirm('即将设置所有币种为仅允许做多，是否继续？');
+  if (!confirmed) return;
+  
+  try {
+    const response = await fetch('/api/trading-rules/long-only', { method: 'POST' });
+    const data = await response.json();
+    
+    if (data.success) {
+      alert(data.message);
+      loadTradingRules();
+    } else {
+      alert('操作失败: ' + data.error);
+    }
+  } catch (error) {
+    console.error('操作失败:', error);
+    alert('操作失败: ' + error.message);
+  }
+}
+
+// 快速设置 - 仅允许做空
+async function quickSetShortOnly() {
+  const confirmed = confirm('即将设置所有币种为仅允许做空，是否继续？');
+  if (!confirmed) return;
+  
+  try {
+    const response = await fetch('/api/trading-rules/short-only', { method: 'POST' });
+    const data = await response.json();
+    
+    if (data.success) {
+      alert(data.message);
+      loadTradingRules();
+    } else {
+      alert('操作失败: ' + data.error);
+    }
+  } catch (error) {
+    console.error('操作失败:', error);
+    alert('操作失败: ' + error.message);
   }
 }

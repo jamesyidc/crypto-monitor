@@ -80,6 +80,9 @@
                 <button onclick="switchTab('crash')" id="tabCrash" class="px-6 py-3 font-bold text-gray-500 hover:text-red-600">
                     <i class="fas fa-arrow-trend-down mr-2"></i>起跌模式
                 </button>
+                <button onclick="switchTab('rules')" id="tabRules" class="px-6 py-3 font-bold text-gray-500 hover:text-blue-600">
+                    <i class="fas fa-gavel mr-2"></i>交易规则
+                </button>
             </div>
         </div>
 
@@ -96,6 +99,90 @@
             <div class="text-center py-8 text-gray-500">
                 <i class="fas fa-spinner fa-spin text-3xl mb-4"></i>
                 <p>加载中...</p>
+            </div>
+        </div>
+
+        <!-- 交易规则内容 -->
+        <div id="rulesContent" class="hidden">
+            <!-- 统计信息卡片 -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-lg font-bold text-gray-800 mb-4">
+                    <i class="fas fa-chart-pie mr-2"></i>交易规则统计
+                </h2>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                    <div class="text-center p-4 bg-gray-50 rounded-lg">
+                        <div class="text-gray-500 mb-1">币种总数</div>
+                        <div id="statsTotal" class="text-2xl font-bold text-gray-700">-</div>
+                    </div>
+                    <div class="text-center p-4 bg-green-50 rounded-lg">
+                        <div class="text-gray-500 mb-1">允许交易</div>
+                        <div id="statsTradingAllowed" class="text-2xl font-bold text-green-600">-</div>
+                    </div>
+                    <div class="text-center p-4 bg-blue-50 rounded-lg">
+                        <div class="text-gray-500 mb-1">允许做多</div>
+                        <div id="statsLongAllowed" class="text-2xl font-bold text-blue-600">-</div>
+                    </div>
+                    <div class="text-center p-4 bg-orange-50 rounded-lg">
+                        <div class="text-gray-500 mb-1">允许做空</div>
+                        <div id="statsShortAllowed" class="text-2xl font-bold text-orange-600">-</div>
+                    </div>
+                    <div class="text-center p-4 bg-red-50 rounded-lg">
+                        <div class="text-gray-500 mb-1">禁止交易</div>
+                        <div id="statsTradingDisabled" class="text-2xl font-bold text-red-600">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 快速设置按钮 -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">
+                    <i class="fas fa-bolt mr-2"></i>批量快速设置
+                </h3>
+                <div class="flex flex-wrap gap-3">
+                    <button onclick="quickSetReset()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
+                        <i class="fas fa-redo mr-2"></i>重置全部（允许所有）
+                    </button>
+                    <button onclick="quickSetDisableAll()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition">
+                        <i class="fas fa-ban mr-2"></i>禁止所有交易
+                    </button>
+                    <button onclick="quickSetLongOnly()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+                        <i class="fas fa-arrow-up mr-2"></i>仅允许做多
+                    </button>
+                    <button onclick="quickSetShortOnly()" class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition">
+                        <i class="fas fa-arrow-down mr-2"></i>仅允许做空
+                    </button>
+                    <button onclick="saveAllRules()" class="ml-auto px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition font-bold">
+                        <i class="fas fa-save mr-2"></i>保存所有更改
+                    </button>
+                </div>
+            </div>
+
+            <!-- 交易规则表格 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">
+                    <i class="fas fa-list mr-2"></i>各币种交易规则设置
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b-2 border-gray-200">
+                                <th class="text-left py-3 px-4">币种</th>
+                                <th class="text-center py-3 px-4">允许交易</th>
+                                <th class="text-center py-3 px-4">允许做多</th>
+                                <th class="text-center py-3 px-4">允许做空</th>
+                                <th class="text-left py-3 px-4">备注</th>
+                                <th class="text-center py-3 px-4">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rulesTableBody">
+                            <tr>
+                                <td colspan="6" class="text-center py-8 text-gray-500">
+                                    <i class="fas fa-spinner fa-spin mr-2"></i>加载中...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>

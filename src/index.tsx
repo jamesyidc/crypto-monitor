@@ -11,6 +11,7 @@ import { PositionService } from './services/positionService'
 import { SimulatedTradingService } from './services/simulatedTradingService'
 import { PatternService } from './services/patternService'
 import { SettingsService } from './services/settingsService'
+import { TradingRuleService } from './services/tradingRuleService'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
@@ -1926,6 +1927,174 @@ app.post('/api/signal-config/batch', async (c) => {
     });
   } catch (error: any) {
     console.error('批量更新信号配置失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// ==================== 交易规则 API ====================
+
+// API: 获取交易统计（必须放在 :symbol 路由之前）
+app.get('/api/trading-rules/stats', async (c) => {
+  try {
+    const tradingRuleService = new TradingRuleService(c.env.DB);
+    const stats = await tradingRuleService.getTradingStats();
+    
+    return c.json({
+      success: true,
+      stats
+    });
+  } catch (error: any) {
+    console.error('获取交易统计失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 获取所有交易规则
+app.get('/api/trading-rules', async (c) => {
+  try {
+    const tradingRuleService = new TradingRuleService(c.env.DB);
+    const rules = await tradingRuleService.getAllRules();
+    
+    return c.json({
+      success: true,
+      rules
+    });
+  } catch (error: any) {
+    console.error('获取交易规则失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 获取单个币种的交易规则
+app.get('/api/trading-rules/:symbol', async (c) => {
+  try {
+    const symbol = c.req.param('symbol');
+    const tradingRuleService = new TradingRuleService(c.env.DB);
+    const rule = await tradingRuleService.getRuleBySymbol(symbol);
+    
+    if (!rule) {
+      return c.json({ success: false, error: '未找到该币种的交易规则' }, 404);
+    }
+    
+    return c.json({
+      success: true,
+      rule
+    });
+  } catch (error: any) {
+    console.error('获取交易规则失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 更新单个币种的交易规则
+app.put('/api/trading-rules/:symbol', async (c) => {
+  try {
+    const symbol = c.req.param('symbol');
+    const body = await c.req.json();
+    const { trading_allowed, long_allowed, short_allowed, notes } = body;
+    
+    const tradingRuleService = new TradingRuleService(c.env.DB);
+    await tradingRuleService.updateRule({
+      symbol,
+      trading_allowed,
+      long_allowed,
+      short_allowed,
+      notes
+    });
+    
+    return c.json({
+      success: true,
+      message: `${symbol} 交易规则已更新`
+    });
+  } catch (error: any) {
+    console.error('更新交易规则失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 批量更新交易规则
+app.post('/api/trading-rules/batch', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { updates } = body;
+    
+    if (!Array.isArray(updates)) {
+      return c.json({ success: false, error: 'updates必须是数组' }, 400);
+    }
+    
+    const tradingRuleService = new TradingRuleService(c.env.DB);
+    await tradingRuleService.batchUpdateRules(updates);
+    
+    return c.json({
+      success: true,
+      message: `批量更新完成: ${updates.length} 个规则已更新`
+    });
+  } catch (error: any) {
+    console.error('批量更新交易规则失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 快速设置 - 重置所有规则
+app.post('/api/trading-rules/reset', async (c) => {
+  try {
+    const tradingRuleService = new TradingRuleService(c.env.DB);
+    await tradingRuleService.resetAllRules();
+    
+    return c.json({
+      success: true,
+      message: '所有规则已重置为默认（允许所有交易）'
+    });
+  } catch (error: any) {
+    console.error('重置交易规则失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 快速设置 - 禁止所有交易
+app.post('/api/trading-rules/disable-all', async (c) => {
+  try {
+    const tradingRuleService = new TradingRuleService(c.env.DB);
+    await tradingRuleService.disableAllTrading();
+    
+    return c.json({
+      success: true,
+      message: '已禁止所有币种的交易'
+    });
+  } catch (error: any) {
+    console.error('禁止所有交易失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 快速设置 - 仅允许做多
+app.post('/api/trading-rules/long-only', async (c) => {
+  try {
+    const tradingRuleService = new TradingRuleService(c.env.DB);
+    await tradingRuleService.setLongOnly();
+    
+    return c.json({
+      success: true,
+      message: '已设置所有币种为仅允许做多'
+    });
+  } catch (error: any) {
+    console.error('设置仅允许做多失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 快速设置 - 仅允许做空
+app.post('/api/trading-rules/short-only', async (c) => {
+  try {
+    const tradingRuleService = new TradingRuleService(c.env.DB);
+    await tradingRuleService.setShortOnly();
+    
+    return c.json({
+      success: true,
+      message: '已设置所有币种为仅允许做空'
+    });
+  } catch (error: any) {
+    console.error('设置仅允许做空失败:', error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });
