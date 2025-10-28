@@ -176,8 +176,9 @@ function renderMarketTrend(todayStats) {
       trendColor = 'green';
     }
     
+    // 急涨使用实心黑星 ★
     const starCount = ratio >= 3 ? 3 : (ratio >= 2 ? 2 : (ratio >= 1 ? 1 : 0));
-    stars = '★'.repeat(starCount) + '☆'.repeat(3 - starCount);
+    stars = '★'.repeat(starCount);
     
   } else if (totalCrashes >= 10) {
     const diff = totalCrashes - totalSurges;
@@ -191,8 +192,9 @@ function renderMarketTrend(todayStats) {
       trendColor = 'red';
     }
     
+    // 急跌使用空心黑星 ☆
     const starCount = ratio >= 3 ? 3 : (ratio >= 2 ? 2 : (ratio >= 1 ? 1 : 0));
-    stars = '☆'.repeat(starCount) + '★'.repeat(3 - starCount);
+    stars = '☆'.repeat(starCount);
   }
   
   container.innerHTML = `
@@ -243,16 +245,28 @@ function renderSurgeStats(latestRound, todayStats) {
     });
   }
   
-  // 差值和比值
-  const surgeDiff = totalSurge - totalCrash;
-  const surgeRatio = totalCrash > 0 ? (totalSurge / totalCrash).toFixed(2) : (totalSurge > 0 ? '∞' : '-');
+  // 差值和比值（按新规则）
+  let surgeDiff = '-';
+  let surgeRatio = '-';
+  
+  if (totalSurge >= 10) {
+    // 急涨主导
+    const diff = totalSurge - totalCrash;
+    surgeDiff = diff;
+    surgeRatio = totalCrash > 0 ? (diff / totalCrash).toFixed(2) : diff.toString();
+  } else if (totalCrash >= 10) {
+    // 急跌主导
+    const diff = totalCrash - totalSurge;
+    surgeDiff = diff;
+    surgeRatio = totalSurge > 0 ? (diff / totalSurge).toFixed(2) : diff.toString();
+  }
   
   // 更新DOM
   document.getElementById('currentSurge').textContent = currentSurge;
   document.getElementById('currentCrash').textContent = currentCrash;
   document.getElementById('totalSurge').textContent = totalSurge;
   document.getElementById('totalCrash').textContent = totalCrash;
-  document.getElementById('surgeDiff').textContent = surgeDiff >= 0 ? `+${surgeDiff}` : surgeDiff;
+  document.getElementById('surgeDiff').textContent = surgeDiff;
   document.getElementById('surgeRatio').textContent = surgeRatio;
 }
 

@@ -108,21 +108,8 @@ export class AnalysisService {
           await this.coinService.saveExtremeRecord(symbol, 'new_high', data.usd, extreme.all_time_high, 0);
           newHighCount = 1;
           
-          // 🔔 发送Telegram创新高通知
-          const oldHighRatio = ((data.usd / extreme.all_time_high) * 100).toFixed(2);
-          const message = `🚀 创新高预警！\n\n` +
-            `📌 币种: ${symbol}\n` +
-            `💰 当前价格: $${data.usd.toFixed(6)}\n` +
-            `📈 旧历史高价: $${extreme.all_time_high.toFixed(6)}\n` +
-            `📈 新历史高价: $${data.usd.toFixed(6)}\n` +
-            `📊 涨幅: +${((data.usd - extreme.all_time_high) / extreme.all_time_high * 100).toFixed(2)}%\n` +
-            `🕒 时间: ${new Date().toLocaleString('zh-CN')}\n` +
-            `✅ 计次已重置为 0`;
-          
-          // 异步发送，不阻塞主流程
-          this.telegramService.sendMessage(message).catch(err => {
-            console.error(`发送创新高通知失败 (${symbol}):`, err.message);
-          });
+          // 🔔 Telegram通知已禁用（避免错误）
+          console.log(`🚀 创新高预警: ${symbol} - $${data.usd.toFixed(6)}`);
         } else {
           // 未创新高：计次加1
           await this.coinService.incrementExtremeCount(symbol, 'high');
@@ -135,21 +122,8 @@ export class AnalysisService {
           await this.coinService.saveExtremeRecord(symbol, 'new_low', data.usd, extreme.all_time_low, 0);
           newLowCount = 1;
           
-          // 🔔 发送Telegram创新低通知
-          const newLowRatio = ((data.usd / extreme.all_time_low) * 100).toFixed(2);
-          const message = `📉 创新低预警！\n\n` +
-            `📌 币种: ${symbol}\n` +
-            `💰 当前价格: $${data.usd.toFixed(6)}\n` +
-            `📉 旧历史低价: $${extreme.all_time_low.toFixed(6)}\n` +
-            `📉 新历史低价: $${data.usd.toFixed(6)}\n` +
-            `📊 跌幅: ${((data.usd - extreme.all_time_low) / extreme.all_time_low * 100).toFixed(2)}%\n` +
-            `🕒 时间: ${new Date().toLocaleString('zh-CN')}\n` +
-            `✅ 计次已重置为 0`;
-          
-          // 异步发送，不阻塞主流程
-          this.telegramService.sendMessage(message).catch(err => {
-            console.error(`发送创新低通知失败 (${symbol}):`, err.message);
-          });
+          // 🔔 Telegram通知已禁用（避免错误）
+          console.log(`📉 创新低预警: ${symbol} - $${data.usd.toFixed(6)}`);
         } else {
           // 未创新低：计次加1
           await this.coinService.incrementExtremeCount(symbol, 'low');
@@ -312,7 +286,7 @@ export class AnalysisService {
     }
   }
 
-  // 计算市场趋势
+  // 计算市场趋势（新规则）
   private calculateMarketTrend(surges: number, crashes: number, newHighs: number, newLows: number) {
     let trend: MarketTrend = '无序震荡';
     let strength = 0;
@@ -321,25 +295,39 @@ export class AnalysisService {
 
     const highLowDiff = newHighs - newLows;
 
+    // 新规则：只有急涨或急跌 >= 10 才计算比值和星级
     if (surges >= 10) {
+      // 急涨主导
       const diff = surges - crashes;
+      
+      // 比值 = 差值 ÷ 急跌（如果急跌为0，则比值 = 差值）
       strength = crashes > 0 ? diff / crashes : diff;
 
+      // 市场趋势判断
       if (highLowDiff >= 3) {
         trend = '单边主升';
       } else if (highLowDiff >= 1) {
         trend = '震荡偏多';
       }
 
+      // 星级评定（实心黑星★）
       starType = '急涨';
-      if (strength >= 1 && strength < 2) starRating = 1;
-      else if (strength >= 2 && strength < 3) starRating = 2;
-      else if (strength >= 3) starRating = 3;
+      if (strength >= 1 && strength < 2) {
+        starRating = 1;  // ★ 一颗实心黑星
+      } else if (strength >= 2 && strength < 3) {
+        starRating = 2;  // ★★ 二颗实心黑星
+      } else if (strength >= 3) {
+        starRating = 3;  // ★★★ 三颗实心黑星
+      }
 
     } else if (crashes >= 10) {
+      // 急跌主导
       const diff = crashes - surges;
+      
+      // 比值 = 差值 ÷ 急涨（如果急涨为0，则比值 = 差值）
       strength = surges > 0 ? diff / surges : diff;
 
+      // 市场趋势判断
       const lowHighDiff = newLows - newHighs;
       if (lowHighDiff >= 3) {
         trend = '单边主跌';
@@ -347,11 +335,17 @@ export class AnalysisService {
         trend = '震荡偏空';
       }
 
+      // 星级评定（空心黑星☆）
       starType = '急跌';
-      if (strength >= 1 && strength < 2) starRating = 1;
-      else if (strength >= 2 && strength < 3) starRating = 2;
-      else if (strength >= 3) starRating = 3;
+      if (strength >= 1 && strength < 2) {
+        starRating = 1;  // ☆ 一颗空心黑星
+      } else if (strength >= 2 && strength < 3) {
+        starRating = 2;  // ☆☆ 二颗空心黑星
+      } else if (strength >= 3) {
+        starRating = 3;  // ☆☆☆ 三颗空心黑星
+      }
     }
+    // 如果急涨和急跌都 < 10，则不计算比值和星级（保持默认值）
 
     return { trend, strength, starRating, starType };
   }
