@@ -83,7 +83,7 @@ function updateCountdownDisplay() {
 // 加载币种列表
 async function loadCoins() {
   try {
-    const response = await axios.get('/api/coins');
+    const response = await axios.get('/api/coins/with-priority');
     allCoins = response.data;
     renderCoinSelector();
   } catch (error) {
@@ -92,17 +92,52 @@ async function loadCoins() {
   }
 }
 
-// 渲染币种选择器
+// 渲染币种选择器（按等级分组）
 function renderCoinSelector() {
   const container = document.getElementById('coinSelector');
-  container.innerHTML = allCoins.map(coin => `
-    <button 
-      class="coin-btn px-4 py-2 rounded-lg border border-gray-300 font-semibold ${coin.symbol === currentSymbol ? 'active' : ''}"
-      data-symbol="${coin.symbol}"
-    >
-      ${coin.symbol}
-    </button>
-  `).join('');
+  
+  // 按等级分组
+  const levelGroups = {
+    1: { title: '⭐ 等级1 - TAO', coins: [] },
+    2: { title: '⭐⭐ 等级2 - BNB/BCH', coins: [] },
+    3: { title: '⭐⭐⭐ 等级3', coins: [] },
+    4: { title: '⭐⭐⭐⭐ 等级4 - XRP', coins: [] },
+    5: { title: '⭐⭐⭐⭐⭐ 等级5 - BTC', coins: [] },
+    6: { title: '⭐⭐⭐⭐⭐⭐ 等级6 - ETH/SOL等', coins: [] }
+  };
+  
+  // 分组币种
+  allCoins.forEach(coin => {
+    const level = coin.level || 6; // 默认等级6
+    if (levelGroups[level]) {
+      levelGroups[level].coins.push(coin);
+    }
+  });
+  
+  // 渲染分组
+  let html = '';
+  [1, 2, 4, 5, 3, 6].forEach(level => { // 按重要性排序：1,2,4,5,3,6
+    const group = levelGroups[level];
+    if (group.coins.length > 0) {
+      html += `
+        <div class="level-group">
+          <div class="level-title level-${level}-title">${group.title} (${group.coins.length})</div>
+          <div class="coin-grid">
+            ${group.coins.map(coin => `
+              <button 
+                class="coin-btn px-4 py-2 rounded-lg border border-gray-300 font-semibold ${coin.symbol === currentSymbol ? 'active' : ''}"
+                data-symbol="${coin.symbol}"
+              >
+                ${coin.symbol}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+  });
+  
+  container.innerHTML = html;
 
   // 绑定点击事件
   document.querySelectorAll('.coin-btn').forEach(btn => {

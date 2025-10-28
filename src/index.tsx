@@ -51,6 +51,19 @@ app.get('/api/coins', async (c) => {
   return c.json(coins);
 });
 
+// API: 获取带优先级的所有币种
+app.get('/api/coins/with-priority', async (c) => {
+  const result = await c.env.DB
+    .prepare(`
+      SELECT c.id, c.symbol, c.name, c.rank_order, p.level
+      FROM coins c
+      LEFT JOIN coin_priority p ON c.symbol = p.symbol
+      ORDER BY c.rank_order
+    `)
+    .all();
+  return c.json(result.results);
+});
+
 // API: 获取历史轮次统计
 app.get('/api/rounds', async (c) => {
   const limit = parseInt(c.req.query('limit') || '50');

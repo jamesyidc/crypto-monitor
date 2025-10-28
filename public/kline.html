@@ -13,6 +13,30 @@
         .timeframe-btn.active { background: #2563eb; color: white; }
         .coin-btn { transition: all 0.3s; }
         .coin-btn.active { background: #10b981; color: white; border-color: #10b981; }
+        
+        /* 等级分组样式 */
+        .level-group { margin-bottom: 16px; }
+        .level-title { 
+            font-size: 0.875rem; 
+            font-weight: 600; 
+            color: #4B5563; 
+            margin-bottom: 8px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        .level-1-title { background: #FEF3C7; color: #92400E; }
+        .level-2-title { background: #FDE68A; color: #78350F; }
+        .level-3-title { background: #BFDBFE; color: #1E40AF; }
+        .level-4-title { background: #DDD6FE; color: #5B21B6; }
+        .level-5-title { background: #D1FAE5; color: #065F46; }
+        .level-6-title { background: #E5E7EB; color: #374151; }
+        
+        .coin-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); 
+            gap: 8px; 
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -60,8 +84,8 @@
         <!-- 币种选择 -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
             <h2 class="text-lg font-bold text-gray-800 mb-4">选择币种</h2>
-            <div id="coinSelector" class="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-2">
-                <!-- 币种按钮将在这里生成 -->
+            <div id="coinSelector">
+                <!-- 币种按钮将按等级分组在这里生成 -->
             </div>
         </div>
 
