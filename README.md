@@ -241,6 +241,23 @@ export const VOLUME_THRESHOLDS: Record<string, VolumeThresholds> = {
 - **急跌主导**：比值 = (急跌-急涨) / 急涨，显示☆
 - **星级划分**：1-2(1星) | 2-3(2星) | 3+(3星)
 
+## 🔄 GitHub 同步
+
+### 快速同步
+每次代码更新后，一键同步到GitHub：
+```bash
+cd /home/user/webapp
+npm run sync
+```
+
+### 带提交信息同步
+```bash
+./sync-github.sh "feat: 添加新功能"
+```
+
+### 详细说明
+查看完整同步指南：[SYNC_GUIDE.md](./SYNC_GUIDE.md) | [快速参考](./QUICK_SYNC.md)
+
 ## 🐛 已知问题
 
 1. Telegram 通知功能已禁用（避免运行时错误）
