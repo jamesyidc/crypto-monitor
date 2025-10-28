@@ -118,6 +118,127 @@ npm run db:restore
 
 ---
 
+## 🚨 核心逻辑 5：意外错误应对措施
+
+**任何功能或修改都必须有至少2条应对措施，防止意外情况！**
+
+### 必备应对措施：
+
+#### 措施1：立即备份恢复
+```bash
+# 如果操作出错，立即恢复最新备份
+npm run db:restore
+```
+
+#### 措施2：查看详细日志
+```bash
+# 查看主服务日志
+pm2 logs crypto-monitor --nostream --lines 50
+
+# 查看所有服务状态
+pm2 status
+```
+
+#### 措施3：完全重启服务
+```bash
+# 清理端口
+fuser -k 3000/tcp 2>/dev/null || true
+
+# 删除并重启
+pm2 delete crypto-monitor
+pm2 start ecosystem.config.cjs --only crypto-monitor
+```
+
+#### 措施4：数据库完整性检查
+```bash
+# 检查表是否存在
+npx wrangler d1 execute webapp-production --local --command="SELECT name FROM sqlite_master WHERE type='table';"
+
+# 检查数据量
+npx wrangler d1 execute webapp-production --local --command="SELECT COUNT(*) FROM kline_data;"
+```
+
+## 🔧 核心逻辑 6：修改功能的全盘考虑
+
+**修改任何功能前必须全盘考虑影响，不能头痛医头脚痛医脚！**
+
+### 检查清单：
+1. ✅ **数据库影响**：是否影响现有表结构？是否需要迁移数据？
+2. ✅ **API影响**：是否改变API响应格式？前端是否需要同步修改？
+3. ✅ **调度器影响**：是否影响定时任务？是否需要重启调度器？
+4. ✅ **性能影响**：是否增加数据库查询？是否影响响应速度？
+5. ✅ **备份影响**：修改后备份是否仍然有效？恢复是否正常？
+
+### 修改流程：
+1. 在开发手册中详细定义修改内容
+2. 评估对所有现有功能的影响
+3. 准备回滚方案
+4. 执行数据库备份
+5. 小范围测试修改
+6. 全面验证所有功能
+7. 确认无问题后提交
+
+## 🖥️ 核心逻辑 7：服务器健康检查
+
+**定期检查服务器状态，防止服务死机或异常！**
+
+### 健康检查命令：
+```bash
+# 1. 检查所有服务状态
+pm2 status
+
+# 2. 检查端口占用
+lsof -i :3000
+
+# 3. 测试本地API
+curl http://localhost:3000/api/coins
+
+# 4. 获取公网URL
+# 使用 GetServiceUrl 工具
+
+# 5. 检查最近错误日志
+pm2 logs crypto-monitor --nostream --lines 30 --err
+
+# 6. 检查系统资源
+free -h
+df -h
+```
+
+### 常见故障诊断：
+
+#### 故障1：端口3000无响应
+```bash
+# 应对措施1：重启服务
+npm run restart
+
+# 应对措施2：清理端口重启
+npm run clean-port && npm run start
+```
+
+#### 故障2：数据库锁死
+```bash
+# 应对措施1：停止所有服务
+pm2 stop all
+
+# 应对措施2：清理锁文件并重启
+pm2 delete all
+pm2 start ecosystem.config.cjs
+```
+
+#### 故障3：公网URL超时
+```bash
+# 应对措施1：检查本地服务是否正常
+curl http://localhost:3000/api/coins
+
+# 应对措施2：重新获取公网URL
+# 使用 GetServiceUrl 工具
+
+# 应对措施3：检查沙盒网络状态
+# 联系支持或等待恢复
+```
+
+---
+
 ## 📚 目录
 
 1. [系统稳定性优化](#系统稳定性优化)
