@@ -66,6 +66,9 @@
                 <button onclick="switchTab('priority')" id="tabPriority" class="px-6 py-3 font-bold text-gray-500 hover:text-orange-600">
                     <i class="fas fa-star mr-2"></i>币种优先级
                 </button>
+                <button onclick="switchTab('consecutive')" id="tabConsecutive" class="px-6 py-3 font-bold text-gray-500 hover:text-red-600">
+                    <i class="fas fa-fire mr-2"></i>连续上涨占优
+                </button>
             </div>
         </div>
 
@@ -311,6 +314,97 @@
                         <tbody id="priorityTableBody">
                             <tr>
                                 <td colspan="7" class="text-center py-8 text-gray-500">
+                                    <i class="fas fa-spinner fa-spin mr-2"></i>加载中...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 连续上涨占优内容 -->
+        <div id="consecutiveContent" class="hidden">
+            <!-- 统计概览 -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-bold text-gray-800">
+                        <i class="fas fa-fire mr-2"></i>连续上涨占优统计
+                    </h2>
+                    <button onclick="updateConsecutiveStats()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+                        <i class="fas fa-sync mr-2"></i>更新统计
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div class="text-center p-4 bg-yellow-50 rounded-lg">
+                        <div class="text-gray-500 mb-1">连续≥40天</div>
+                        <div id="above40Count" class="text-2xl font-bold text-yellow-600">-</div>
+                    </div>
+                    <div class="text-center p-4 bg-orange-50 rounded-lg">
+                        <div class="text-gray-500 mb-1">连续≥60天</div>
+                        <div id="above60Count" class="text-2xl font-bold text-orange-600">-</div>
+                    </div>
+                    <div class="text-center p-4 bg-red-50 rounded-lg">
+                        <div class="text-gray-500 mb-1">连续≥80天</div>
+                        <div id="above80Count" class="text-2xl font-bold text-red-600">-</div>
+                    </div>
+                    <div class="text-center p-4 bg-purple-50 rounded-lg">
+                        <div class="text-gray-500 mb-1">历史最大连续</div>
+                        <div id="maxStreakOverall" class="text-2xl font-bold text-purple-600">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 说明信息 -->
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+                <div class="flex items-start">
+                    <i class="fas fa-info-circle text-blue-500 text-xl mr-3 mt-1"></i>
+                    <div>
+                        <p class="font-bold text-blue-800 mb-1">统计说明</p>
+                        <p class="text-sm text-blue-700">
+                            • 上涨占优：当天占比上涨（当前价/历史最高）> 占比下跌（当前价/历史最低）<br>
+                            • 连续天数：上涨占优持续的天数，中断后重新计数<br>
+                            • 最大连续：历史上最长的连续上涨占优天数<br>
+                            • 阈值40天：连续上涨占优达到40天及以上的币种会被记录
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 连续上涨表格 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-bold text-gray-800">
+                        <i class="fas fa-list mr-2"></i>连续上涨占优记录（≥40天）
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <label class="text-sm text-gray-600">阈值：</label>
+                        <select id="thresholdSelect" onchange="changeThreshold(this.value)" class="px-3 py-1 border rounded">
+                            <option value="40" selected>≥40天</option>
+                            <option value="50">≥50天</option>
+                            <option value="60">≥60天</option>
+                            <option value="80">≥80天</option>
+                            <option value="100">≥100天</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b-2 border-gray-200">
+                                <th class="text-left py-3 px-4">币种</th>
+                                <th class="text-center py-3 px-4">最大连续天数</th>
+                                <th class="text-center py-3 px-4">开始日期</th>
+                                <th class="text-center py-3 px-4">结束日期</th>
+                                <th class="text-center py-3 px-4">当前连续</th>
+                                <th class="text-center py-3 px-4">占比上涨</th>
+                                <th class="text-center py-3 px-4">占比下跌</th>
+                                <th class="text-center py-3 px-4">状态</th>
+                            </tr>
+                        </thead>
+                        <tbody id="consecutiveTableBody">
+                            <tr>
+                                <td colspan="8" class="text-center py-8 text-gray-500">
                                     <i class="fas fa-spinner fa-spin mr-2"></i>加载中...
                                 </td>
                             </tr>

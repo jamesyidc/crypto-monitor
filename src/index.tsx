@@ -13,6 +13,7 @@ import { PatternService } from './services/patternService'
 import { SettingsService } from './services/settingsService'
 import { TradingRuleService } from './services/tradingRuleService'
 import { SupportLineService } from './services/supportLineService'
+import { ConsecutiveRiseService } from './services/ConsecutiveRiseService'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
@@ -2479,6 +2480,79 @@ app.delete('/api/support-lines/:symbol', async (c) => {
     });
   } catch (error: any) {
     console.error('删除支撑线失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// ========================================
+// 连续上涨占优统计 API
+// ========================================
+
+// API: 获取连续上涨占优统计概览
+app.get('/api/consecutive-rise/overview', async (c) => {
+  try {
+    const consecutiveRiseService = new ConsecutiveRiseService(c.env.DB);
+    const overview = await consecutiveRiseService.getStatsOverview();
+    
+    return c.json({
+      success: true,
+      overview
+    });
+  } catch (error: any) {
+    console.error('获取连续上涨统计概览失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 获取所有币种的连续上涨统计
+app.get('/api/consecutive-rise/all', async (c) => {
+  try {
+    const consecutiveRiseService = new ConsecutiveRiseService(c.env.DB);
+    const stats = await consecutiveRiseService.getAllStats();
+    
+    return c.json({
+      success: true,
+      stats,
+      count: stats.length
+    });
+  } catch (error: any) {
+    console.error('获取连续上涨统计失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 获取连续天数超过阈值的币种
+app.get('/api/consecutive-rise/above-threshold', async (c) => {
+  try {
+    const threshold = parseInt(c.req.query('threshold') || '40');
+    const consecutiveRiseService = new ConsecutiveRiseService(c.env.DB);
+    const coins = await consecutiveRiseService.getCoinsAboveThreshold(threshold);
+    
+    return c.json({
+      success: true,
+      threshold,
+      coins,
+      count: coins.length
+    });
+  } catch (error: any) {
+    console.error('获取连续上涨统计失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 手动更新每日连续上涨统计
+app.post('/api/consecutive-rise/update', async (c) => {
+  try {
+    const consecutiveRiseService = new ConsecutiveRiseService(c.env.DB);
+    const result = await consecutiveRiseService.updateDailyStats();
+    
+    return c.json({
+      success: true,
+      message: '连续上涨统计已更新',
+      ...result
+    });
+  } catch (error: any) {
+    console.error('更新连续上涨统计失败:', error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });

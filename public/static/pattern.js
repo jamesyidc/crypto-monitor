@@ -37,6 +37,7 @@ function switchTab(tab) {
   document.getElementById('rulesContent').classList.add('hidden');
   document.getElementById('supportContent').classList.add('hidden');
   document.getElementById('priorityContent').classList.add('hidden');
+  document.getElementById('consecutiveContent').classList.add('hidden');
   
   if (tab === 'strategies') {
     document.getElementById('tabStrategies').className = 'px-6 py-3 font-bold text-purple-600 border-b-2 border-purple-600';
@@ -54,6 +55,10 @@ function switchTab(tab) {
     document.getElementById('tabPriority').className = 'px-6 py-3 font-bold text-orange-600 border-b-2 border-orange-600';
     document.getElementById('priorityContent').classList.remove('hidden');
     loadPriority();
+  } else if (tab === 'consecutive') {
+    document.getElementById('tabConsecutive').className = 'px-6 py-3 font-bold text-red-600 border-b-2 border-red-600';
+    document.getElementById('consecutiveContent').classList.remove('hidden');
+    loadConsecutiveRise();
   }
 }
 
@@ -901,4 +906,128 @@ function showToast(message, type) {
   setTimeout(() => {
     toast.remove();
   }, 3000);
+}
+
+// ========================================
+// 连续上涨占优统计
+// ========================================
+
+let currentThreshold = 40;
+
+async function loadConsecutiveRise() {
+  try {
+    await loadConsecutiveOverview();
+    await loadConsecutiveTable(currentThreshold);
+  } catch (error) {
+    console.error('加载连续上涨统计失败:', error);
+    showError('加载失败');
+  }
+}
+
+async function loadConsecutiveOverview() {
+  try {
+    const response = await fetch('/api/consecutive-rise/overview');
+    const data = await response.json();
+    
+    if (data.success && data.overview) {
+      const overview = data.overview;
+      document.getElementById('above40Count').textContent = overview.above_40 || 0;
+      document.getElementById('above60Count').textContent = overview.above_60 || 0;
+      document.getElementById('above80Count').textContent = overview.above_80 || 0;
+      document.getElementById('maxStreakOverall').textContent = overview.max_streak_overall || 0;
+    }
+  } catch (error) {
+    console.error('加载连续上涨概览失败:', error);
+  }
+}
+
+async function loadConsecutiveTable(threshold = 40) {
+  try {
+    const response = await fetch(`/api/consecutive-rise/above-threshold?threshold=${threshold}`);
+    const data = await response.json();
+    
+    if (data.success) {
+      renderConsecutiveTable(data.coins);
+    }
+  } catch (error) {
+    console.error('加载连续上涨表格失败:', error);
+    showError('加载表格失败');
+  }
+}
+
+function renderConsecutiveTable(coins) {
+  const tbody = document.getElementById('consecutiveTableBody');
+  
+  if (!coins || coins.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-500">暂无数据</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = coins.map(coin => {
+    const isCurrentlyRising = coin.current_streak > 0;
+    const highRatio = coin.last_high_ratio ? coin.last_high_ratio.toFixed(2) : '-';
+    const lowRatio = coin.last_low_ratio ? coin.last_low_ratio.toFixed(2) : '-';
+    
+    return `
+      <tr class="border-b border-gray-100 hover:bg-gray-50">
+        <td class="py-3 px-4 font-bold">${coin.symbol}</td>
+        <td class="py-3 px-4 text-center">
+          <span class="text-xl font-bold text-red-600">${coin.max_streak || 0}</span>
+          <span class="text-xs text-gray-500">天</span>
+        </td>
+        <td class="py-3 px-4 text-center text-sm text-gray-600">
+          ${coin.max_streak_start_date || '-'}
+        </td>
+        <td class="py-3 px-4 text-center text-sm text-gray-600">
+          ${coin.max_streak_end_date || '-'}
+        </td>
+        <td class="py-3 px-4 text-center">
+          ${isCurrentlyRising 
+            ? `<span class="text-lg font-bold text-green-600">${coin.current_streak}</span>` 
+            : '<span class="text-gray-400">0</span>'}
+          <span class="text-xs text-gray-500">天</span>
+        </td>
+        <td class="py-3 px-4 text-center font-bold text-blue-600">
+          ${highRatio}%
+        </td>
+        <td class="py-3 px-4 text-center font-bold text-orange-600">
+          ${lowRatio}%
+        </td>
+        <td class="py-3 px-4 text-center">
+          ${isCurrentlyRising 
+            ? '<span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">进行中</span>' 
+            : '<span class="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">已中断</span>'}
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function changeThreshold(threshold) {
+  currentThreshold = parseInt(threshold);
+  loadConsecutiveTable(currentThreshold);
+}
+
+async function updateConsecutiveStats() {
+  if (!confirm('确定要更新连续上涨统计吗？此操作会计算所有币种的连续天数。')) return;
+  
+  try {
+    showInfo('正在更新统计...');
+    
+    const response = await fetch('/api/consecutive-rise/update', {
+      method: 'POST'
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showSuccess(`已更新 ${data.processedCoins} 个币种的统计数据`);
+      await loadConsecutiveRise();
+    } else {
+      showError(data.error || '更新失败');
+    }
+  } catch (error) {
+    console.error('更新连续上涨统计失败:', error);
+    showError('更新失败');
+  }
 }
