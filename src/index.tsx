@@ -130,9 +130,18 @@ app.get('/api/compare', async (c) => {
       const currentPrice = detail ? detail.price : 0;
       
       // 计算占比
+      // 最高占比 = (当前价格 / 历史最高价) × 100%
+      // - 如果当前价格等于历史最高价，占比 = 100%
+      // - 如果当前价格低于历史最高价，占比 < 100%（例如63.59%表示当前价格是历史最高价的63.59%）
+      // - 如果当前价格创新高，占比 > 100%
       const highRatio = extreme.all_time_high > 0 
         ? (currentPrice / extreme.all_time_high) * 100 
         : 0;
+      
+      // 最低占比 = (当前价格 / 历史最低价) × 100%
+      // - 如果当前价格等于历史最低价，占比 = 100%
+      // - 如果当前价格高于历史最低价，占比 > 100%（例如106.86%表示当前价格是历史最低价的106.86%）
+      // - 如果当前价格创新低，占比 < 100%
       const lowRatio = extreme.all_time_low > 0 
         ? (currentPrice / extreme.all_time_low) * 100 
         : 0;
@@ -144,8 +153,8 @@ app.get('/api/compare', async (c) => {
         lowPrice: extreme.all_time_low,
         lowCount: extreme.low_count,
         currentPrice: currentPrice,
-        highRatio: Math.min(highRatio, 100), // 最高占比 ≤ 100%
-        lowRatio: Math.max(lowRatio, 100),   // 最低占比 ≥ 100%
+        highRatio: highRatio,  // 不限制，可以是任意值
+        lowRatio: lowRatio,    // 不限制，可以是任意值
         ath_date: extreme.ath_date,
         atl_date: extreme.atl_date,
         last_updated: extreme.last_updated
