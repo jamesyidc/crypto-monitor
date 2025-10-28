@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>价格极值数据对比</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-8">
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h1 class="text-3xl font-bold text-gray-800">
+                    <i class="fas fa-chart-line mr-2"></i>
+                    价格极值数据对比表
+                </h1>
+                <button onclick="window.location.href='/'" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                    <i class="fas fa-home mr-2"></i>返回首页
+                </button>
+            </div>
+
+            <div class="mb-4 flex gap-4">
+                <button onclick="importToDatabase()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                    <i class="fas fa-database mr-2"></i>导入到数据库
+                </button>
+                <button onclick="exportToCSV()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                    <i class="fas fa-file-csv mr-2"></i>导出CSV
+                </button>
+                <button onclick="copyToClipboard()" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">
+                    <i class="fas fa-copy mr-2"></i>复制数据
+                </button>
+            </div>
+
+            <div id="status" class="mb-4 p-4 rounded hidden"></div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full table-auto border-collapse">
+                    <thead>
+                        <tr class="bg-gray-200">
+                            <th class="border px-4 py-2 text-left">排名</th>
+                            <th class="border px-4 py-2 text-left">币名</th>
+                            <th class="border px-4 py-2 text-right">最高价格</th>
+                            <th class="border px-4 py-2 text-right">最高计次</th>
+                            <th class="border px-4 py-2 text-right">最低价格</th>
+                            <th class="border px-4 py-2 text-right">最低计次</th>
+                            <th class="border px-4 py-2 text-right">最高占比%</th>
+                            <th class="border px-4 py-2 text-right">最低占比%</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataTable">
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-6 bg-blue-50 p-4 rounded">
+                <h3 class="font-bold mb-2"><i class="fas fa-info-circle mr-2"></i>数据说明：</h3>
+                <ul class="list-disc list-inside space-y-1 text-sm text-gray-700">
+                    <li><strong>最高价格</strong>：历史最高价（All-Time High）</li>
+                    <li><strong>最高计次</strong>：距离创历史新高的轮次数（每10分钟为1轮）</li>
+                    <li><strong>最低价格</strong>：历史最低价（All-Time Low）</li>
+                    <li><strong>最低计次</strong>：距离创历史新低的轮次数</li>
+                    <li><strong>最高占比</strong>：当前价格占历史最高价的百分比（越低说明距离历史高点越远）</li>
+                    <li><strong>最低占比</strong>：当前价格占历史最低价的百分比（越高说明距离历史低点越远）</li>
+                    <li><strong>排序规则</strong>：按"最高占比"从低到高排序（数值越低，投资价值可能越大）</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const rawData = `OKB	235.51972	1519	162.60563	428	69.87	101.2
+DOT	4.883676	2999	2.90639	752	63.59	106.86
+XLM	0.10887	1736	0.05942	1032	65.21	112.77
+AAVE	85.78506	2783	22.84074	1022	65.81	110.54
+FIL	6.104996	2869	1.87398	1145	65.77	107.28
+ETC	18.41912	3015	7.47768	1134	66.39	104.97
+LTC	97.62177	1736	36.50763	1028	67.52	106.91
+LDO	1.01594	2971	0.38699	1138	67.35	104.27
+CRV	0.32748	2971	0.1234	1138	67.49	104.32
+UNI	5.14596	2971	1.93999	1138	68.1	104.21
+STX	0.89828	2883	0.34999	1053	68.89	104.28
+CFX	0.10899	2787	0.03935	1141	68.83	106.08
+APT	5.96496	2987	2.21699	1046	69.91	105.29
+NEAR	3.20797	2987	1.1837	1046	70.63	105.49
+CRO	0.08195	2923	0.03212	1133	71.51	103.74
+TRX	0.24981	2923	0.10206	1133	70.98	103.52
+LINK	16.40148	2923	5.91976	1133	71.49	103.49
+BNB	610.44531	1616	223.45312	1032	72.09	103.57
+SUI	1.84883	2923	0.6837	1133	73.16	103.58
+XRP	0.6498	1714	0.28531	1141	72.87	103.26
+ADA	0.55948	1714	0.19958	1144	73.85	103.22
+DOGE	0.15982	1714	0.05899	1144	73.85	103.05
+SOL	169.66499	2923	63.67812	1133	75.05	103.29
+HBAR	0.08082	1726	0.03063	1144	75.56	103.15
+BTC	111935	1726	40993.90625	1144	75.79	103.12
+BCH	356.64062	1714	153.375	1144	76.46	102.95
+ETH	3421.78	1726	1290.03003	1144	77.42	103.14
+TON	5.3035	2923	2.16719	1133	79.12	103.4
+TAO	357.38	2979	151.88461	1057	83.87	105.85`;
+
+        let parsedData = [];
+
+        function parseData() {
+            const lines = rawData.trim().split('\n');
+            parsedData = lines.map((line, index) => {
+                const parts = line.split('\t');
+                return {
+                    rank: index + 1,
+                    symbol: parts[0].trim(),
+                    high_price: parseFloat(parts[1].trim()),
+                    high_count: parseInt(parts[2].trim()),
+                    low_price: parseFloat(parts[3].trim()),
+                    low_count: parseInt(parts[4].trim()),
+                    high_ratio: parseFloat(parts[5].trim()),
+                    low_ratio: parseFloat(parts[6].trim())
+                };
+            });
+            return parsedData;
+        }
+
+        function renderTable() {
+            const data = parseData();
+            const tbody = document.getElementById('dataTable');
+            tbody.innerHTML = data.map(row => `
+                <tr class="hover:bg-gray-50">
+                    <td class="border px-4 py-2 text-center">${row.rank}</td>
+                    <td class="border px-4 py-2 font-bold">${row.symbol}</td>
+                    <td class="border px-4 py-2 text-right">${row.high_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 8})}</td>
+                    <td class="border px-4 py-2 text-right">${row.high_count.toLocaleString()}</td>
+                    <td class="border px-4 py-2 text-right">${row.low_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 8})}</td>
+                    <td class="border px-4 py-2 text-right">${row.low_count.toLocaleString()}</td>
+                    <td class="border px-4 py-2 text-right ${row.high_ratio < 70 ? 'text-green-600 font-bold' : ''}">${row.high_ratio.toFixed(2)}%</td>
+                    <td class="border px-4 py-2 text-right ${row.low_ratio > 110 ? 'text-red-600 font-bold' : ''}">${row.low_ratio.toFixed(2)}%</td>
+                </tr>
+            `).join('');
+        }
+
+        function showStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.className = `mb-4 p-4 rounded ${type === 'success' ? 'bg-green-100 text-green-700' : type === 'error' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`;
+            status.textContent = message;
+            status.classList.remove('hidden');
+            setTimeout(() => status.classList.add('hidden'), 5000);
+        }
+
+        async function importToDatabase() {
+            const data = parseData();
+            const btn = event.target;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>导入中...';
+            
+            try {
+                let successCount = 0;
+                let failCount = 0;
+                
+                for (const row of data) {
+                    try {
+                        const response = await fetch('/api/extremes/import', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                symbol: row.symbol,
+                                all_time_high: row.high_price,
+                                high_count: row.high_count,
+                                all_time_low: row.low_price,
+                                low_count: row.low_count
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            successCount++;
+                        } else {
+                            failCount++;
+                            console.error(`导入${row.symbol}失败:`, await response.text());
+                        }
+                    } catch (error) {
+                        failCount++;
+                        console.error(`导入${row.symbol}异常:`, error);
+                    }
+                }
+                
+                showStatus(`导入完成！成功: ${successCount}, 失败: ${failCount}`, successCount > 0 ? 'success' : 'error');
+            } catch (error) {
+                showStatus('导入失败: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-database mr-2"></i>导入到数据库';
+            }
+        }
+
+        function exportToCSV() {
+            const data = parseData();
+            const csv = '币名,最高价格,最高计次,最低价格,最低计次,最高占比(%),最低占比(%)\n' +
+                data.map(row => `${row.symbol},${row.high_price},${row.high_count},${row.low_price},${row.low_count},${row.high_ratio},${row.low_ratio}`).join('\n');
+            
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `price_extremes_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+            showStatus('CSV文件已下载！', 'success');
+        }
+
+        function copyToClipboard() {
+            const data = parseData();
+            const text = data.map(row => `${row.symbol}\t${row.high_price}\t${row.high_count}\t${row.low_price}\t${row.low_count}\t${row.high_ratio}\t${row.low_ratio}`).join('\n');
+            
+            navigator.clipboard.writeText(text).then(() => {
+                showStatus('数据已复制到剪贴板！可直接粘贴到Excel', 'success');
+            }).catch(err => {
+                showStatus('复制失败: ' + err.message, 'error');
+            });
+        }
+
+        // 页面加载时渲染表格
+        renderTable();
+    </script>
+</body>
+</html>

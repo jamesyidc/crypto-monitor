@@ -1626,6 +1626,28 @@ app.post('/api/price/extreme/update', async (c) => {
   }
 });
 
+// API: 批量导入价格极值数据
+app.post('/api/extremes/import', async (c) => {
+  try {
+    const { symbol, all_time_high, high_count, all_time_low, low_count } = await c.req.json();
+    
+    if (!symbol || !all_time_high || !all_time_low) {
+      return c.json({ success: false, error: '参数不完整' }, 400);
+    }
+    
+    // 使用 INSERT OR REPLACE 来更新或插入数据
+    await c.env.DB.prepare(`
+      INSERT OR REPLACE INTO price_extremes (symbol, all_time_high, high_count, all_time_low, low_count, last_updated)
+      VALUES (?, ?, ?, ?, ?, datetime('now'))
+    `).bind(symbol, all_time_high, high_count || 0, all_time_low, low_count || 0).run();
+    
+    return c.json({ success: true, message: `${symbol} 数据已导入` });
+  } catch (error: any) {
+    console.error('导入价格极值失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
 // ========================================
 // 系统设置 API
 // ========================================
