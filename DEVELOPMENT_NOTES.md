@@ -1,5 +1,117 @@
 # 开发手册 - 问题记录与解决方案
 
+> **最后更新**: 2025-10-28
+> **系统状态**: ✅ 稳定运行
+> **公网访问**: https://3000-ij3odq6k2fvoix4jt5np8-c07dda5e.sandbox.novita.ai
+
+## 📚 目录
+
+1. [系统稳定性优化](#系统稳定性优化)
+2. [数据库管理](#数据库管理)
+3. [连续上涨占优统计功能](#连续上涨占优统计功能---核心定义)
+4. [API端点说明](#api端点说明)
+5. [常见问题处理](#常见问题处理)
+
+---
+
+## 系统稳定性优化
+
+### ✅ 核心改进（2025-10-28）
+
+#### 1. 数据库初始化方案
+**问题**: wrangler migrations 经常超时和锁死
+**解决**: 创建独立的 `init-db.sh` 脚本，逐条执行SQL
+
+```bash
+# 完全重置数据库（删除并重新创建）
+npm run db:reset
+
+# 仅初始化（表存在会跳过）
+npm run db:init
+```
+
+#### 2. 服务管理命令
+新增稳定的NPM脚本：
+
+```bash
+# 服务控制
+npm run start       # 清理端口 + 构建 + 启动所有服务
+npm run restart     # 清理端口 + 重启主服务
+npm run stop        # 停止所有服务
+
+# 监控和调试
+npm run status      # 查看PM2服务状态
+npm run logs        # 查看主服务日志（最近30行）
+
+# 维护命令
+npm run clean-port  # 清理3000端口占用
+npm run clean-db    # 删除本地数据库
+```
+
+#### 3. 紧急情况处理
+
+**场景1: 服务无响应**
+```bash
+npm run status && npm run logs
+pm2 delete all && killall -9 workerd node
+npm run start
+```
+
+**场景2: 数据库锁死**
+```bash
+npm run stop
+npm run db:reset
+npm run start
+```
+
+**场景3: 端口占用**
+```bash
+npm run clean-port
+pm2 restart crypto-monitor
+```
+
+详细处理手册请查看: [SYSTEM_OPTIMIZATION.md](./SYSTEM_OPTIMIZATION.md)
+
+---
+
+## 数据库管理
+
+### 数据库表结构
+
+**核心表（已创建）**:
+- `coins` - 币种信息（5个测试币种）
+- `consecutive_rise_dominance` - 连续上涨占优统计
+- `kline_data` - K线数据（待同步）
+- `price_records` - 价格记录
+- `daily_stats` - 日统计
+- `round_stats` - 轮次统计
+- `coin_round_details` - 币种轮次明细
+- `price_extremes` - 极值记录
+- `extreme_records` - 极端行情记录
+- `coin_priority` - 币种优先级
+
+### 数据库操作命令
+
+```bash
+# 查看本地数据库中的所有表
+npx wrangler d1 execute webapp-production --local \
+  --command="SELECT name FROM sqlite_master WHERE type='table'"
+
+# 查询币种数据
+npx wrangler d1 execute webapp-production --local \
+  --command="SELECT * FROM coins"
+
+# 查询连续上涨占优统计
+npx wrangler d1 execute webapp-production --local \
+  --command="SELECT * FROM consecutive_rise_dominance"
+
+# 手动插入测试币种
+npx wrangler d1 execute webapp-production --local \
+  --command="INSERT OR IGNORE INTO coins (symbol, name, rank_order) VALUES ('BTC', 'Bitcoin', 1)"
+```
+
+---
+
 ## 连续上涨占优统计功能 - 核心定义
 
 ### 📊 数据表列定义（完整）
@@ -236,3 +348,325 @@ POST /api/consecutive-rise/analyze-history?timeframe=5m&limit=1000
 3. **阅读注释和文档**：`ConsecutiveRiseService.ts` 开头的注释已经写明了正确的定义
 4. **验证数据来源**：确认使用的是正确的数据表和字段
 5. **不要自己发挥**：严格按照用户的定义实现功能
+
+---
+
+## API端点说明
+
+### 连续上涨占优统计 API
+
+#### 1. 获取统计概览
+```http
+GET /api/consecutive-rise/overview
+```
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "overview": {
+    "total_coins": 29,
+    "above_20": 12,
+    "above_30": 5,
+    "above_40": 2,
+    "currently_rising": 8,
+    "max_streak_overall": 68,
+    "avg_max_streak": 28.5
+  }
+}
+```
+
+#### 2. 获取超过阈值的币种列表
+```http
+GET /api/consecutive-rise/above-threshold?threshold=20
+```
+
+**参数**:
+- `threshold` (必填): 最小连续K线数
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "threshold": 20,
+  "coins": [
+    {
+      "symbol": "TAO",
+      "max_streak": 68,
+      "current_streak": 12,
+      "max_streak_start_time": "2025-10-28T02:15:00.000Z",
+      "max_streak_end_time": "2025-10-28T08:55:00.000Z",
+      "last_high_ratio": 62.5,
+      "last_low_ratio": 25.0,
+      "status": "进行中"
+    }
+  ]
+}
+```
+
+#### 3. 分析今天的K线数据（重新统计）
+```http
+POST /api/consecutive-rise/analyze-history?timeframe=5m&limit=300
+```
+
+**参数**:
+- `timeframe` (可选): K线周期，默认 5m
+- `limit` (可选): 每个币种分析的K线数量，默认300根
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "analyzedRounds": 300,
+  "totalCoins": 29,
+  "message": "已成功分析今天的K线数据"
+}
+```
+
+### 其他核心 API
+
+#### 4. 获取所有币种
+```http
+GET /api/coins
+```
+
+#### 5. 获取仪表板数据
+```http
+GET /api/dashboard
+```
+
+#### 6. 执行一轮价格分析
+```http
+POST /api/analyze
+```
+
+---
+
+## 常见问题处理
+
+### Q1: 页面显示"加载中..."但数据一直不出来
+**原因**: 数据库中没有K线数据或统计数据
+**解决**:
+```bash
+# 1. 确认K线数据是否存在
+npx wrangler d1 execute webapp-production --local \
+  --command="SELECT COUNT(*) FROM kline_data"
+
+# 2. 如果K线数据为0，需要先运行K线同步任务
+# （确保已配置OKX API）
+
+# 3. 然后运行今日数据分析
+curl -X POST "http://localhost:3000/api/consecutive-rise/analyze-history?limit=300"
+```
+
+### Q2: API返回错误"no such table"
+**原因**: 数据库未初始化或表缺失
+**解决**:
+```bash
+npm run db:reset  # 完全重置数据库
+npm run restart   # 重启服务
+```
+
+### Q3: PM2服务状态显示"errored"或一直重启
+**原因**: 端口占用或数据库锁死
+**解决**:
+```bash
+# 1. 完全清理
+npm run stop
+killall -9 workerd node
+npm run clean-port
+
+# 2. 重新启动
+npm run start
+```
+
+### Q4: 修改代码后页面没有更新
+**原因**: 需要重新构建
+**解决**:
+```bash
+npm run build     # 重新构建
+npm run restart   # 重启服务
+```
+
+### Q5: 如何查看详细错误日志
+```bash
+# 实时查看日志（最近30行）
+npm run logs
+
+# 查看完整日志
+pm2 logs crypto-monitor --lines 100
+
+# 查看特定调度器日志
+pm2 logs analysis-scheduler --nostream --lines 50
+```
+
+### Q6: 数据库查询很慢或超时
+**原因**: 数据库文件损坏或锁定
+**解决**:
+```bash
+# 1. 停止所有服务
+npm run stop
+
+# 2. 完全重置数据库
+npm run db:reset
+
+# 3. 重新启动
+npm run start
+
+# 4. 重新插入币种数据和运行分析
+```
+
+### Q7: 如何备份当前数据
+```bash
+# 备份整个 .wrangler 目录
+tar -czf db-backup-$(date +%Y%m%d).tar.gz .wrangler/
+
+# 备份到 AI Drive
+cp db-backup-*.tar.gz /mnt/aidrive/
+```
+
+### Q8: 如何从备份恢复
+```bash
+# 1. 停止服务
+npm run stop
+
+# 2. 删除当前数据库
+npm run clean-db
+
+# 3. 解压备份
+tar -xzf db-backup-20251028.tar.gz
+
+# 4. 重启服务
+npm run start
+```
+
+---
+
+## 项目文件结构
+
+```
+webapp/
+├── src/
+│   ├── index.tsx                    # 主应用入口
+│   ├── types.ts                     # TypeScript类型定义
+│   └── services/
+│       ├── ConsecutiveRiseService.ts  # 连续上涨占优统计
+│       ├── KlineService.ts            # K线数据服务
+│       ├── IndicatorService.ts        # 技术指标计算
+│       ├── CoinService.ts             # 币种管理
+│       ├── AnalysisService.ts         # 价格分析
+│       └── ...
+├── public/
+│   ├── pattern.html                 # 特征库页面
+│   └── static/
+│       └── pattern.js               # 特征库前端逻辑
+├── migrations/                      # 数据库迁移文件
+│   ├── 0001_initial_schema.sql
+│   ├── 0020_consecutive_rise_dominance.sql
+│   └── ...
+├── init-db.sh                       # 数据库初始化脚本
+├── ecosystem.config.cjs             # PM2配置
+├── package.json                     # NPM脚本和依赖
+├── DEVELOPMENT_NOTES.md            # 本文档
+├── SYSTEM_OPTIMIZATION.md          # 系统优化报告
+└── README.md                        # 项目说明
+
+dist/                               # 构建输出目录
+├── _worker.js                      # 编译后的Worker
+├── _routes.json                    # 路由配置
+├── *.html                          # 静态HTML页面
+└── static/                         # 静态资源
+
+.wrangler/                          # 本地开发数据（Git忽略）
+└── state/v3/d1/                    # 本地D1数据库
+```
+
+---
+
+## 开发工作流
+
+### 1. 日常开发流程
+```bash
+# 1. 确保服务运行
+npm run status
+
+# 2. 修改代码
+
+# 3. 重新构建和重启
+npm run build
+npm run restart
+
+# 4. 查看日志
+npm run logs
+
+# 5. 测试API
+curl http://localhost:3000/api/consecutive-rise/overview
+```
+
+### 2. 添加新功能
+```bash
+# 1. 创建新的Service文件
+touch src/services/NewService.ts
+
+# 2. 在 index.tsx 中导入和注册路由
+
+# 3. 如需新表，创建迁移文件
+touch migrations/0021_new_feature.sql
+
+# 4. 更新 init-db.sh（添加新表的CREATE语句）
+
+# 5. 重置数据库并测试
+npm run db:reset
+npm run build
+npm run start
+```
+
+### 3. 提交代码到Git
+```bash
+# 1. 查看更改
+git status
+
+# 2. 添加文件
+git add -A
+
+# 3. 提交（写清楚commit message）
+git commit -m "功能: 添加XXX功能
+
+- 具体改动1
+- 具体改动2
+"
+
+# 4. 查看提交历史
+git log --oneline
+```
+
+---
+
+## 性能优化建议
+
+### 1. 数据库查询优化
+- ✅ 已添加核心索引（symbol, time）
+- ⚠️ 如查询慢，考虑添加更多索引
+- ⚠️ 避免全表扫描，使用 WHERE 和 LIMIT
+
+### 2. API响应优化
+- ⏳ 考虑添加缓存（5分钟）
+- ⏳ 大数据量使用分页（LIMIT + OFFSET）
+- ⏳ 压缩响应数据
+
+### 3. 前端性能
+- ✅ 使用CDN加载库（Tailwind, FontAwesome）
+- ⏳ 添加Loading超时（30秒）
+- ⏳ 实现虚拟滚动（大列表）
+
+---
+
+## 联系和支持
+
+- **项目文档**: 查看当前目录的 `*.md` 文件
+- **系统优化**: 详见 `SYSTEM_OPTIMIZATION.md`
+- **紧急问题**: 参考上文"常见问题处理"章节
+- **稳定性保证**: 所有核心功能已经过测试和优化
+
+**最后更新**: 2025-10-28
+**系统版本**: v1.0 (稳定版)
