@@ -60,6 +60,19 @@ module.exports = {
       autorestart: false, // cron模式不需要自动重启
       instances: 1,
       exec_mode: 'fork'
+    },
+    {
+      name: 'consecutive-rise-scheduler',
+      script: './consecutive-rise-scheduler.js',
+      env: {
+        API_ENDPOINT: 'http://localhost:3000/api/consecutive-rise/analyze-history',
+        INTERVAL: '900000' // 15分钟 = 900000毫秒
+      },
+      watch: false,
+      instances: 1,
+      exec_mode: 'fork',
+      restart_delay: 5000, // 重启延迟5秒
+      max_restarts: 10 // 最多重启10次
     }
   ]
 }

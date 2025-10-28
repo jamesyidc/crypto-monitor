@@ -337,6 +337,70 @@ if (angle_MB < -5 && width_change < -3) → 下跌衰竭 ⚠️
 
 ---
 
+### 🤖 自动执行定义（新增 2025-10-28）
+
+**功能名称**：连续上涨占优统计自动调度器
+
+**功能目的**：
+- 每15分钟自动执行一次连续上涨占优统计
+- 实时更新所有币种的连续上涨占优状态
+- 确保数据的及时性和准确性
+
+**执行频率**：每15分钟（900,000毫秒）
+
+**API端点**：`POST /api/consecutive-rise/analyze-history`
+
+**数据结构**：
+- 输入：无需参数
+- 输出：
+  ```json
+  {
+    "success": true,
+    "analyzed": 29,
+    "results": [
+      {
+        "symbol": "BTC",
+        "max_streak": 5,
+        "current_streak": 3,
+        "last_high_ratio": 62.5,
+        "last_low_ratio": 25.0
+      }
+    ]
+  }
+  ```
+
+**实现逻辑**：
+1. 创建 `consecutive-rise-scheduler.js` 调度器
+2. 每15分钟调用 `/api/consecutive-rise/analyze-all` API
+3. API内部调用 `ConsecutiveRiseService.analyzeAll()` 方法
+4. 遍历所有29个币种，执行连续上涨占优分析
+5. 更新 `consecutive_rise_dominance` 表
+
+**PM2配置**：
+```javascript
+{
+  name: 'consecutive-rise-scheduler',
+  script: './consecutive-rise-scheduler.js',
+  env: {
+    API_ENDPOINT: 'http://localhost:3000/api/consecutive-rise/analyze-history',
+    INTERVAL: '900000' // 15分钟 = 900000毫秒
+  },
+  watch: false,
+  instances: 1,
+  exec_mode: 'fork',
+  restart_delay: 5000,
+  max_restarts: 10
+}
+```
+
+**安全保护**：
+- ✅ 执行前已完成数据库备份
+- ✅ 功能已在开发手册中完整定义
+- ✅ 不会删除或修改现有数据，只更新统计结果
+- ✅ 如果表不存在会自动创建
+
+---
+
 ## Bug修复记录
 
 ### 发现时间
@@ -746,3 +810,4 @@ git log --oneline
 
 **最后更新**: 2025-10-28
 **系统版本**: v1.0 (稳定版)
+稳定版)
