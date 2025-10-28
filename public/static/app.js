@@ -163,7 +163,23 @@ function renderStatsCards(latestRound) {
     return;
   }
   
+  // 计算本轮平均涨跌幅（从currentData.coinDetails获取）
+  let avgChange = 0;
+  if (currentData && currentData.coinDetails && currentData.coinDetails.length > 0) {
+    const totalChange = currentData.coinDetails.reduce((sum, coin) => {
+      return sum + (parseFloat(coin.change_percent) || 0);
+    }, 0);
+    avgChange = totalChange / currentData.coinDetails.length;
+  }
+  
   const cards = [
+    {
+      title: '本轮平均涨跌幅',
+      value: (avgChange >= 0 ? '+' : '') + avgChange.toFixed(2) + '%',
+      icon: 'fa-chart-line',
+      color: avgChange >= 0 ? 'green' : 'red',
+      detail: `29个币种平均值`
+    },
     {
       title: '绿色占比',
       value: latestRound.green_ratio.toFixed(1) + '%',

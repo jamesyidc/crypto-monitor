@@ -224,4 +224,102 @@ export class TradingRuleService {
       `)
       .run();
   }
+
+  /**
+   * 根据风险等级自动设置交易规则
+   * @param riskLevel 风险等级：'高风险'、'中风险'、'低风险'
+   * 
+   * 规则：
+   * - 高风险：只允许等级1-2的币种交易
+   * - 中风险：允许等级1-4的币种交易
+   * - 低风险：允许所有等级的币种交易
+   */
+  async applyRiskBasedRules(riskLevel: string): Promise<void> {
+    let allowedLevels: number[] = [];
+    let note = '';
+
+    if (riskLevel === '高风险') {
+      allowedLevels = [1, 2];
+      note = '高风险模式：仅允许1-2等级币种交易';
+    } else if (riskLevel === '中风险') {
+      allowedLevels = [1, 2, 3, 4];
+      note = '中风险模式：允许1-4等级币种交易';
+    } else {
+      // 低风险：允许所有等级
+      await this.db
+        .prepare(`
+          UPDATE trading_rules 
+          SET trading_allowed = 1,
+              notes = '低风险模式：允许所有等级币种交易',
+              updated_at = CURRENT_TIMESTAMP
+        `)
+        .run();
+      return;
+    }
+
+    // 获取符合等级要求的币种列表
+    const allowedCoins = await this.db
+      .prepare(`
+        SELECT symbol FROM coin_priority 
+        WHERE level IN (${allowedLevels.join(',')})
+      `)
+      .all();
+
+    const allowedSymbols = allowedCoins.results.map((row: any) => row.symbol);
+
+    // 禁止所有交易
+    await this.db
+      .prepare(`
+        UPDATE trading_rules 
+        SET trading_allowed = 0,
+            notes = ?,
+            updated_at = CURRENT_TIMESTAMP
+      `)
+      .bind(note)
+      .run();
+
+    // 只启用允许的币种
+    if (allowedSymbols.length > 0) {
+      const placeholders = allowedSymbols.map(() => '?').join(',');
+      await this.db
+        .prepare(`
+          UPDATE trading_rules 
+          SET trading_allowed = 1,
+              notes = ?,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE symbol IN (${placeholders})
+        `)
+        .bind(note, ...allowedSymbols)
+        .run();
+    }
+  }
+
+  /**
+   * 获取当前风险等级下允许交易的币种列表
+   */
+  async getAllowedCoinsByRisk(riskLevel: string): Promise<string[]> {
+    let allowedLevels: number[] = [];
+
+    if (riskLevel === '高风险') {
+      allowedLevels = [1, 2];
+    } else if (riskLevel === '中风险') {
+      allowedLevels = [1, 2, 3, 4];
+    } else {
+      // 低风险：所有币种
+      const result = await this.db
+        .prepare(`SELECT symbol FROM coins ORDER BY symbol`)
+        .all();
+      return result.results.map((row: any) => row.symbol);
+    }
+
+    const result = await this.db
+      .prepare(`
+        SELECT symbol FROM coin_priority 
+        WHERE level IN (${allowedLevels.join(',')})
+        ORDER BY level, symbol
+      `)
+      .all();
+
+    return result.results.map((row: any) => row.symbol);
+  }
 }

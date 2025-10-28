@@ -1022,8 +1022,8 @@ app.get('/', (c) => {
             <!-- 统计卡片 -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
                 <!-- 基础统计 -->
-                <div id="statsCards" class="col-span-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <!-- 统计卡片将在这里动态生成 -->
+                <div id="statsCards" class="col-span-4 grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <!-- 统计卡片将在这里动态生成（现在有5个卡片） -->
                 </div>
                 
                 <!-- 急涨急跌统计 -->
@@ -2095,6 +2095,59 @@ app.post('/api/trading-rules/short-only', async (c) => {
     });
   } catch (error: any) {
     console.error('设置仅允许做空失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// 根据风险等级应用交易规则
+app.post('/api/trading-rules/apply-risk-rules', async (c) => {
+  try {
+    const { riskLevel } = await c.req.json();
+    
+    if (!riskLevel || !['高风险', '中风险', '低风险'].includes(riskLevel)) {
+      return c.json({
+        success: false,
+        error: '无效的风险等级，必须是：高风险、中风险或低风险'
+      }, 400);
+    }
+    
+    const tradingRuleService = new TradingRuleService(c.env.DB);
+    await tradingRuleService.applyRiskBasedRules(riskLevel);
+    
+    return c.json({
+      success: true,
+      message: `已应用${riskLevel}交易规则`,
+      riskLevel
+    });
+  } catch (error: any) {
+    console.error('应用风险规则失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// 获取当前风险等级下允许交易的币种
+app.get('/api/trading-rules/allowed-by-risk', async (c) => {
+  try {
+    const riskLevel = c.req.query('riskLevel');
+    
+    if (!riskLevel || !['高风险', '中风险', '低风险'].includes(riskLevel)) {
+      return c.json({
+        success: false,
+        error: '无效的风险等级'
+      }, 400);
+    }
+    
+    const tradingRuleService = new TradingRuleService(c.env.DB);
+    const allowedCoins = await tradingRuleService.getAllowedCoinsByRisk(riskLevel);
+    
+    return c.json({
+      success: true,
+      riskLevel,
+      allowedCoins,
+      count: allowedCoins.length
+    });
+  } catch (error: any) {
+    console.error('获取允许交易币种失败:', error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });

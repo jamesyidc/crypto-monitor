@@ -987,9 +987,200 @@ function calculateRiskLevel(riskAlertCount) {
 
 ---
 
+## 9. 本轮平均涨跌幅统计
+
+### 需求描述
+在首页统计卡片中添加"本轮平均涨跌幅"，显示所有29个币种的平均涨跌幅。
+
+### 计算逻辑
+
+**公式：**
+```
+平均涨跌幅 = (所有币种涨跌幅之和) / 币种总数
+平均涨跌幅 = Σ(每个币种的涨跌幅) / 29
+```
+
+**实现位置：** `/home/user/webapp/public/static/app.js` - `renderStatsCards()` 函数
+
+**实现代码：**
+```javascript
+// 计算本轮平均涨跌幅（从currentData.coinDetails获取）
+let avgChange = 0;
+if (currentData && currentData.coinDetails && currentData.coinDetails.length > 0) {
+  const totalChange = currentData.coinDetails.reduce((sum, coin) => {
+    return sum + (parseFloat(coin.change_percent) || 0);
+  }, 0);
+  avgChange = totalChange / currentData.coinDetails.length;
+}
+```
+
+### 显示效果
+
+**卡片样式：**
+- 标题：本轮平均涨跌幅
+- 数值：±X.XX%（带正负号）
+- 图标：`fa-chart-line`
+- 颜色：
+  - 正数（上涨）：绿色
+  - 负数（下跌）：红色
+- 详情：29个币种平均值
+
+**位置：** 首页统计卡片第一个位置（最左侧）
+
+**实现日期：** 2025-10-28 22:45
+
+---
+
+## 10. 风险等级与交易规则联动
+
+### 需求描述
+根据当前风险等级，自动限制可交易的币种范围，确保在高风险时段只交易高质量币种。
+
+### 风险等级交易规则
+
+| 风险等级 | 允许交易的币种等级 | 说明 |
+|----------|-------------------|------|
+| **高风险** | 1-2等级 | 只允许最高质量的币种交易 |
+| **中风险** | 1-4等级 | 允许中高质量的币种交易 |
+| **低风险** | 所有等级 | 允许所有币种交易 |
+
+### 实现方案
+
+#### 1. 后端服务方法
+
+**文件位置：** `/home/user/webapp/src/services/tradingRuleService.ts`
+
+**新增方法：**
+
+**a) `applyRiskBasedRules(riskLevel: string)`**
+- 根据风险等级自动设置所有币种的交易权限
+- 高风险：禁止所有币种，只启用1-2等级
+- 中风险：禁止所有币种，只启用1-4等级
+- 低风险：允许所有币种交易
+
+**b) `getAllowedCoinsByRisk(riskLevel: string)`**
+- 查询当前风险等级下允许交易的币种列表
+- 返回符合等级要求的币种数组
+
+#### 2. API路由
+
+**a) POST `/api/trading-rules/apply-risk-rules`**
+- 请求体：`{ "riskLevel": "高风险" | "中风险" | "低风险" }`
+- 功能：应用风险等级对应的交易规则
+- 返回：操作结果和风险等级
+
+**b) GET `/api/trading-rules/allowed-by-risk?riskLevel=xxx`**
+- 查询参数：`riskLevel`（高风险/中风险/低风险）
+- 功能：获取当前风险等级下允许交易的币种列表
+- 返回：币种数组和数量
+
+### 实现代码
+
+```typescript
+/**
+ * 根据风险等级自动设置交易规则
+ */
+async applyRiskBasedRules(riskLevel: string): Promise<void> {
+  let allowedLevels: number[] = [];
+  let note = '';
+
+  if (riskLevel === '高风险') {
+    allowedLevels = [1, 2];
+    note = '高风险模式：仅允许1-2等级币种交易';
+  } else if (riskLevel === '中风险') {
+    allowedLevels = [1, 2, 3, 4];
+    note = '中风险模式：允许1-4等级币种交易';
+  } else {
+    // 低风险：允许所有等级
+    await this.db
+      .prepare(`
+        UPDATE trading_rules 
+        SET trading_allowed = 1,
+            notes = '低风险模式：允许所有等级币种交易',
+            updated_at = CURRENT_TIMESTAMP
+      `)
+      .run();
+    return;
+  }
+
+  // 获取符合等级要求的币种列表
+  const allowedCoins = await this.db
+    .prepare(`
+      SELECT symbol FROM coin_priority 
+      WHERE level IN (${allowedLevels.join(',')})
+    `)
+    .all();
+
+  const allowedSymbols = allowedCoins.results.map((row: any) => row.symbol);
+
+  // 禁止所有交易
+  await this.db
+    .prepare(`
+      UPDATE trading_rules 
+      SET trading_allowed = 0,
+          notes = ?,
+          updated_at = CURRENT_TIMESTAMP
+    `)
+    .bind(note)
+    .run();
+
+  // 只启用允许的币种
+  if (allowedSymbols.length > 0) {
+    const placeholders = allowedSymbols.map(() => '?').join(',');
+    await this.db
+      .prepare(`
+        UPDATE trading_rules 
+        SET trading_allowed = 1,
+            notes = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE symbol IN (${placeholders})
+      `)
+      .bind(note, ...allowedSymbols)
+      .run();
+  }
+}
+```
+
+### 使用场景
+
+**自动风险控制：**
+1. 系统检测到高风险提示次数达到阈值
+2. 前端调用 API 应用高风险交易规则
+3. 只有1-2等级的币种允许交易
+4. 降低整体风险暴露
+
+**手动风险调整：**
+1. 用户在交易规则页面查看当前风险等级
+2. 点击"应用风险规则"按钮
+3. 系统自动调整所有币种的交易权限
+
+### 数据流程
+
+```
+风险提示次数 → 计算风险等级 → 确定允许等级 
+→ 查询币种等级表 → 更新交易规则表 → 限制交易范围
+```
+
+**实现日期：** 2025-10-28 22:45
+
+---
+
 ## 版本历史
 
-### v1.9 - 2025-10-28 22:30
+### v1.10 - 2025-10-28 22:45
+- ✅ 新增"本轮平均涨跌幅"统计卡片
+- ✅ 计算29个币种的平均涨跌幅
+- ✅ 动态颜色显示（绿色上涨/红色下跌）
+- ✅ 风险等级与交易规则联动
+- ✅ 新增 `applyRiskBasedRules()` 方法
+- ✅ 新增 `getAllowedCoinsByRisk()` 方法
+- ✅ 新增风险规则API：`/api/trading-rules/apply-risk-rules`
+- ✅ 新增查询API：`/api/trading-rules/allowed-by-risk`
+- ✅ 高风险：仅1-2等级可交易
+- ✅ 中风险：1-4等级可交易
+- ✅ 低风险：所有等级可交易
+
+### v1.9 - 2025-10-28 22:30 (风险等级计算)
 - ✅ 新增风险等级动态计算功能
 - ✅ 根据时间段（0-6、6-12、12-18、18-24点）应用不同阈值
 - ✅ 三级风险等级：低风险（绿色）、中风险（橙色）、高风险（红色）
