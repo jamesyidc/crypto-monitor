@@ -87,14 +87,9 @@ async function loadCompareData() {
     try {
         console.log('正在加载比价数据...');
         
-        // 并行获取两个API的数据
-        const [compareResponse, recordsResponse] = await Promise.all([
-            axios.get('/api/compare'),
-            axios.get('/api/extreme-records')
-        ]);
-        
-        const apiData = compareResponse.data;
-        const recordsData = recordsResponse.data;
+        // 从API获取数据
+        const response = await axios.get('/api/compare');
+        const apiData = response.data;
         
         if (!apiData.coins || apiData.coins.length === 0) {
             throw new Error('API返回数据为空');
@@ -114,7 +109,6 @@ async function loadCompareData() {
                 atl_date: coin.atl_date,
                 last_updated: coin.last_updated
             })),
-            extremeRecords: recordsData.records || [],
             lastUpdated: apiData.lastUpdated
         };
         
@@ -137,57 +131,65 @@ function renderAllTables(data) {
     renderLowStatsTable(data);
 }
 
-// 渲染左栏表格：极值记录
+// 渲染左栏表格：最高价格数据
 function renderLeftTable(data) {
     const tbody = document.getElementById('leftTableBody');
     
-    if (!data.extremeRecords || data.extremeRecords.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="loading">暂无极值记录</td></tr>';
+    if (!data.coins || data.coins.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="loading">暂无数据</td></tr>';
         return;
     }
     
     // 应用筛选
-    let filteredRecords = data.extremeRecords;
+    let filteredCoins = data.coins;
     if (filterText) {
-        filteredRecords = data.extremeRecords.filter(r => 
-            r.symbol.toUpperCase().includes(filterText.toUpperCase())
-        );
+        filteredCoins = data.coins.filter(c => c.symbol.toUpperCase().includes(filterText.toUpperCase()));
     }
     
-    if (filteredRecords.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="loading">筛选结果为空</td></tr>';
+    if (filteredCoins.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="loading">筛选结果为空</td></tr>';
         return;
     }
     
     // 生成表格行
     let html = '';
-    filteredRecords.forEach((record) => {
-        // 状态样式：创新高=绿色，创新低=红色
-        let statusClass = '';
-        let statusText = '';
-        
-        if (record.record_type === 'new_high') {
-            statusText = '创新高';
-            statusClass = 'green-bg';
-        } else if (record.record_type === 'new_low') {
-            statusText = '创新低';
-            statusClass = 'red-bg';
+    filteredCoins.forEach((coin) => {
+        // 最高占比样式
+        let highRatioClass = '';
+        if (coin.highRatio >= 100) {
+            highRatioClass = 'green-bg';
+        } else if (coin.highRatio >= 90) {
+            highRatioClass = 'light-green-bg';
+        } else if (coin.highRatio >= 80) {
+            highRatioClass = 'yellow-bg';
+        } else if (coin.highRatio >= 70) {
+            highRatioClass = 'light-yellow-bg';
         }
         
-        // 格式化时间
-        const timestamp = record.timestamp 
-            ? formatDateTime(new Date(record.timestamp))
-            : '--';
+        // 最低占比样式
+        let lowRatioClass = '';
+        if (coin.lowRatio >= 120) {
+            lowRatioClass = 'green-bg';
+        } else if (coin.lowRatio >= 110) {
+            lowRatioClass = 'light-green-bg';
+        } else if (coin.lowRatio >= 105) {
+            lowRatioClass = 'yellow-bg';
+        } else if (coin.lowRatio >= 100) {
+            lowRatioClass = 'light-yellow-bg';
+        }
         
-        // 格式化价格
-        const price = record.price ? record.price.toFixed(6) : '--';
+        // 计次列黄色背景
+        const countClass = 'yellow-bg';
         
         html += `
             <tr>
-                <td class="coin-name">${record.symbol}</td>
-                <td class="time-column">${timestamp}</td>
-                <td class="${statusClass} status-column">${statusText}</td>
-                <td>${price}</td>
+                <td class="coin-name">${coin.symbol}</td>
+                <td>${coin.highPrice.toFixed(6)}</td>
+                <td class="${countClass} count-column">${coin.highCount}</td>
+                <td>${coin.lowPrice.toFixed(6)}</td>
+                <td class="${countClass} count-column">${coin.lowCount}</td>
+                <td class="${highRatioClass}">${coin.highRatio.toFixed(1)}%</td>
+                <td class="${lowRatioClass}">${coin.lowRatio.toFixed(1)}%</td>
             </tr>
         `;
     });
@@ -431,7 +433,7 @@ function showError(message) {
     console.error(message);
     document.getElementById('leftTableBody').innerHTML = `
         <tr>
-            <td colspan="4" style="text-align: center; padding: 20px; color: red;">
+            <td colspan="7" style="text-align: center; padding: 20px; color: red;">
                 ${message}
                 <br><br>
                 <button class="control-btn" onclick="loadCompareData()">重新加载</button>
