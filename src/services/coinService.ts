@@ -495,15 +495,16 @@ export class CoinService {
     await this.db
       .prepare(`
         INSERT INTO round_stats (
-          round_time, green_count, red_count, green_ratio,
+          round_time, green_count, red_count, green_ratio, average_change,
           extreme_up_count, extreme_down_count, surge_count, crash_count, risk_alert_count
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .bind(
         roundTime,
         stats.green_count,
         stats.red_count,
         stats.green_ratio,
+        stats.average_change || 0,  // 🆕 添加平均涨跌幅字段
         stats.extreme_up_count,
         stats.extreme_down_count,
         stats.surge_count,

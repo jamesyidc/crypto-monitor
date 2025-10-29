@@ -173,6 +173,10 @@ export class AnalysisService {
       const totalCoins = coinDetails.length;
       const greenRatio = totalCoins > 0 ? (greenCount / totalCoins) * 100 : 0;
 
+      // 3.1. 🆕 计算平均涨跌幅（所有币种的24小时涨跌幅的算术平均值）
+      const totalChange24h = coinDetails.reduce((sum, coin) => sum + coin.change_24h, 0);
+      const averageChange = totalCoins > 0 ? totalChange24h / totalCoins : 0;
+
       // 4. 风险提示
       let riskAlertCount = 0;
       if (greenRatio === 0) {
@@ -190,6 +194,7 @@ export class AnalysisService {
         green_count: greenCount,
         red_count: redCount,
         green_ratio: greenRatio,
+        average_change: averageChange,  // 🆕 添加平均涨跌幅
         extreme_up_count: extremeUpCount,
         extreme_down_count: extremeDownCount,
         surge_count: surgeCount,
@@ -240,6 +245,7 @@ export class AnalysisService {
         greenCount,
         redCount,
         greenRatio,
+        averageChange,  // 🆕 添加平均涨跌幅到返回值
         extremeUpCount,
         extremeDownCount,
         surgeCount,
