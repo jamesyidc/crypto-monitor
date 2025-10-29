@@ -37,23 +37,28 @@
 
 ### 💻 实现位置
 
-#### 后端计算
+#### 后端计算（2025-10-29 已修复）
 **文件**: `src/services/analysisService.ts`
 **函数**: `performRoundAnalysis()`
-**代码行**: 约150行
+**代码行**: 172-177行
 
 ```typescript
-// 获取所有币种数据
-const coins = await this.coinService.getAllCoins();
+// 🆕 计算平均涨跌幅（所有币种的24小时涨跌幅的算术平均值）
+const totalChange24h = coinDetails.reduce((sum, coin) => sum + coin.change_24h, 0);
+const averageChange = totalCoins > 0 ? totalChange24h / totalCoins : 0;
 
-// 从币安获取24小时行情
-for (const coin of coins) {
-  const ticker = await axios.get(`https://api.binance.com/api/v3/ticker/24hr?symbol=${coin.symbol}USDT`);
-  const change24h = parseFloat(ticker.data.priceChangePercent);
+// 保存到轮次统计
+await this.coinService.saveRoundStat(roundTime, {
   // ...
-}
+  average_change: averageChange,  // 🆕 保存平均涨跌幅
+  // ...
+});
+```
 
-// 计算平均变化率（前端计算）
+**数据库字段**:
+**文件**: `migrations/xxx_add_average_change.sql`
+```sql
+ALTER TABLE round_stats ADD COLUMN average_change REAL DEFAULT 0;
 ```
 
 #### 前端显示
@@ -61,10 +66,8 @@ for (const coin of coins) {
 **函数**: `renderStatsCards()`
 
 ```javascript
-// 计算平均变化率
-const averageChange = coinDetails.length > 0
-  ? (coinDetails.reduce((sum, coin) => sum + coin.change_24h, 0) / coinDetails.length).toFixed(2)
-  : '0.00';
+// 从后端获取已计算好的平均变化率
+const averageChange = latestRound.average_change?.toFixed(2) || '0.00';
 
 // 显示格式
 const changeText = averageChange > 0 ? `+${averageChange}%` : `${averageChange}%`;
@@ -470,20 +473,23 @@ DELETE /api/dashboard/override
 
 | 指标 | 计算位置 | 更新频率 | 数据源 | 业务价值 |
 |------|----------|----------|--------|----------|
-| **平均变化率** | 前端计算 | 每次分析 | 币安24h | 反映市场整体涨跌强度 |
-| **涨跌比** | 后端计算 | 每次分析 | 轮次统计 | 反映市场涨跌币种广度 |
+| **平均变化率** | 后端计算 ✅ | 每次分析 | CoinGecko 24h | 反映市场整体涨跌强度 |
+| **涨跌比** | 后端计算 | 每次分析 | CoinGecko 24h | 反映市场涨跌币种广度 |
 | **风险级别** | 后端触发+前端评级 | 累计计数 | 触发条件 | 预警市场极端风险 |
 
 ### 关键业务规则
-1. **平均变化率** = 29只币种24h涨跌幅的算术平均
+1. **平均变化率** = 29只币种24h涨跌幅的算术平均（保存在 `round_stats.average_change`）
 2. **涨跌比** = 绿色币种占比（不考虑涨跌幅大小）
 3. **风险级别** = 基于risk_alert_count累计次数，分时段评级
+
+### 修复历史
+1. ✅ **2025-10-29**: 修复涨跌比计算逻辑（改用24小时涨跌幅，而非轮次对比）
+2. ✅ **2025-10-29**: 新增平均变化率字段（`round_stats.average_change`），后端计算并保存
 
 ### 待优化项
 1. ⚠️ risk_alert_count 需要每日0点清零逻辑
 2. ⚠️ risk_alert_count 需要改为累加逻辑，不是每次设为1
 3. ⚠️ 风险触发条件过于单一，建议增加更多条件
-4. ✅ ~~涨跌比计算应该排除持平币种~~ - **已确认：持平币种（=0）不算绿色，这是正确的逻辑！**
 
 ---
 
