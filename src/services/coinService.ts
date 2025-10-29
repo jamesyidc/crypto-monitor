@@ -731,6 +731,11 @@ export class CoinService {
   async getTodayExtremeCount(date: string, recordType: 'high' | 'low'): Promise<number> {
     // 数据库中存储的是 'new_high' 和 'new_low'
     const dbRecordType = recordType === 'high' ? 'new_high' : 'new_low';
+    
+    // 🔧 修复：按UTC日期统计（不转换北京时间）
+    // date参数是北京时间日期字符串（例如：'2025-10-29'）
+    // 但我们要查询的是UTC日期，所以直接用timestamp的DATE
+    // 注意：这意味着传入的date应该对应UTC日期，不是北京日期
     const result = await this.db
       .prepare(`
         SELECT COUNT(*) as count 
