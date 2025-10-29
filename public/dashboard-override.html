@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>首页数据手动修改 - Crypto Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <!-- 页面标题 -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                <i class="fas fa-edit text-blue-600 mr-3"></i>
+                首页数据手动修改
+            </h1>
+            <p class="text-gray-600">
+                <i class="fas fa-info-circle mr-2"></i>
+                临时覆盖首页显示的统计数字，不影响数据库真实数据。服务重启后自动清除。
+            </p>
+        </div>
+
+        <!-- 当前状态卡片 -->
+        <div id="statusCard" class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4 flex items-center">
+                <i class="fas fa-info-circle text-blue-500 mr-2"></i>
+                当前覆盖状态
+            </h2>
+            <div id="statusContent" class="text-gray-600">
+                <i class="fas fa-spinner fa-spin mr-2"></i>
+                加载中...
+            </div>
+        </div>
+
+        <!-- 修改表单 -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4 flex items-center">
+                <i class="fas fa-sliders-h text-green-500 mr-2"></i>
+                设置覆盖数据
+            </h2>
+            
+            <form id="overrideForm" class="space-y-4">
+                <!-- 风险预警统计 -->
+                <div class="border-b pb-4">
+                    <h3 class="font-semibold text-gray-700 mb-3">
+                        <i class="fas fa-exclamation-triangle text-orange-500 mr-2"></i>
+                        风险预警统计
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                风险级别 (1-4)
+                            </label>
+                            <input type="number" id="risk_alert_count" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   placeholder="例如: 1" min="1" max="4">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                平均变化率
+                            </label>
+                            <input type="text" id="average_change" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   placeholder="例如: +0.00% 或 -2.45%">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 今日涨跌统计 -->
+                <div class="border-b pb-4">
+                    <h3 class="font-semibold text-gray-700 mb-3">
+                        <i class="fas fa-chart-line text-green-500 mr-2"></i>
+                        今日涨跌统计
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                今日急涨次数 (涨幅≥+10%)
+                            </label>
+                            <input type="number" id="surge_count" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   placeholder="例如: 11" min="0">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                今日急跌次数 (跌幅≤-10%)
+                            </label>
+                            <input type="number" id="crash_count" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   placeholder="例如: 66" min="0">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 24小时特殊统计 -->
+                <div class="border-b pb-4">
+                    <h3 class="font-semibold text-gray-700 mb-3">
+                        <i class="fas fa-percentage text-purple-500 mr-2"></i>
+                        24小时特殊统计
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                24小时上涨>10%个数
+                            </label>
+                            <input type="number" id="change24hOver10Up" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   placeholder="例如: 1" min="0">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                24小时下跌>10%个数
+                            </label>
+                            <input type="number" id="change24hOver10Down" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   placeholder="例如: 0" min="0">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 新高新低统计 -->
+                <div class="pb-4">
+                    <h3 class="font-semibold text-gray-700 mb-3">
+                        <i class="fas fa-chart-bar text-red-500 mr-2"></i>
+                        新高新低统计
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                今日创新高个数
+                            </label>
+                            <input type="number" id="todayNewHighCount" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   placeholder="例如: 0" min="0">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                今日创新低个数
+                            </label>
+                            <input type="number" id="todayNewLowCount" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   placeholder="例如: 0" min="0">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="flex gap-3 pt-4">
+                    <button type="submit" 
+                            class="flex-1 bg-blue-600 text-white py-3 px-6 rounded-md hover:bg-blue-700 transition-colors font-semibold">
+                        <i class="fas fa-save mr-2"></i>
+                        保存并应用
+                    </button>
+                    <button type="button" onclick="fillExample()" 
+                            class="flex-1 bg-green-600 text-white py-3 px-6 rounded-md hover:bg-green-700 transition-colors font-semibold">
+                        <i class="fas fa-magic mr-2"></i>
+                        填充示例数据
+                    </button>
+                    <button type="button" onclick="clearOverride()" 
+                            class="flex-1 bg-red-600 text-white py-3 px-6 rounded-md hover:bg-red-700 transition-colors font-semibold">
+                        <i class="fas fa-eraser mr-2"></i>
+                        清除覆盖
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- 说明卡片 -->
+        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md">
+            <h3 class="font-semibold text-yellow-800 mb-2 flex items-center">
+                <i class="fas fa-lightbulb mr-2"></i>
+                使用说明
+            </h3>
+            <ul class="text-sm text-yellow-700 space-y-1 list-disc list-inside">
+                <li>只覆盖首页显示的数字，不会修改数据库中的历史数据</li>
+                <li>留空的字段不会被覆盖，保持真实数据</li>
+                <li>服务重启后覆盖数据将自动清除</li>
+                <li>点击"填充示例数据"可快速填入测试数据</li>
+                <li>覆盖生效后会自动打开首页查看效果</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // 加载当前覆盖状态
+        async function loadStatus() {
+            try {
+                const response = await axios.get('/api/dashboard/override');
+                const statusContent = document.getElementById('statusContent');
+                
+                if (response.data.hasOverride) {
+                    const override = response.data.data;
+                    statusContent.innerHTML = `
+                        <div class="bg-green-100 border border-green-300 rounded-md p-4">
+                            <p class="font-semibold text-green-800 mb-2">
+                                <i class="fas fa-check-circle mr-2"></i>
+                                已启用覆盖数据
+                            </p>
+                            <pre class="text-xs text-green-700 bg-white p-3 rounded mt-2 overflow-auto">${JSON.stringify(override, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    statusContent.innerHTML = `
+                        <div class="bg-gray-100 border border-gray-300 rounded-md p-4">
+                            <p class="text-gray-700">
+                                <i class="fas fa-times-circle mr-2"></i>
+                                未启用覆盖，当前显示真实数据
+                            </p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('加载状态失败:', error);
+                document.getElementById('statusContent').innerHTML = `
+                    <div class="bg-red-100 border border-red-300 rounded-md p-4">
+                        <p class="text-red-700">
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            加载失败: ${error.message}
+                        </p>
+                    </div>
+                `;
+            }
+        }
+
+        // 保存覆盖数据
+        async function saveOverride(event) {
+            event.preventDefault();
+            
+            const data = {};
+            const fields = [
+                'risk_alert_count', 'average_change', 'surge_count', 'crash_count',
+                'change24hOver10Up', 'change24hOver10Down', 'todayNewHighCount', 'todayNewLowCount'
+            ];
+            
+            // 收集表单数据
+            fields.forEach(field => {
+                const input = document.getElementById(field);
+                if (input && input.value !== '') {
+                    if (field === 'average_change') {
+                        data[field] = input.value;
+                    } else {
+                        data[field] = parseInt(input.value);
+                    }
+                }
+            });
+            
+            if (Object.keys(data).length === 0) {
+                alert('请至少填写一个字段！');
+                return;
+            }
+            
+            try {
+                const response = await axios.post('/api/dashboard/override', data);
+                
+                if (response.data.success) {
+                    alert('✅ ' + response.data.message);
+                    loadStatus();
+                    
+                    // 自动打开首页查看效果
+                    window.open('/', '_blank');
+                } else {
+                    alert('❌ 保存失败: ' + response.data.error);
+                }
+            } catch (error) {
+                alert('❌ 保存失败: ' + error.message);
+            }
+        }
+
+        // 填充示例数据（基于用户提供的截图）
+        function fillExample() {
+            document.getElementById('risk_alert_count').value = 1;
+            document.getElementById('surge_count').value = 11;
+            document.getElementById('crash_count').value = 66;
+            document.getElementById('change24hOver10Up').value = 1;
+            document.getElementById('change24hOver10Down').value = 0;
+            document.getElementById('todayNewHighCount').value = 0;
+            document.getElementById('todayNewLowCount').value = 0;
+            document.getElementById('average_change').value = '+0.00%';
+            
+            alert('✅ 已填充示例数据，点击"保存并应用"生效');
+        }
+
+        // 清除覆盖数据
+        async function clearOverride() {
+            if (!confirm('确定要清除覆盖数据并恢复真实数据吗？')) {
+                return;
+            }
+            
+            try {
+                const response = await axios.delete('/api/dashboard/override');
+                
+                if (response.data.success) {
+                    alert('✅ ' + response.data.message);
+                    loadStatus();
+                    
+                    // 清空表单
+                    document.getElementById('overrideForm').reset();
+                    
+                    // 自动打开首页查看效果
+                    window.open('/', '_blank');
+                } else {
+                    alert('❌ 清除失败');
+                }
+            } catch (error) {
+                alert('❌ 清除失败: ' + error.message);
+            }
+        }
+
+        // 表单提交处理
+        document.getElementById('overrideForm').addEventListener('submit', saveOverride);
+
+        // 页面加载时获取状态
+        loadStatus();
+    </script>
+</body>
+</html>

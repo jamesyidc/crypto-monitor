@@ -17,6 +17,9 @@ import { ConsecutiveRiseService } from './services/ConsecutiveRiseService'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
+// 🔧 首页数据手动覆盖存储（内存存储，服务重启后清除）
+const dashboardOverride = new Map<string, any>()
+
 // 启用 CORS
 app.use('/api/*', cors())
 
@@ -41,7 +44,105 @@ app.get('/api/dashboard', async (c) => {
   const analysisService = new AnalysisService(coinService);
   
   const data = await analysisService.getDashboardData();
+  
+  // 🔧 应用首页数据覆盖（如果存在）
+  const override = dashboardOverride.get('current');
+  if (override) {
+    // 合并 latestRound 覆盖数据
+    if (data.latestRound && override.latestRound) {
+      data.latestRound = {
+        ...data.latestRound,
+        ...override.latestRound
+      };
+    }
+    
+    // 合并 specialStats 覆盖数据
+    if (data.specialStats && override.specialStats) {
+      data.specialStats = {
+        ...data.specialStats,
+        ...override.specialStats
+      };
+    }
+  }
+  
   return c.json(data);
+});
+
+// 🔧 API: 获取首页数据覆盖状态
+app.get('/api/dashboard/override', async (c) => {
+  const override = dashboardOverride.get('current');
+  return c.json({
+    success: true,
+    hasOverride: !!override,
+    data: override || null
+  });
+});
+
+// 🔧 API: 设置首页数据覆盖
+app.post('/api/dashboard/override', async (c) => {
+  try {
+    const body = await c.req.json();
+    const overrideData: any = {};
+    
+    // 构建 latestRound 覆盖数据
+    if (body.risk_alert_count !== undefined) {
+      overrideData.latestRound = overrideData.latestRound || {};
+      overrideData.latestRound.risk_alert_count = body.risk_alert_count;
+    }
+    if (body.average_change !== undefined) {
+      overrideData.latestRound = overrideData.latestRound || {};
+      overrideData.latestRound.average_change = body.average_change;
+    }
+    if (body.surge_count !== undefined) {
+      overrideData.latestRound = overrideData.latestRound || {};
+      overrideData.latestRound.surge_count = body.surge_count;
+    }
+    if (body.crash_count !== undefined) {
+      overrideData.latestRound = overrideData.latestRound || {};
+      overrideData.latestRound.crash_count = body.crash_count;
+    }
+    
+    // 构建 specialStats 覆盖数据
+    if (body.change24hOver10Up !== undefined) {
+      overrideData.specialStats = overrideData.specialStats || {};
+      overrideData.specialStats.change24hOver10Up = body.change24hOver10Up;
+    }
+    if (body.change24hOver10Down !== undefined) {
+      overrideData.specialStats = overrideData.specialStats || {};
+      overrideData.specialStats.change24hOver10Down = body.change24hOver10Down;
+    }
+    if (body.todayNewHighCount !== undefined) {
+      overrideData.specialStats = overrideData.specialStats || {};
+      overrideData.specialStats.todayNewHighCount = body.todayNewHighCount;
+    }
+    if (body.todayNewLowCount !== undefined) {
+      overrideData.specialStats = overrideData.specialStats || {};
+      overrideData.specialStats.todayNewLowCount = body.todayNewLowCount;
+    }
+    
+    // 保存覆盖数据
+    dashboardOverride.set('current', overrideData);
+    
+    return c.json({
+      success: true,
+      message: '首页数据覆盖已设置',
+      data: overrideData
+    });
+  } catch (error: any) {
+    return c.json({
+      success: false,
+      error: error.message
+    }, 400);
+  }
+});
+
+// 🔧 API: 清除首页数据覆盖
+app.delete('/api/dashboard/override', async (c) => {
+  dashboardOverride.delete('current');
+  return c.json({
+    success: true,
+    message: '首页数据覆盖已清除，已恢复真实数据'
+  });
 });
 
 // API: 获取所有币种
