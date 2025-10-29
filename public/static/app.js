@@ -163,14 +163,8 @@ function renderStatsCards(latestRound) {
     return;
   }
   
-  // 计算本轮平均涨跌幅（从currentData.coinDetails获取）
-  let avgChange = 0;
-  if (currentData && currentData.coinDetails && currentData.coinDetails.length > 0) {
-    const totalChange = currentData.coinDetails.reduce((sum, coin) => {
-      return sum + (parseFloat(coin.change_percent) || 0);
-    }, 0);
-    avgChange = totalChange / currentData.coinDetails.length;
-  }
+  // 本轮平均涨跌幅（直接从latestRound.average_change获取，这是后端计算的准确值）
+  let avgChange = latestRound.average_change || 0;
   
   const cards = [
     {
