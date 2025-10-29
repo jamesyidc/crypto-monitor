@@ -317,6 +317,90 @@ npm run sync
 ### 详细说明
 查看完整同步指南：[SYNC_GUIDE.md](./SYNC_GUIDE.md) | [快速参考](./QUICK_SYNC.md)
 
+## 🔐 核心安全规范
+
+### 核心逻辑1：数据保护至上
+**数据库先备份再改，防止意外丢失**
+
+```bash
+# ✅ 正确流程：任何数据库操作前先备份
+timestamp=$(date +%Y%m%d_%H%M%S)
+cp -r .wrangler/state/v3/d1 /tmp/db_backup_$timestamp
+tar -czf /tmp/database_backup_$timestamp.tar.gz -C /tmp db_backup_$timestamp
+
+# 然后执行操作
+npx wrangler d1 execute webapp-production --local --file=./your_script.sql
+```
+
+### 核心逻辑2：开发手册优先
+**未在开发手册定义的功能不允许写入主程序**
+
+在实施新功能前，必须先在技术文档中定义：
+- 功能目的和业务价值
+- 数据结构和表定义
+- API接口规范
+- 影响范围评估
+
+### 核心逻辑3：自动备份系统
+**每1小时全部备份一次，保留最近5次**
+
+```bash
+# 使用ProjectBackup工具创建完整备份
+# 备份包含：代码、数据库、配置、git历史
+```
+
+当前备份：
+- 最新备份：[crypto_monitor_emergency_backup.tar.gz](https://page.gensparksite.com/project_backups/crypto_monitor_emergency_backup.tar.gz)
+- 时间：2025-10-29 03:06 UTC
+- 大小：4.0MB
+
+### 核心逻辑4：应对措施准备
+**每个破坏性操作必须有至少2条应对措施**
+
+破坏性操作包括：
+- 数据库迁移 (`migrations apply`)
+- 数据删除 (`DELETE`, `TRUNCATE`)
+- 表结构修改 (`ALTER TABLE`, `DROP TABLE`)
+
+### 核心逻辑5：全盘影响评估
+**修改功能必须评估对其他功能的影响**
+
+变更前必须检查：
+- 依赖此功能的其他模块
+- 共享的数据表和字段
+- API接口的兼容性
+- 前端代码的适配需求
+
+### 核心逻辑6：文档同步更新
+**执行前阅读开发手册，执行后更新进度**
+
+每次操作必须：
+1. 执行前：阅读相关技术文档
+2. 执行后：更新开发进度到README
+3. 记录：时间戳、变更内容、影响范围
+
+### 核心逻辑7：变更追踪管理
+**每次操作后写入开发手册并上传GitHub**
+
+标准流程：
+```bash
+# 1. 执行操作
+# 2. 更新文档
+# 3. 提交Git
+git add .
+git commit -m "类型: 描述（影响范围）"
+# 4. 推送GitHub
+git push origin main
+```
+
+## 📋 重要文档索引
+
+- **[事故报告 2025-10-29](./INCIDENT_REPORT_20251029.md)** - 数据库数据丢失事故完整记录
+  - 事故原因分析
+  - 数据损失评估
+  - 应对措施和教训
+  - 后续行动计划
+
 ## 🐛 已知问题
 
 1. Telegram 通知功能已禁用（避免运行时错误）
