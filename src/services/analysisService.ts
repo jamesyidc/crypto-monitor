@@ -75,9 +75,11 @@ export class AnalysisService {
           changePercent = (changeAmount / prevRecord.price) * 100;
         }
 
-        // 判断涨跌
-        const isGreen = changePercent > 0;
-        const isRed = changePercent < 0;
+        // 🔧 修复：涨跌比应该基于24小时涨跌幅，不是轮次对比
+        // 判断涨跌（使用24小时涨跌幅）
+        const change24h = data.usd_24h_change || 0;
+        const isGreen = change24h > 0;
+        const isRed = change24h < 0;
         
         if (isGreen) greenCount++;
         if (isRed) redCount++;
