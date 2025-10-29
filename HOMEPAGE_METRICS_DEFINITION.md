@@ -95,6 +95,11 @@ const changeText = averageChange > 0 ? `+${averageChange}%` : `${averageChange}%
 ### 📖 定义
 **当前轮次中，24小时涨幅为正（绿色）的币种占比**
 
+⚠️ **重要修复（2025-10-29）**: 
+- 之前版本错误使用了"轮次对比涨跌幅"来判断绿红色
+- 已修复为正确使用"24小时涨跌幅"（从CoinGecko API获取）
+- 修复后涨跌比才能正确显示非0%的值
+
 ### 🔢 计算公式
 ```javascript
 涨跌比 = (绿色币种数量 / 总币种数量) × 100%
@@ -119,34 +124,40 @@ const changeText = averageChange > 0 ? `+${averageChange}%` : `${averageChange}%
 #### 后端计算
 **文件**: `src/services/analysisService.ts`
 **函数**: `performRoundAnalysis()`
-**代码行**: 约145-172行
+**代码行**: 约67-83行
 
 ```typescript
-// 1. 统计绿色和红色币种
-let greenCount = 0;
-let redCount = 0;
-
-for (const coin of coins) {
-  const change24h = parseFloat(ticker.data.priceChangePercent);
+// 🔧 修复后的正确实现（2025-10-29）
+for (const [coinGeckoId, data] of Object.entries(priceData)) {
+  const symbol = coingeckoIdToSymbol(coinGeckoId);
   
-  if (change24h > 0) {
-    greenCount++;
-  } else if (change24h < 0) {
-    redCount++;
-  }
+  // 使用24小时涨跌幅（从CoinGecko获取）
+  const change24h = data.usd_24h_change || 0;
+  const isGreen = change24h > 0;  // ✅ 正确：基于24小时涨跌幅
+  const isRed = change24h < 0;
+  
+  if (isGreen) greenCount++;
+  if (isRed) redCount++;
 }
 
-// 2. 计算绿色占比
+// 计算绿色占比
 const totalCoins = coinDetails.length;
 const greenRatio = totalCoins > 0 ? (greenCount / totalCoins) * 100 : 0;
 
-// 3. 保存轮次统计
+// 保存轮次统计
 await this.coinService.saveRoundStat(roundTime, {
   green_count: greenCount,
   red_count: redCount,
   green_ratio: greenRatio,
   // ...
 });
+```
+
+**修复前的错误实现**（已修复）：
+```typescript
+// ❌ 错误：使用轮次对比涨跌幅
+const changePercent = (data.usd - prevRecord.price) / prevRecord.price * 100;
+const isGreen = changePercent > 0;  // 如果没有prevRecord，changePercent=0，导致is_green=0
 ```
 
 #### 前端显示
