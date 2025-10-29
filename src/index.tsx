@@ -930,20 +930,8 @@ app.get('/api/signal/:symbol', async (c) => {
   }
 });
 
-// 比价比对页面
-app.get('/compare', (c) => {
-  return c.redirect('/compare.html');
-});
-
-// K线查询页面
-app.get('/kline', (c) => {
-  return c.redirect('/kline.html');
-});
-
-// 买卖点信号页面
-app.get('/signal', (c) => {
-  return c.redirect('/signal.html');
-});
+// 注意：HTML 页面路由由 Cloudflare Pages 自动处理
+// 不需要手动重定向，否则会造成重定向循环
 
 // API: 测试Telegram连接
 app.get('/api/telegram/test', async (c) => {
