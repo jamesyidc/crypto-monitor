@@ -723,10 +723,31 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">
-                                间隔百分比（0.5-10%）
+                                间隔百分比
                                 <span class="text-xs text-red-500">价格下跌后加仓</span>
                             </label>
-                            <input type="number" id="splitInterval" min="0.5" max="10" step="0.5" value="2.0" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            <select id="splitInterval" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <option value="0.5">0.5%</option>
+                                <option value="1">1%</option>
+                                <option value="1.5">1.5%</option>
+                                <option value="2" selected>2%</option>
+                                <option value="2.5">2.5%</option>
+                                <option value="3">3%</option>
+                                <option value="3.5">3.5%</option>
+                                <option value="4">4%</option>
+                                <option value="4.5">4.5%</option>
+                                <option value="5">5%</option>
+                                <option value="5.5">5.5%</option>
+                                <option value="6">6%</option>
+                                <option value="6.5">6.5%</option>
+                                <option value="7">7%</option>
+                                <option value="7.5">7.5%</option>
+                                <option value="8">8%</option>
+                                <option value="8.5">8.5%</option>
+                                <option value="9">9%</option>
+                                <option value="9.5">9.5%</option>
+                                <option value="10">10%</option>
+                            </select>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -1581,7 +1602,9 @@
         // 更新分批预览
         function updateSplitPreview() {
             const splits = parseInt(document.getElementById('positionSplits').value);
-            const interval = document.getElementById('splitInterval').value;
+            const intervalSelect = document.getElementById('splitInterval');
+            const interval = intervalSelect.value;
+            
             document.getElementById('splitPreview').textContent = splits;
             document.getElementById('intervalPreview').textContent = interval;
             // 更新第二个预览（如果存在）
@@ -1590,12 +1613,22 @@
                 intervalPreview2.textContent = interval;
             }
             
-            // 🆕 当分仓次数为1时，隐藏间隔描述
+            // 🆕 当分仓次数为1时，禁用间隔百分比选择器并隐藏间隔描述
             const intervalDescription = document.getElementById('intervalDescription');
-            if (intervalDescription) {
-                if (splits === 1) {
+            if (splits === 1) {
+                // 禁用间隔百分比下拉框
+                intervalSelect.disabled = true;
+                intervalSelect.classList.add('bg-gray-100', 'cursor-not-allowed', 'opacity-60');
+                // 隐藏间隔描述文字
+                if (intervalDescription) {
                     intervalDescription.style.display = 'none';
-                } else {
+                }
+            } else {
+                // 启用间隔百分比下拉框
+                intervalSelect.disabled = false;
+                intervalSelect.classList.remove('bg-gray-100', 'cursor-not-allowed', 'opacity-60');
+                // 显示间隔描述文字
+                if (intervalDescription) {
                     intervalDescription.style.display = 'inline';
                 }
             }
@@ -1604,7 +1637,7 @@
         // 监听分批参数变化
         if (document.getElementById('positionSplits')) {
             document.getElementById('positionSplits').addEventListener('change', updateSplitPreview);
-            document.getElementById('splitInterval').addEventListener('input', updateSplitPreview);
+            document.getElementById('splitInterval').addEventListener('change', updateSplitPreview);
             // 初始化时调用一次，设置正确的显示状态
             updateSplitPreview();
         }
