@@ -41,6 +41,11 @@
 </head>
 <body class="bg-gray-50 min-h-screen">
     <div class="container mx-auto px-4 py-6">
+        <!-- 🔍 版本标识 - 用于确认页面已更新 -->
+        <div class="fixed top-2 right-2 bg-red-500 text-white px-3 py-1 rounded shadow-lg text-xs font-bold z-50">
+            ✅ 统计面板已恢复 - 版本 20251029-170000
+        </div>
+        
         <!-- 导航 -->
         <div class="bg-white rounded-lg shadow-md p-4 mb-6">
             <div class="flex items-center justify-between mb-3">
@@ -132,6 +137,42 @@
             </div>
         </div>
 
+        <!-- 当天统计面板 - 不受JavaScript控制，始终显示 -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">当天统计 (0:00-23:59)</h2>
+            <div class="grid grid-cols-5 gap-4">
+                <div class="text-center p-4 bg-green-100 rounded-lg">
+                    <div class="text-sm text-gray-700 font-semibold mb-1">起跌破纪录次数</div>
+                    <div class="text-sm text-gray-600 mb-2">累计20根 > +2%</div>
+                    <div id="newHighCount" class="text-3xl font-bold text-green-700">0</div>
+                    <div class="text-xs text-gray-600 mt-2">出生于 13:10</div>
+                </div>
+                <div class="text-center p-4 bg-red-100 rounded-lg">
+                    <div class="text-sm text-gray-700 font-semibold mb-1">起跌破纪录次数</div>
+                    <div class="text-sm text-gray-600 mb-2">累计20根 < -3%</div>
+                    <div id="newLowCount" class="text-3xl font-bold text-red-700">0</div>
+                </div>
+                <div class="text-center p-4 bg-green-100 rounded-lg">
+                    <div class="text-sm text-gray-700 font-semibold mb-1">极快触碰上沿</div>
+                    <div class="text-sm text-gray-600 mb-2">占比上涨>占比下跌</div>
+                    <div id="fastUpperTouch" class="text-3xl font-bold text-green-700">48</div>
+                    <div class="text-xs text-gray-600 mt-2">出生于 13:10</div>
+                </div>
+                <div class="text-center p-4 bg-red-100 rounded-lg">
+                    <div class="text-sm text-gray-700 font-semibold mb-1">极快触碰下沿</div>
+                    <div class="text-sm text-gray-600 mb-2">占比下跌>占比上涨</div>
+                    <div id="fastLowerTouch" class="text-3xl font-bold text-red-700">106</div>
+                    <div class="text-xs text-gray-600 mt-2">出生于 04:15</div>
+                </div>
+                <div class="text-center p-4 bg-blue-100 rounded-lg">
+                    <div class="text-sm text-gray-700 font-semibold mb-1">震荡收敛带宽均值</div>
+                    <div class="text-sm text-gray-600 mb-2">起涨后收敛前最小3个</div>
+                    <div id="convergenceBandwidth" class="text-3xl font-bold text-blue-700">-</div>
+                    <div class="text-xs text-gray-600 mt-2">无数据</div>
+                </div>
+            </div>
+        </div>
+
         <!-- K线数据表格 -->
         <div class="bg-white rounded-lg shadow-md p-6">
             <div class="flex items-center justify-between mb-4">
@@ -143,16 +184,50 @@
                 </h2>
 
             </div>
+            
+            <!-- 🔍 列说明提示框 -->
+            <div class="mb-4 bg-gradient-to-r from-blue-100 to-orange-100 border-l-4 border-blue-600 p-4 rounded">
+                <div class="flex items-start gap-2">
+                    <i class="fas fa-info-circle text-blue-600 mt-1"></i>
+                    <div class="text-sm">
+                        <strong class="text-gray-800">新增列说明：</strong>
+                        <div class="mt-1 space-y-1">
+                            <div>• <span class="bg-blue-200 px-2 py-0.5 rounded font-bold">第2列（蓝色）</span> = <strong>起涨/起跌点</strong>：显示过去20根K线累计涨跌幅</div>
+                            <div>• <span class="bg-orange-200 px-2 py-0.5 rounded font-bold">第3列（橙色）</span> = <strong>操作提示</strong>：
+                                <ul class="ml-4 mt-1 text-xs">
+                                    <li>• <span class="bg-purple-600 text-white px-1 rounded">次日主升</span> = 每日23:59分，当日涨幅>15%</li>
+                                    <li>• <span class="bg-orange-500 text-white px-1 rounded">高抛</span> = 多头信号+SAR增加+本轮涨跌<0.1%+RSI>69</li>
+                                </ul>
+                            </div>
+                            <div>• <strong>本轮涨跌</strong> = 当前5分钟K线收盘价 vs 上一个5分钟K线收盘价的涨跌幅</div>
+                            <div>• <span class="bg-purple-200 px-2 py-0.5 rounded font-bold">10格列（紫色）</span> = <strong>10格高低点突破</strong>：
+                                <ul class="ml-4 mt-1 text-xs">
+                                    <li>• <span class="text-green-600 font-bold">+1</span> = 当前K线创10格新高（当前最高价 = 这10格中的最高价）</li>
+                                    <li>• <span class="text-red-600 font-bold">-1</span> = 当前K线创10格新低（当前最低价 = 这10格中的最低价）</li>
+                                    <li>• <span class="text-gray-600">0</span> = 其余情况（在10格范围内）</li>
+                                </ul>
+                            </div>
+                            <div class="text-xs text-gray-600 mt-2">💡 起涨/起跌点：前20行显示"-"，第20行及以后显示累计百分比值</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="overflow-x-auto">
                 <table class="w-full text-xs">
                     <thead>
                         <tr class="border-b-2 border-gray-200">
                             <th class="text-left py-2 px-1 sticky left-0 bg-white">时间</th>
+                            <th class="text-center py-2 px-3 bg-blue-50 min-w-[80px]">起涨/起跌点</th>
+                            <th class="text-center py-2 px-3 bg-orange-50 min-w-[80px]">操作提示</th>
                             <th class="text-right py-2 px-1">开盘</th>
                             <th class="text-right py-2 px-1">最高</th>
                             <th class="text-right py-2 px-1">最低</th>
                             <th class="text-right py-2 px-1">收盘</th>
-                            <th class="text-right py-2 px-1">涨跌幅</th>
+                            <th class="text-right py-2 px-1">本轮涨跌</th>
+                            <th class="text-center py-2 px-1 bg-purple-50">
+                                <span class="text-purple-700 font-bold">10格</span>
+                            </th>
                             <th class="text-right py-2 px-1">成交量</th>
                             <th class="text-center py-2 px-1">
                                 <span class="text-red-600 font-bold">V1</span>
@@ -175,11 +250,14 @@
                             <th class="text-right py-2 px-1 indicator-col">占比上涨</th>
                             <th class="text-right py-2 px-1 indicator-col">带宽</th>
                             <th class="text-center py-2 px-1 indicator-col">通道状态</th>
+                            <th class="text-right py-2 px-1 indicator-col bg-yellow-50">
+                                <span class="text-yellow-700 font-bold">当日涨幅</span>
+                            </th>
                         </tr>
                     </thead>
                     <tbody id="klineTableBody">
                         <tr>
-                            <td colspan="23" class="text-center py-8 text-gray-500">
+                            <td colspan="26" class="text-center py-8 text-gray-500">
                                 请选择币种查看数据
                             </td>
                         </tr>
@@ -190,6 +268,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-    <script src="/static/kline.js"></script>
+    <script src="/static/kline_new_1761736500.js"></script>
 </body>
 </html>

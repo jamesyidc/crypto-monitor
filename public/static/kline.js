@@ -205,6 +205,9 @@ async function loadKlineData() {
     // 显示统计面板
     document.getElementById('statsPanel').classList.remove('hidden');
     
+    // 计算并显示当天统计
+    calculateDailyStats(klineData);
+    
     // 重置倒计时
     resetCountdown();
 
@@ -348,6 +351,12 @@ function renderChart(klineData) {
 function renderTable(klineData, alerts = []) {
   const tbody = document.getElementById('klineTableBody');
   
+  // 🐛 调试：函数开始执行
+  console.log(`🔍 [renderTable] 开始渲染，数据量: ${klineData.length} 条`);
+  if (klineData.length > 0) {
+    console.log(`🔍 [renderTable] 第一条数据:`, klineData[0]);
+  }
+  
   // 创建预警索引映射（用于快速查找）
   const alertMap = {};
   alerts.forEach(alert => {
@@ -383,6 +392,43 @@ function renderTable(klineData, alerts = []) {
     const isFallingPattern = hasEnoughData && cumulative20Change < -3;
     const needHighlight = isRisingPattern || isFallingPattern;
     
+    // 🆕 计算10格高低点突破指标
+    // 逻辑：当前K线 + 往时间更早方向的9根K线 = 共10格
+    // 表格从新到旧排列：index=0是最新，index越大时间越早
+    // 所以取 index 到 index+9（共10根K线）
+    let tenBarSignal = '0'; // 默认值改为0
+    
+    if (index + 9 < klineData.length) {
+      // 收集10根K线（当前 + 往时间更早的9根）
+      const tenBars = [];
+      for (let i = index; i <= index + 9; i++) {
+        tenBars.push(klineData[i]);
+      }
+      
+      // 找出这10根K线中的最高价和最低价
+      let maxHigh = -Infinity;
+      let minLow = Infinity;
+      
+      tenBars.forEach(bar => {
+        if (bar.high && bar.high > maxHigh) maxHigh = bar.high;
+        if (bar.low && bar.low < minLow) minLow = bar.low;
+      });
+      
+      // 当前K线的最高价和最低价
+      const currentHigh = k.high || 0;
+      const currentLow = k.low || 0;
+      
+      // 判断逻辑：当前K线是否创10格新高/新低
+      if (currentHigh > 0 && currentHigh === maxHigh) {
+        // 当前最高价 = 10格最高价，说明当前创新高
+        tenBarSignal = '+1';
+      } else if (currentLow > 0 && currentLow === minLow) {
+        // 当前最低价 = 10格最低价，说明当前创新低
+        tenBarSignal = '-1';
+      }
+      // 否则保持默认值 '0'
+    }
+    
     // 行背景色和边框（预警优先，否则检查起涨起跌）
     let rowClass = '';
     if (hasAlert) {
@@ -393,9 +439,24 @@ function renderTable(klineData, alerts = []) {
       rowClass = 'border-l-4 border-red-500 bg-red-50';
     }
     
+    // 🆕 计算本轮涨跌（当前收盘价 vs 上一个K线收盘价）
+    let roundChange = '-';
+    let roundChangePercent = null;
+    
+    if (index + 1 < klineData.length) {
+      // 有上一根K线
+      const currentClose = k.close || 0;
+      const prevClose = klineData[index + 1].close || 0;
+      
+      if (currentClose > 0 && prevClose > 0) {
+        roundChangePercent = ((currentClose - prevClose) / prevClose) * 100;
+        roundChange = (roundChangePercent > 0 ? '+' : '') + roundChangePercent.toFixed(2) + '%';
+      }
+    }
+    
     // 基础K线数据 - 涨跌幅颜色
     const getChangeClass = (change) => {
-      if (!change) return 'text-gray-400';
+      if (!change || change === '-') return 'text-gray-400';
       // 如果包含负号 → 红色（跌）
       if (change.includes('-')) return 'text-red-600';
       // 如果包含加号或者是正数（不含负号） → 绿色（涨）
@@ -403,7 +464,7 @@ function renderTable(klineData, alerts = []) {
       // 零涨跌幅 → 灰色
       return 'text-gray-400';
     };
-    const changeClass = getChangeClass(k.change);
+    const changeClass = getChangeClass(roundChange);
     
     // V1/V2 标记（使用固定阈值）
     const volumeV1 = k.volume_v1 === 1;
@@ -413,6 +474,68 @@ function renderTable(klineData, alerts = []) {
     
     // 信号样式
     const signalClass = k.signal && k.signal.startsWith('多头') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+    
+    // ✅ 操作提示判断逻辑
+    let actionTip = '';
+    
+    // 1️⃣ 次日主升判断逻辑
+    // 条件：每日23:59分 且 当日涨幅超过15%
+    const timeStr = k.time || '';
+    const is2359 = timeStr.includes('23:59');
+    
+    if (is2359) {
+      // 计算当日涨幅：从当天00:00到当前23:59的累计涨幅
+      // 找到当天的所有K线（从23:59往前找到00:00）
+      let dailyChange = 0;
+      let foundDayStart = false;
+      
+      // 从当前行往后（历史数据方向）查找当天的00:00
+      for (let i = index; i < klineData.length; i++) {
+        const rowTime = klineData[i].time || '';
+        
+        // 如果找到00:00，停止累计
+        if (rowTime.includes('00:00')) {
+          foundDayStart = true;
+          break;
+        }
+        
+        // 累计涨跌幅
+        const changeStr = klineData[i].change;
+        if (changeStr) {
+          const changeValue = parseFloat(changeStr);
+          if (!isNaN(changeValue)) {
+            dailyChange += changeValue;
+          }
+        }
+      }
+      
+      // 如果找到了完整的一天数据，且涨幅超过15%
+      if (foundDayStart && dailyChange > 15) {
+        actionTip = `<span class="inline-block px-2 py-1 bg-purple-600 text-white text-xs rounded font-bold" title="当日涨幅${dailyChange.toFixed(2)}%超过15%，预示次日主升">次日主升 (${dailyChange.toFixed(2)}%)</span>`;
+      }
+    }
+    
+    // 2️⃣ 高抛判断逻辑（如果没有次日主升提示）
+    // 条件：1) 信号=多头  2) SAR变化%在增加（与上一根K线比较）  3) 本轮涨跌<0.1%  4) 5分钟RSI>69
+    if (!actionTip && k.signal && k.signal.startsWith('多头')) {
+      const rsi5min = k.rsi_5min;
+      const currentSarChangePercent = k.sarChangePercent;
+      
+      // 获取上一根K线的SAR变化%
+      let prevSarChangePercent = null;
+      if (index + 1 < klineData.length) {
+        prevSarChangePercent = klineData[index + 1].sarChangePercent;
+      }
+      
+      // 判断条件（使用新计算的本轮涨跌）
+      const isSarIncreasing = prevSarChangePercent !== null && currentSarChangePercent > prevSarChangePercent;
+      const isSmallChange = roundChangePercent !== null && Math.abs(roundChangePercent) < 0.1;
+      const isHighRSI = rsi5min && rsi5min > 69;
+      
+      if (isSarIncreasing && isSmallChange && isHighRSI) {
+        actionTip = '<span class="inline-block px-2 py-1 bg-orange-500 text-white text-xs rounded font-bold" title="满足高抛条件：多头信号+SAR变化%增加+本轮涨跌<0.1%+RSI5分钟>69">高抛</span>';
+      }
+    }
     
     // RSI 样式
     const getRSIClass = (rsi) => {
@@ -433,25 +556,41 @@ function renderTable(klineData, alerts = []) {
       ? `<span class="inline-block px-1 py-0.5 bg-yellow-500 text-white text-xs rounded font-bold ml-1" title="${hasAlert.triggers.join(', ')}">⚠️</span>`
       : '';
 
-    // 累计涨跌幅标记
+    // 累计涨跌幅标记（起涨/起跌点）
     const cumulativeBadge = hasEnoughData 
-      ? `<span class="inline-block px-1 py-0.5 text-xs rounded ml-1 ${
+      ? `<span class="inline-block px-1 py-0.5 text-xs rounded ${
           isRisingPattern ? 'bg-green-600 text-white font-bold' : 
           isFallingPattern ? 'bg-red-600 text-white font-bold' : 
           'bg-gray-300 text-gray-700'
         }" title="过去20根K线累计涨跌幅（起涨/起跌点识别）">${cumulative20Change > 0 ? '+' : ''}${cumulative20Change.toFixed(2)}%</span>`
-      : '';
+      : '-';
+    
+    // 🐛 调试日志：查看关键行的数据
+    if (index < 3 || (index >= 20 && index < 23)) {
+      console.log(`🔍 [Row ${index}] hasEnoughData=${hasEnoughData}, cumulative=${cumulative20Change.toFixed(2)}%, badge="${cumulativeBadge.substring(0, 50)}..."`);
+    }
 
     return `
       <tr class="border-b border-gray-100 hover:bg-gray-50 text-xs ${rowClass}">
         <td class="py-2 px-1 text-gray-700 sticky left-0 ${hasAlert ? 'bg-yellow-50' : needHighlight ? (isRisingPattern ? 'bg-green-50' : 'bg-red-50') : 'bg-white'}">
-          ${k.time || '-'}${alertBadge}${cumulativeBadge}
+          ${k.time || '-'}${alertBadge}
+        </td>
+        <td class="py-2 px-3 text-center min-w-[80px] ${hasAlert ? 'bg-yellow-50' : needHighlight ? (isRisingPattern ? 'bg-green-50' : 'bg-red-50') : 'bg-blue-50'}">
+          ${cumulativeBadge}
+        </td>
+        <td class="py-2 px-3 text-center min-w-[80px] ${hasAlert ? 'bg-yellow-50' : needHighlight ? (isRisingPattern ? 'bg-green-50' : 'bg-red-50') : 'bg-orange-50'}">
+          ${actionTip || '-'}
         </td>
         <td class="py-2 px-1 text-right font-mono">${k.open ? k.open.toFixed(4) : '-'}</td>
         <td class="py-2 px-1 text-right font-mono text-green-600">${k.high ? k.high.toFixed(4) : '-'}</td>
         <td class="py-2 px-1 text-right font-mono text-red-600">${k.low ? k.low.toFixed(4) : '-'}</td>
         <td class="py-2 px-1 text-right font-mono font-bold">${k.close ? k.close.toFixed(4) : '-'}</td>
-        <td class="py-2 px-1 text-right font-bold ${changeClass}">${k.change || '-'}</td>
+        <td class="py-2 px-1 text-right font-bold ${changeClass}">${roundChange}</td>
+        <td class="py-2 px-1 text-center font-bold ${
+          tenBarSignal === '+1' ? 'text-green-600 bg-green-50' : 
+          tenBarSignal === '-1' ? 'text-red-600 bg-red-50' : 
+          'text-gray-400'
+        }">${tenBarSignal}</td>
         <td class="py-2 px-1 text-right font-mono text-gray-600">${k.volume ? formatVolume(k.volume) : '-'}</td>
         <td class="py-2 px-1 text-center">${v1Badge}</td>
         <td class="py-2 px-1 text-center">${v2Badge}</td>
@@ -518,9 +657,281 @@ function renderTable(klineData, alerts = []) {
         <td class="py-2 px-1 text-center indicator-col">
           ${getChannelIcon(k.channel_state)}
         </td>
+        <td class="py-2 px-1 text-right font-bold indicator-col ${
+          k.change_today === null || k.change_today === undefined ? 'text-gray-400' :
+          k.change_today > 0 ? 'text-green-600' :
+          k.change_today < 0 ? 'text-red-600' : 'text-gray-400'
+        }">
+          ${k.change_today !== null && k.change_today !== undefined ? (k.change_today > 0 ? '+' : '') + k.change_today.toFixed(2) + '%' : '-'}
+        </td>
       </tr>
     `;
   }).join('');
+  
+  // 🐛 调试：表格渲染完成
+  console.log(`✅ [renderTable] 表格渲染完成，生成了 ${klineData.length} 行HTML`);
+}
+
+// 计算当天统计
+function calculateDailyStats(klineData) {
+  // 获取当天日期（Asia/Shanghai时区）
+  const today = new Date().toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' });
+  const [year, month, day] = today.split('/');
+  const todayStr = `${year}/${month.padStart(2, '0')}/${day.padStart(2, '0')}`;
+  
+  console.log('🔍 计算当天统计，目标日期:', todayStr);
+  
+  // 筛选当天数据（0:00-23:59）- 用于常规统计
+  const todayData = klineData.filter(k => {
+    if (!k.time) return false;
+    return k.time.startsWith(todayStr);
+  });
+  
+  console.log(`📊 当天数据条数: ${todayData.length} / 总数: ${klineData.length}`);
+  
+  // 如果当天数据不足20根，隐藏面板
+  if (todayData.length < 20) {
+    // document.getElementById('dailyStatsPanel').classList.add('hidden');
+    console.log('⚠️ 当天数据不足20根，但统计面板始终显示');
+    return;
+  }
+  
+  let risingTriggers = 0;
+  let fallingTriggers = 0;
+  let currentRisingStreak = 0;
+  let longestRisingStreak = 0;
+  let longestRisingEndTime = null;
+  let currentFallingStreak = 0;
+  let longestFallingStreak = 0;
+  let longestFallingEndTime = null;
+  
+  // 用于调试的累计涨跌幅数组
+  const cumulativeChanges = [];
+  
+  // 遍历当天每个数据点
+  todayData.forEach((k, index) => {
+    // 计算累计20根涨跌幅（需要至少20根历史数据）
+    if (index >= 20) {
+      let cumulative = 0;
+      for (let i = index - 20; i < index; i++) {
+        const change = parseFloat(todayData[i].change);
+        if (!isNaN(change)) {
+          cumulative += change;
+        }
+      }
+      
+      // 记录累计涨跌幅（用于调试）
+      cumulativeChanges.push({
+        time: k.time,
+        cumulative: cumulative.toFixed(2),
+        isRising: cumulative > 2,
+        isFalling: cumulative < -3
+      });
+      
+      // 判断起涨点和起跌点
+      if (cumulative > 2) risingTriggers++;
+      if (cumulative < -3) fallingTriggers++;  // 起点线红交叉：跌计20圈 > -3%
+    }
+    
+    // 检查上涨/下跌占比，计算连续上涨数和连续下跌数
+    const upRatio = k.up_channel_exhaustion_ratio || 0;
+    const downRatio = k.down_channel_exhaustion_ratio || 0;
+    
+    if (upRatio > downRatio) {
+      // 连续上涨
+      currentRisingStreak++;
+      currentFallingStreak = 0;
+      if (currentRisingStreak >= longestRisingStreak) {
+        longestRisingStreak = currentRisingStreak;
+        longestRisingEndTime = k.time;
+      }
+    } else if (downRatio > upRatio) {
+      // 连续下跌
+      currentFallingStreak++;
+      currentRisingStreak = 0;
+      if (currentFallingStreak >= longestFallingStreak) {
+        longestFallingStreak = currentFallingStreak;
+        longestFallingEndTime = k.time;
+      }
+    } else {
+      // 相等时重置
+      currentRisingStreak = 0;
+      currentFallingStreak = 0;
+    }
+  });
+  
+  console.log('📈 统计结果:', { 
+    risingTriggers, 
+    fallingTriggers, 
+    longestRisingStreak, 
+    longestRisingEndTime,
+    longestFallingStreak,
+    longestFallingEndTime
+  });
+  
+  // 🔍 调试信息：显示所有累计涨跌幅
+  console.log('📊 累计涨跌幅详情（共' + cumulativeChanges.length + '个数据点）:');
+  console.log('   最小值:', Math.min(...cumulativeChanges.map(c => parseFloat(c.cumulative))).toFixed(2) + '%');
+  console.log('   最大值:', Math.max(...cumulativeChanges.map(c => parseFloat(c.cumulative))).toFixed(2) + '%');
+  console.log('   起涨点(>2%):', cumulativeChanges.filter(c => c.isRising).length + '个');
+  console.log('   起跌点(<-3%):', cumulativeChanges.filter(c => c.isFalling).length + '个');  // 起点线红交叉阈值-3%
+  
+  // 显示累计涨跌幅最小的5个时间点
+  const sortedByValue = [...cumulativeChanges].sort((a, b) => parseFloat(a.cumulative) - parseFloat(b.cumulative));
+  console.log('   📉 累计跌幅最大的5个时间点:');
+  sortedByValue.slice(0, 5).forEach(item => {
+    console.log(`      ${item.time}: ${item.cumulative}%`);
+  });
+  
+  // 🆕 计算震荡收敛带宽均值（只找最近1个起涨点）
+  // ✅ 按用户要求：1) 找最近1个起涨点  2) 往前找震荡收敛  3) 取区间内最小3个带宽  4) 计算平均
+  let avgConvergenceBandwidth = null;
+  let convergenceSegments = 0;
+  
+  const allData = klineData;  // 使用全部K线数据
+  
+  // ✅ 步骤1：找到离现在最近的一个起涨点（索引最小的，即最新的）
+  let risingPointIndex = null;
+  let risingPointTime = null;
+  let risingCumulative = 0;
+  
+  for (let i = 0; i < allData.length - 20; i++) {
+    let cumulative = 0;
+    // 计算当前K线往后20根的累计涨跌幅
+    for (let j = i; j < i + 20; j++) {
+      const changeStr = allData[j].change || '0%';
+      const change = parseFloat(changeStr.replace('%', ''));
+      if (!isNaN(change)) {
+        cumulative += change;
+      }
+    }
+    
+    if (cumulative > 2) {
+      risingPointIndex = i;
+      risingPointTime = allData[i].time;
+      risingCumulative = cumulative;
+      const timeStr = risingPointTime ? risingPointTime.substring(11, 16) : '未知';
+      console.log(`🔍 找到最近起涨点: ${timeStr} (index=${i}, 累计涨幅=${cumulative.toFixed(2)}%)`);
+      break;  // ✅ 只找第一个（最近的）就停止
+    }
+  }
+  
+  if (risingPointIndex === null) {
+    console.log('⚠️ 没有找到起涨点（累计20根 > +2%）');
+  } else {
+    // ✅ 步骤2：从起涨点向前查找震荡收敛状态（向数组后方，即更早的数据）
+    let convergenceIndex = null;
+    let convergenceTime = null;
+    
+    for (let i = risingPointIndex + 1; i < allData.length; i++) {
+      const k = allData[i];
+      const channelState = k.channel_state || '';
+      
+      if (channelState.includes('震荡收敛')) {
+        convergenceIndex = i;
+        convergenceTime = k.time;
+        const timeStr = convergenceTime ? convergenceTime.substring(11, 16) : '未知';
+        console.log(`   ✓ 找到震荡收敛: ${timeStr} (index=${i}, 距离起涨点=${i - risingPointIndex}根K线)`);
+        break;  // ✅ 找到第一个（最近的）就停止
+      }
+    }
+    
+    if (convergenceIndex === null) {
+      const risingTimeStr = risingPointTime ? risingPointTime.substring(11, 16) : '未知';
+      console.log(`   ✗ 起涨点 ${risingTimeStr} 往前未找到震荡收敛状态`);
+    } else {
+      // ✅ 步骤3：收集区间内的带宽值
+      const risingTimeStr = risingPointTime ? risingPointTime.substring(11, 16) : '未知';
+      const convergenceTimeStr = convergenceTime ? convergenceTime.substring(11, 16) : '未知';
+      const rangeLength = convergenceIndex - risingPointIndex + 1;
+      console.log(`   📐 收集区间带宽: [${risingTimeStr} (index=${risingPointIndex}) → ${convergenceTimeStr} (index=${convergenceIndex})], 共${rangeLength}根K线`);
+      
+      const segmentBandwidths = [];
+      for (let j = risingPointIndex; j <= convergenceIndex; j++) {
+        const k = allData[j];
+        // 🔧 使用 boll_ub - boll_lb 计算带宽
+        const bandwidth = (k.boll_ub && k.boll_lb) ? (k.boll_ub - k.boll_lb) : null;
+        
+        if (bandwidth !== null && bandwidth !== undefined && !isNaN(bandwidth)) {
+          const timeStr = k.time ? k.time.substring(11, 16) : '未知';
+          segmentBandwidths.push({
+            index: j,
+            time: timeStr,
+            bandwidth: parseFloat(bandwidth)
+          });
+        }
+      }
+      
+      console.log(`      收集到 ${segmentBandwidths.length} 个有效带宽值`);
+      
+      // ✅ 步骤4：取最小3个并计算平均值
+      if (segmentBandwidths.length >= 3) {
+        segmentBandwidths.sort((a, b) => a.bandwidth - b.bandwidth);
+        const top3 = segmentBandwidths.slice(0, 3);
+        
+        console.log(`      带宽最小3个:`, top3.map(item => `${item.time}(${item.bandwidth.toFixed(4)})`).join(', '));
+        
+        const sum = top3[0].bandwidth + top3[1].bandwidth + top3[2].bandwidth;
+        avgConvergenceBandwidth = (sum / 3).toFixed(4);  // ✅ 保留4位小数
+        convergenceSegments = 1;
+        
+        console.log(`📊 震荡收敛带宽均值: ${avgConvergenceBandwidth}`);
+        console.log(`   计算过程: (${top3[0].bandwidth.toFixed(4)} + ${top3[1].bandwidth.toFixed(4)} + ${top3[2].bandwidth.toFixed(4)}) / 3 = ${avgConvergenceBandwidth}`);
+      } else {
+        console.log(`      ⚠️ 区间只有 ${segmentBandwidths.length} 个有效带宽值，需要至少3个`);
+      }
+    }
+  }
+  
+  // 更新UI
+  document.getElementById('newHighCount').textContent = risingTriggers;
+  document.getElementById('newLowCount').textContent = fallingTriggers;
+  document.getElementById('fastUpperTouch').textContent = longestRisingStreak;
+  document.getElementById('fastLowerTouch').textContent = longestFallingStreak;
+  
+  // 显示最长连续上涨的时间（检查元素是否存在）
+  const risingTimeEl = document.getElementById('longestRisingTime');
+  if (risingTimeEl) {
+    if (longestRisingEndTime && longestRisingStreak > 0) {
+      const timeStr = longestRisingEndTime.substring(11, 16);
+      risingTimeEl.textContent = `结束于 ${timeStr}`;
+    } else {
+      risingTimeEl.textContent = '-';
+    }
+  }
+  
+  // 显示最长连续下跌的时间（检查元素是否存在）
+  const fallingTimeEl = document.getElementById('longestFallingTime');
+  if (fallingTimeEl) {
+    if (longestFallingEndTime && longestFallingStreak > 0) {
+      const timeStr = longestFallingEndTime.substring(11, 16);
+      fallingTimeEl.textContent = `结束于 ${timeStr}`;
+    } else {
+      fallingTimeEl.textContent = '-';
+    }
+  }
+  
+  // 🆕 显示震荡收敛带宽均值
+  const convergenceBandwidthEl = document.getElementById('convergenceBandwidth');
+  const convergenceCountEl = document.getElementById('convergenceCount');
+  
+  if (convergenceBandwidthEl) {
+    if (avgConvergenceBandwidth !== null) {
+      convergenceBandwidthEl.textContent = avgConvergenceBandwidth;
+    } else {
+      convergenceBandwidthEl.textContent = '-';
+    }
+  }
+  
+  if (convergenceCountEl) {
+    if (avgConvergenceBandwidth !== null) {
+      convergenceCountEl.textContent = `${convergenceSegments}个区间`;
+    } else {
+      convergenceCountEl.textContent = '无数据';
+    }
+  }
+  
+  // document.getElementById('dailyStatsPanel').classList.remove('hidden');
 }
 
 // 显示预警统计

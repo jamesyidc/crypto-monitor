@@ -85,19 +85,28 @@ export class SupportLineService {
   /**
    * 获取今天的所有支撑线
    */
-  async getTodaySupportLines(): Promise<SupportLine[]> {
+  async getTodaySupportLines(): Promise<any[]> {
     const today = this.getTodayDate();
     
     const result = await this.db
       .prepare(`
-        SELECT * FROM support_lines
-        WHERE date = ?
-        ORDER BY symbol
+        SELECT 
+          sl.*,
+          pr.price as current_price,
+          pr.timestamp as price_updated_at
+        FROM support_lines sl
+        LEFT JOIN (
+          SELECT symbol, price, timestamp,
+                 ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY timestamp DESC) as rn
+          FROM price_records
+        ) pr ON sl.symbol = pr.symbol AND pr.rn = 1
+        WHERE sl.date = ?
+        ORDER BY sl.symbol
       `)
       .bind(today)
       .all();
     
-    return result.results as SupportLine[];
+    return result.results as any[];
   }
 
   /**
@@ -167,7 +176,7 @@ export class SupportLineService {
    * 检查低吸机会
    * 
    * 条件：
-   * 1. 币种等级 <= 2（等级2及以上）
+   * 1. 币种当前等级 <= 2 或 7天内达到过等级2
    * 2. 今天有设置支撑线
    * 3. 当前价格接近支撑线（±1%）
    * 4. 市场策略不是"单边主跌"
@@ -176,7 +185,7 @@ export class SupportLineService {
   async checkOpportunities(): Promise<SupportLineOpportunity[]> {
     const today = this.getTodayDate();
     
-    // 获取所有符合条件的币种（等级<=2，有支撑线，允许做多）
+    // 获取所有符合条件的币种（当前等级<=2 或 7天内达到过等级2，有支撑线，允许做多）
     const query = `
       SELECT 
         sl.symbol,
@@ -184,12 +193,20 @@ export class SupportLineService {
         sl.date,
         cp.level as coin_level,
         tr.long_allowed,
-        tr.notes as market_notes
+        tr.notes as market_notes,
+        COALESCE(lh.level, 0) as history_level
       FROM support_lines sl
       INNER JOIN coin_priority cp ON sl.symbol = cp.symbol
       INNER JOIN trading_rules tr ON sl.symbol = tr.symbol
+      LEFT JOIN (
+        SELECT symbol, MAX(level) as level
+        FROM coin_priority_level_history
+        WHERE level <= 2 
+          AND expiry_time >= datetime('now')
+        GROUP BY symbol
+      ) lh ON sl.symbol = lh.symbol
       WHERE sl.date = ?
-        AND cp.level <= 2
+        AND (cp.level <= 2 OR lh.level <= 2)
         AND tr.trading_allowed = 1
         AND tr.long_allowed = 1
       ORDER BY cp.level, sl.symbol

@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交易策略库 - Crypto Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .strategy-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+        .strategy-card.long {
+            border-left-color: #10b981;
+            background: linear-gradient(135deg, #ecfdf5 0%, #ffffff 100%);
+        }
+        .strategy-card.short {
+            border-left-color: #ef4444;
+            background: linear-gradient(135deg, #fef2f2 0%, #ffffff 100%);
+        }
+        .strategy-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+        .priority-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        .priority-high { background: #fee2e2; color: #991b1b; }
+        .priority-medium { background: #fef3c7; color: #92400e; }
+        .priority-low { background: #dbeafe; color: #1e40af; }
+        .tab-button {
+            padding: 12px 24px;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        .tab-button.active {
+            border-bottom-color: #3b82f6;
+            color: #3b82f6;
+            font-weight: bold;
+            background: rgba(59, 130, 246, 0.05);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- 导航栏 -->
+    <nav class="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-8">
+                    <h1 class="text-xl font-bold">
+                        <i class="fas fa-chess-knight mr-2"></i>
+                        交易策略库
+                    </h1>
+                    <div class="flex gap-4">
+                        <a href="/" class="hover:text-blue-200 transition">
+                            <i class="fas fa-home mr-1"></i>首页
+                        </a>
+                        <a href="/pattern" class="hover:text-blue-200 transition">
+                            <i class="fas fa-chart-line mr-1"></i>信号管理
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 py-6">
+        <!-- 统计卡片 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-green-100 text-sm mb-1">做多策略</p>
+                        <h3 class="text-3xl font-bold" id="longCount">0</h3>
+                    </div>
+                    <i class="fas fa-arrow-trend-up text-5xl text-green-200 opacity-50"></i>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-br from-red-500 to-red-600 rounded-lg shadow-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-red-100 text-sm mb-1">做空策略</p>
+                        <h3 class="text-3xl font-bold" id="shortCount">0</h3>
+                    </div>
+                    <i class="fas fa-arrow-trend-down text-5xl text-red-200 opacity-50"></i>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-blue-100 text-sm mb-1">总计策略</p>
+                        <h3 class="text-3xl font-bold" id="totalCount">0</h3>
+                    </div>
+                    <i class="fas fa-layer-group text-5xl text-blue-200 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="bg-purple-100 rounded-lg shadow p-4 mb-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-info-circle text-purple-600"></i>
+                    <span class="text-sm text-gray-700">策略 = 买点 + 卖点 + 分批建仓配置</span>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="clearAllStrategies()" class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg transition flex items-center gap-2">
+                        <i class="fas fa-trash"></i>清空所有策略
+                    </button>
+                    <button onclick="openModal('create')" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition flex items-center gap-2">
+                        <i class="fas fa-plus"></i>新建策略
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 标签页 -->
+        <div class="bg-white rounded-lg shadow-md mb-6">
+            <div class="flex border-b">
+                <button class="tab-button active" onclick="switchTab('long')">
+                    <i class="fas fa-arrow-up mr-2"></i>做多策略
+                </button>
+                <button class="tab-button" onclick="switchTab('short')">
+                    <i class="fas fa-arrow-down mr-2"></i>做空策略
+                </button>
+            </div>
+        </div>
+
+        <!-- 策略列表 -->
+        <div id="longStrategies" class="space-y-4">
+            <!-- 做多策略将在这里显示 -->
+        </div>
+
+        <div id="shortStrategies" class="space-y-4" style="display: none;">
+            <!-- 做空策略将在这里显示 -->
+        </div>
+    </div>
+
+    <!-- 创建/编辑策略模态框 -->
+    <div id="strategyModal" class="modal">
+        <div class="bg-white rounded-lg shadow-2xl max-w-4xl w-full mx-4 p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-plus-circle mr-2 text-blue-500"></i>
+                    <span id="modalTitle">创建新策略</span>
+                </h2>
+                <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+
+            <form id="strategyForm" class="space-y-6">
+                <input type="hidden" id="strategyId">
+
+                <!-- 基本信息 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">策略名称 *</label>
+                        <input type="text" id="strategyName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">策略类型 *</label>
+                        <select id="strategyType" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="long">做多 (Long)</option>
+                            <option value="short">做空 (Short)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">优先级</label>
+                        <select id="priority" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="high">高优先级</option>
+                            <option value="medium" selected>中优先级</option>
+                            <option value="low">低优先级</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">是否启用</label>
+                        <select id="isEnabled" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="1">启用</option>
+                            <option value="0">禁用</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 买点配置 -->
+                <div class="bg-green-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-bold text-green-700 mb-4">
+                        <i class="fas fa-sign-in-alt mr-2"></i>买点配置
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">买点类型</label>
+                            <input type="text" id="entrySignalType" placeholder="例如：止盈止损" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">买点关键词</label>
+                            <input type="text" id="entrySignalKeyword" placeholder="例如：止盈止损" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 卖点配置 -->
+                <div class="bg-red-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-bold text-red-700 mb-4">
+                        <i class="fas fa-sign-out-alt mr-2"></i>卖点配置
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">卖点类型</label>
+                            <input type="text" id="exitSignalType" placeholder="例如：波段高点" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">卖点关键词</label>
+                            <input type="text" id="exitSignalKeyword" placeholder="例如：波段高点" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
+                        </div>
+                    </div>
+                    <div class="mt-3 p-3 bg-red-100 rounded border-l-4 border-red-500">
+                        <p class="text-sm text-red-800"><i class="fas fa-info-circle mr-2"></i><strong>说明：</strong>触发卖点时一次性全部卖出</p>
+                    </div>
+                </div>
+
+                <!-- 分批买入配置 -->
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-bold text-blue-700 mb-4">
+                        <i class="fas fa-layer-group mr-2"></i>分批买入配置
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">分几次买入</label>
+                            <input type="number" id="positionSplits" min="1" max="10" value="1" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <p class="text-xs text-gray-500 mt-1">1-10次，例如：3 表示分3次买入</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">买入间隔百分比 (%)</label>
+                            <input type="number" id="splitIntervalPct" min="0.5" max="10" step="0.5" value="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <p class="text-xs text-gray-500 mt-1">0.5-10%，例如：2 表示价格下跌2%时加仓</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">最大持仓K线周期</label>
+                            <input type="number" id="maxHoldingPeriods" min="0" max="1000" value="0" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <p class="text-xs text-gray-500 mt-1">0表示不限制，例如：100 表示最多持仓100个周期</p>
+                        </div>
+                    </div>
+                    <div class="mt-3 p-3 bg-blue-100 rounded border-l-4 border-blue-500">
+                        <p class="text-sm text-blue-800"><i class="fas fa-info-circle mr-2"></i><strong>说明：</strong>买入支持分批建仓，卖出时一次性全部卖出</p>
+                    </div>
+                </div>
+
+                <!-- 风控配置 -->
+                <div class="bg-yellow-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-bold text-yellow-700 mb-4">
+                        <i class="fas fa-shield-alt mr-2"></i>风控配置
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">止损百分比 (%)</label>
+                            <input type="number" id="stopLossPct" min="0" max="100" step="0.5" placeholder="例如：5" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">止盈百分比 (%)</label>
+                            <input type="number" id="takeProfitPct" min="0" max="1000" step="1" placeholder="例如：20" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">最大仓位 (%)</label>
+                            <input type="number" id="maxPositionSize" min="1" max="100" value="100" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 策略描述 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">策略描述</label>
+                    <textarea id="description" rows="3" placeholder="描述这个策略的逻辑和适用场景..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+                </div>
+
+                <!-- 提交按钮 -->
+                <div class="flex justify-end gap-3 pt-4 border-t">
+                    <button type="button" onclick="closeModal()" class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                        取消
+                    </button>
+                    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition">
+                        <i class="fas fa-save mr-2"></i>保存策略
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let strategies = [];
+        let currentTab = 'long';
+
+        // 页面加载时获取数据
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStrategies();
+        });
+
+        // 加载所有策略
+        async function loadStrategies() {
+            try {
+                const response = await fetch('/api/strategies');
+                const data = await response.json();
+                
+                if (data.success) {
+                    strategies = data.strategies || [];
+                    updateStats();
+                    renderStrategies();
+                }
+            } catch (error) {
+                console.error('加载策略失败:', error);
+            }
+        }
+
+        // 更新统计信息
+        function updateStats() {
+            const longCount = strategies.filter(s => s.strategy_type === 'long').length;
+            const shortCount = strategies.filter(s => s.strategy_type === 'short').length;
+            
+            document.getElementById('longCount').textContent = longCount;
+            document.getElementById('shortCount').textContent = shortCount;
+            document.getElementById('totalCount').textContent = strategies.length;
+        }
+
+        // 渲染策略列表
+        function renderStrategies() {
+            const longStrategies = strategies.filter(s => s.strategy_type === 'long');
+            const shortStrategies = strategies.filter(s => s.strategy_type === 'short');
+
+            document.getElementById('longStrategies').innerHTML = renderStrategyCards(longStrategies, 'long');
+            document.getElementById('shortStrategies').innerHTML = renderStrategyCards(shortStrategies, 'short');
+        }
+
+        // 渲染策略卡片
+        function renderStrategyCards(strategyList, type) {
+            if (strategyList.length === 0) {
+                return `
+                    <div class="bg-white rounded-lg shadow-md p-12 text-center">
+                        <i class="fas fa-inbox text-6xl text-gray-300 mb-4"></i>
+                        <p class="text-gray-500">暂无${type === 'long' ? '做多' : '做空'}策略</p>
+                        <button onclick="openModal('create', '${type}')" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition">
+                            <i class="fas fa-plus mr-2"></i>创建第一个策略
+                        </button>
+                    </div>
+                `;
+            }
+
+            return strategyList.map(strategy => `
+                <div class="strategy-card ${type} bg-white rounded-lg shadow-md p-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-3 mb-2">
+                                <h3 class="text-xl font-bold text-gray-800">${strategy.strategy_name}</h3>
+                                <span class="priority-badge priority-${strategy.priority}">
+                                    ${strategy.priority === 'high' ? '高优先级' : strategy.priority === 'medium' ? '中优先级' : '低优先级'}
+                                </span>
+                                <span class="${strategy.is_enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'} px-3 py-1 rounded-full text-xs font-semibold">
+                                    ${strategy.is_enabled ? '已启用' : '已禁用'}
+                                </span>
+                            </div>
+                            ${strategy.description ? `<p class="text-sm text-gray-600 mb-3">${strategy.description}</p>` : ''}
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="editStrategy(${strategy.id})" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition text-sm">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="toggleStrategy(${strategy.id})" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded transition text-sm">
+                                <i class="fas fa-power-off"></i>
+                            </button>
+                            <button onclick="deleteStrategy(${strategy.id})" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition text-sm">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- 买点信息 -->
+                        <div class="bg-green-50 p-3 rounded-lg">
+                            <div class="flex items-center gap-2 mb-2">
+                                <i class="fas fa-sign-in-alt text-green-600"></i>
+                                <span class="font-semibold text-sm text-green-700">买点</span>
+                            </div>
+                            <div class="text-sm space-y-1">
+                                ${strategy.entry_signal_type ? `<p><span class="text-gray-600">类型:</span> ${strategy.entry_signal_type}</p>` : ''}
+                                ${strategy.entry_signal_keyword ? `<p><span class="text-gray-600">关键词:</span> ${strategy.entry_signal_keyword}</p>` : ''}
+                            </div>
+                        </div>
+
+                        <!-- 卖点信息 -->
+                        <div class="bg-red-50 p-3 rounded-lg">
+                            <div class="flex items-center gap-2 mb-2">
+                                <i class="fas fa-sign-out-alt text-red-600"></i>
+                                <span class="font-semibold text-sm text-red-700">卖点</span>
+                            </div>
+                            <div class="text-sm space-y-1">
+                                ${strategy.exit_signal_type ? `<p><span class="text-gray-600">类型:</span> ${strategy.exit_signal_type}</p>` : ''}
+                                ${strategy.exit_signal_keyword ? `<p><span class="text-gray-600">关键词:</span> ${strategy.exit_signal_keyword}</p>` : ''}
+                            </div>
+                        </div>
+
+                        <!-- 仓位配置 -->
+                        <div class="bg-blue-50 p-3 rounded-lg">
+                            <div class="flex items-center gap-2 mb-2">
+                                <i class="fas fa-layer-group text-blue-600"></i>
+                                <span class="font-semibold text-sm text-blue-700">买入配置</span>
+                            </div>
+                            <div class="text-sm space-y-1">
+                                <p><span class="text-gray-600">分批:</span> ${strategy.position_splits}次买入</p>
+                                <p><span class="text-gray-600">间隔:</span> ${strategy.split_interval_pct}%</p>
+                                <p><span class="text-gray-600">持仓周期:</span> ${strategy.max_holding_periods > 0 ? strategy.max_holding_periods + 'K线' : '不限制'}</p>
+                                ${strategy.stop_loss_pct ? `<p><span class="text-gray-600">止损:</span> ${strategy.stop_loss_pct}%</p>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 切换标签
+        function switchTab(tab) {
+            currentTab = tab;
+            
+            // 更新标签样式
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            event.target.closest('.tab-button').classList.add('active');
+            
+            // 切换内容
+            document.getElementById('longStrategies').style.display = tab === 'long' ? 'block' : 'none';
+            document.getElementById('shortStrategies').style.display = tab === 'short' ? 'block' : 'none';
+        }
+
+        // 打开模态框
+        function openModal(mode, type = null) {
+            const modal = document.getElementById('strategyModal');
+            const form = document.getElementById('strategyForm');
+            
+            form.reset();
+            document.getElementById('strategyId').value = '';
+            
+            if (mode === 'create') {
+                document.getElementById('modalTitle').textContent = '创建新策略';
+                if (type) {
+                    document.getElementById('strategyType').value = type;
+                }
+            }
+            
+            modal.classList.add('active');
+        }
+
+        // 关闭模态框
+        function closeModal() {
+            document.getElementById('strategyModal').classList.remove('active');
+        }
+
+        // 编辑策略
+        async function editStrategy(id) {
+            const strategy = strategies.find(s => s.id === id);
+            if (!strategy) return;
+            
+            document.getElementById('modalTitle').textContent = '编辑策略';
+            document.getElementById('strategyId').value = strategy.id;
+            document.getElementById('strategyName').value = strategy.strategy_name;
+            document.getElementById('strategyType').value = strategy.strategy_type;
+            document.getElementById('priority').value = strategy.priority;
+            document.getElementById('isEnabled').value = strategy.is_enabled;
+            
+            document.getElementById('entrySignalType').value = strategy.entry_signal_type || '';
+            document.getElementById('entrySignalKeyword').value = strategy.entry_signal_keyword || '';
+            document.getElementById('exitSignalType').value = strategy.exit_signal_type || '';
+            document.getElementById('exitSignalKeyword').value = strategy.exit_signal_keyword || '';
+            
+            document.getElementById('positionSplits').value = strategy.position_splits;
+            document.getElementById('splitIntervalPct').value = strategy.split_interval_pct;
+            document.getElementById('maxHoldingPeriods').value = strategy.max_holding_periods || 0;
+            document.getElementById('stopLossPct').value = strategy.stop_loss_pct || '';
+            document.getElementById('takeProfitPct').value = strategy.take_profit_pct || '';
+            document.getElementById('maxPositionSize').value = strategy.max_position_size;
+            document.getElementById('description').value = strategy.description || '';
+            
+            openModal('edit');
+        }
+
+        // 保存策略
+        document.getElementById('strategyForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const id = document.getElementById('strategyId').value;
+            const data = {
+                strategy_name: document.getElementById('strategyName').value,
+                strategy_type: document.getElementById('strategyType').value,
+                priority: document.getElementById('priority').value,
+                is_enabled: parseInt(document.getElementById('isEnabled').value),
+                
+                entry_signal_type: document.getElementById('entrySignalType').value,
+                entry_signal_keyword: document.getElementById('entrySignalKeyword').value,
+                exit_signal_type: document.getElementById('exitSignalType').value,
+                exit_signal_keyword: document.getElementById('exitSignalKeyword').value,
+                
+                position_splits: parseInt(document.getElementById('positionSplits').value),
+                split_interval_pct: parseFloat(document.getElementById('splitIntervalPct').value),
+                max_holding_periods: parseInt(document.getElementById('maxHoldingPeriods').value) || 0,
+                stop_loss_pct: parseFloat(document.getElementById('stopLossPct').value) || null,
+                take_profit_pct: parseFloat(document.getElementById('takeProfitPct').value) || null,
+                max_position_size: parseFloat(document.getElementById('maxPositionSize').value),
+                description: document.getElementById('description').value
+            };
+            
+            try {
+                const url = id ? `/api/strategies/${id}` : '/api/strategies';
+                const method = id ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(id ? '策略更新成功！' : '策略创建成功！');
+                    closeModal();
+                    loadStrategies();
+                } else {
+                    alert('操作失败：' + result.error);
+                }
+            } catch (error) {
+                console.error('保存策略失败:', error);
+                alert('保存失败，请重试');
+            }
+        });
+
+        // 切换策略状态
+        async function toggleStrategy(id) {
+            const strategy = strategies.find(s => s.id === id);
+            if (!strategy) return;
+            
+            const newStatus = strategy.is_enabled ? 0 : 1;
+            
+            try {
+                const response = await fetch(`/api/strategies/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_enabled: newStatus })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    loadStrategies();
+                }
+            } catch (error) {
+                console.error('切换策略状态失败:', error);
+            }
+        }
+
+        // 删除策略
+        async function deleteStrategy(id) {
+            if (!confirm('确定要删除这个策略吗？此操作不可恢复。')) return;
+            
+            try {
+                const response = await fetch(`/api/strategies/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('策略删除成功！');
+                    loadStrategies();
+                } else {
+                    alert('删除失败：' + result.error);
+                }
+            } catch (error) {
+                console.error('删除策略失败:', error);
+                alert('删除失败，请重试');
+            }
+        }
+
+        // 清空所有策略
+        async function clearAllStrategies() {
+            if (!confirm('确定要清空所有策略吗？此操作不可恢复！')) return;
+            if (!confirm('再次确认：真的要删除所有策略吗？')) return;
+            
+            try {
+                const response = await fetch('/api/strategies/clear', {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`已清空 ${result.deleted} 个策略！`);
+                    loadStrategies();
+                }
+            } catch (error) {
+                console.error('清空策略失败:', error);
+                alert('清空失败，请重试');
+            }
+        }
+    </script>
+</body>
+</html>

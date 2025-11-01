@@ -15,5 +15,15 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     copyPublicDir: true
+  },
+  server: {
+    port: 3000,
+    strictPort: true,
+    host: '0.0.0.0',
+    allowedHosts: [
+      '3000-icqnmsh11tns0wbrnqrzs-dfc00ec5.sandbox.novita.ai',
+      'localhost',
+      '.sandbox.novita.ai'
+    ]
   }
 })

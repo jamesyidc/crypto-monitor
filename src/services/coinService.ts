@@ -430,7 +430,14 @@ export class CoinService {
       .run();
     console.log(`  ✅ 已清理今天的 daily_stats 数据（${todayBeijing}），重新开始累计`);
     
-    // 3. ⚠️ round_stats 永久保留，不删除（用于历史回看）
+    // 🆕 3. 删除今天的 daily_risk_alerts 数据（清零风险提示累计）
+    await this.db
+      .prepare(`DELETE FROM daily_risk_alerts WHERE date = ?`)
+      .bind(todayBeijing)
+      .run();
+    console.log(`  ✅ 已清零今天的风险提示累计（${todayBeijing}），重新开始计数`);
+    
+    // 4. ⚠️ round_stats 永久保留，不删除（用于历史回看）
     console.log('  ℹ️  round_stats 表永久保留，每轮统计实时计算非累计值');
     
     // 4. ⚠️ coin_round_details 永久保留，不删除（用于历史回看）
@@ -495,16 +502,15 @@ export class CoinService {
     await this.db
       .prepare(`
         INSERT INTO round_stats (
-          round_time, green_count, red_count, green_ratio, average_change,
+          round_time, green_count, red_count, green_ratio,
           extreme_up_count, extreme_down_count, surge_count, crash_count, risk_alert_count
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .bind(
         roundTime,
         stats.green_count,
         stats.red_count,
         stats.green_ratio,
-        stats.average_change || 0,  // 🆕 添加平均涨跌幅字段
         stats.extreme_up_count,
         stats.extreme_down_count,
         stats.surge_count,
@@ -620,6 +626,103 @@ export class CoinService {
     return result.results;
   }
 
+  // 🆕 获取今天的风险提示累计次数
+  async getTodayRiskAlertCount(date: string): Promise<number> {
+    const result = await this.db
+      .prepare(`
+        SELECT risk_alert_cumulative 
+        FROM daily_risk_alerts 
+        WHERE date = ?
+      `)
+      .bind(date)
+      .first();
+    return (result as any)?.risk_alert_cumulative || 0;
+  }
+
+  // 🆕 保存今天的风险提示累计次数（带最后事件时间）
+  async saveTodayRiskAlertCount(date: string, count: number, lastEventTime?: string) {
+    if (lastEventTime) {
+      await this.db
+        .prepare(`
+          INSERT INTO daily_risk_alerts (date, risk_alert_cumulative, last_event_time)
+          VALUES (?, ?, ?)
+          ON CONFLICT(date) DO UPDATE SET
+            risk_alert_cumulative = excluded.risk_alert_cumulative,
+            last_event_time = excluded.last_event_time
+        `)
+        .bind(date, count, lastEventTime)
+        .run();
+    } else {
+      await this.db
+        .prepare(`
+          INSERT INTO daily_risk_alerts (date, risk_alert_cumulative)
+          VALUES (?, ?)
+          ON CONFLICT(date) DO UPDATE SET
+            risk_alert_cumulative = excluded.risk_alert_cumulative
+        `)
+        .bind(date, count)
+        .run();
+    }
+  }
+
+  // 🆕 获取今天最后一次风险事件时间
+  async getLastRiskEventTime(date: string): Promise<string | null> {
+    const result = await this.db
+      .prepare(`
+        SELECT last_event_time 
+        FROM daily_risk_alerts 
+        WHERE date = ?
+      `)
+      .bind(date)
+      .first();
+    return (result as any)?.last_event_time || null;
+  }
+
+  // 🆕 保存风险事件详情
+  async saveRiskAlertEvent(roundTime: string, greenRatio: number, totalCoins: number) {
+    const eventTime = new Date().toISOString();
+    await this.db
+      .prepare(`
+        INSERT INTO risk_alert_events (event_time, round_time, green_ratio, total_coins)
+        VALUES (?, ?, ?, ?)
+      `)
+      .bind(eventTime, roundTime, greenRatio, totalCoins)
+      .run();
+    return eventTime;
+  }
+
+  // 🆕 获取所有风险事件记录
+  async getAllRiskAlertEvents(limit: number = 100) {
+    const result = await this.db
+      .prepare(`
+        SELECT * FROM risk_alert_events 
+        ORDER BY event_time DESC 
+        LIMIT ?
+      `)
+      .bind(limit)
+      .all();
+    return result.results;
+  }
+
+  // 🆕 获取今日风险事件记录
+  async getTodayRiskAlertEvents(date: string) {
+    // 转换为UTC时间范围
+    const bjDate = new Date(`${date}T00:00:00+08:00`);
+    const startUTC = bjDate.toISOString();
+    const endDate = new Date(bjDate.getTime() + 24 * 60 * 60 * 1000);
+    const endUTC = endDate.toISOString();
+
+    const result = await this.db
+      .prepare(`
+        SELECT * FROM risk_alert_events 
+        WHERE event_time >= ? AND event_time < ?
+        ORDER BY event_time DESC
+      `)
+      .bind(startUTC, endUTC)
+      .all();
+    return result.results;
+  }
+
   // 获取指定日期的所有轮次统计（用于修正）
   async getRoundStatsByDate(date: string) {
     // 北京时间日期转换为UTC时间范围
@@ -665,6 +768,56 @@ export class CoinService {
       `)
       .bind(symbol, level, lowRatio, highRatio)
       .run();
+    
+    // Track level 2 history for support line rules
+    if (level <= 2) {
+      await this.trackLevelHistory(symbol, level);
+    }
+  }
+
+  // Track coin level history for 7-day support line rules
+  private async trackLevelHistory(symbol: string, level: number) {
+    try {
+      // Check if this level record already exists and is active
+      const existing = await this.db
+        .prepare(`
+          SELECT id, reached_at FROM coin_level_history
+          WHERE symbol = ? AND level = ? AND is_active = 1
+          ORDER BY reached_at DESC
+          LIMIT 1
+        `)
+        .bind(symbol, level)
+        .first();
+
+      const now = new Date();
+      
+      // If record exists and was created within last 7 days, don't create duplicate
+      if (existing) {
+        const reachedAt = new Date(existing.reached_at as string);
+        const daysSince = (now.getTime() - reachedAt.getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSince < 7) {
+          return; // Don't create duplicate
+        }
+      }
+
+      // Create new level history record
+      const levelId = `level_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const reachedAt = now.toISOString();
+      const expiredAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days later
+
+      await this.db
+        .prepare(`
+          INSERT INTO coin_level_history (
+            id, symbol, level, reached_at, expired_at, is_active, created_at
+          ) VALUES (?, ?, ?, ?, ?, 1, ?)
+        `)
+        .bind(levelId, symbol, level, reachedAt, expiredAt, now.toISOString())
+        .run();
+
+      console.log(`📝 Tracked level ${level} for ${symbol} (expires in 7 days)`);
+    } catch (error) {
+      console.error(`Failed to track level history for ${symbol}:`, error);
+    }
   }
 
   // 获取最新的轮次统计
@@ -732,11 +885,6 @@ export class CoinService {
   async getTodayExtremeCount(date: string, recordType: 'high' | 'low'): Promise<number> {
     // 数据库中存储的是 'new_high' 和 'new_low'
     const dbRecordType = recordType === 'high' ? 'new_high' : 'new_low';
-    
-    // 🔧 修复：按UTC日期统计（不转换北京时间）
-    // date参数是北京时间日期字符串（例如：'2025-10-29'）
-    // 但我们要查询的是UTC日期，所以直接用timestamp的DATE
-    // 注意：这意味着传入的date应该对应UTC日期，不是北京日期
     const result = await this.db
       .prepare(`
         SELECT COUNT(*) as count 
@@ -772,6 +920,61 @@ export class CoinService {
     return v1Counts;
   }
 
+  // 🆕 获取今天（北京时间）每个币种的起始价格（使用OKX K线数据）
+  async getTodayStartPrices(date: string): Promise<{ [symbol: string]: number }> {
+    const result = await this.db
+      .prepare(`
+        WITH RankedKlines AS (
+          SELECT 
+            symbol,
+            open as price,
+            open_time,
+            ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY open_time ASC) as rn
+          FROM kline_data
+          WHERE timeframe = '5m'
+          AND date(datetime(open_time/1000, 'unixepoch'), '+8 hours') = ?
+        )
+        SELECT symbol, price
+        FROM RankedKlines
+        WHERE rn = 1
+      `)
+      .bind(date)
+      .all();
+    
+    const prices: { [symbol: string]: number } = {};
+    for (const row of result.results as any[]) {
+      prices[row.symbol] = row.price;
+    }
+    return prices;
+  }
+
+  // 🆕 获取每个币种最新的K线收盘价（使用OKX K线数据）
+  async getLatestKlinePrices(timeframe: string = '5m'): Promise<{ [symbol: string]: number }> {
+    const result = await this.db
+      .prepare(`
+        WITH RankedKlines AS (
+          SELECT 
+            symbol,
+            close as price,
+            open_time,
+            ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY open_time DESC) as rn
+          FROM kline_data
+          WHERE timeframe = ?
+        )
+        SELECT symbol, price
+        FROM RankedKlines
+        WHERE rn = 1
+      `)
+      .bind(timeframe)
+      .all();
+    
+    const prices: { [symbol: string]: number } = {};
+    for (const row of result.results as any[]) {
+      prices[row.symbol] = row.price;
+    }
+    return prices;
+  }
+
   // 🆕 获取时间段统计（今天、三日、七天的极值触发次数）
   async getTimeRangeStats() {
     // 获取所有币种列表
@@ -788,7 +991,9 @@ export class CoinService {
       beijingNow.getMonth(),
       beijingNow.getDate()
     );
-    const todayStart = new Date(beijingTodayStart.getTime() - beijingOffset);
+    // 🔧 修正：从北京时间 1:00 开始算今天（避免刚过0点的历史记录）
+    const beijingTodayStartAdjusted = new Date(beijingTodayStart.getTime() + 60 * 60 * 1000); // +1小时
+    const todayStart = new Date(beijingTodayStartAdjusted.getTime() - beijingOffset);
     
     const threeDaysAgo = new Date(todayStart.getTime() - 3 * 24 * 60 * 60 * 1000);
     const sevenDaysAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000);

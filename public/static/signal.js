@@ -374,7 +374,7 @@ function renderFilteredAlerts(alerts) {
             <span class="font-bold text-lg text-gray-800">${alert.symbol}</span>
             <span class="text-sm text-gray-500">${alert.time}</span>
             ${getTriggerBadges(alert.triggers)}
-            <a href="/kline.html?symbol=${alert.symbol}&timeframe=5m" 
+            <a href="/kline_new.html?symbol=${alert.symbol}&timeframe=5m" 
                target="_blank"
                class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded transition text-xs inline-flex items-center gap-1 ml-2"
                title="查看${alert.symbol}的5分钟K线详情">
@@ -528,7 +528,7 @@ function renderTopBuySignals(signals) {
           <i class="fas fa-info-circle mr-1"></i>
           保留 ${signal.keepBars} 根K线观察
         </div>
-        <a href="/kline.html?symbol=${signal.symbol}&timeframe=5m" 
+        <a href="/kline_new.html?symbol=${signal.symbol}&timeframe=5m" 
            target="_blank"
            class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition text-xs inline-flex items-center gap-1"
            title="查看${signal.symbol}的5分钟K线详情">
@@ -604,7 +604,7 @@ function renderTopSellSignals(signals) {
           <i class="fas fa-info-circle mr-1"></i>
           保留 ${signal.keepBars} 根K线观察
         </div>
-        <a href="/kline.html?symbol=${signal.symbol}&timeframe=5m" 
+        <a href="/kline_new.html?symbol=${signal.symbol}&timeframe=5m" 
            target="_blank"
            class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition text-xs inline-flex items-center gap-1"
            title="查看${signal.symbol}的5分钟K线详情">
@@ -674,7 +674,7 @@ function renderAllSignals(results) {
                 ${sellSignals.length}个做空
               </span>
             ` : ''}
-            <a href="/kline.html?symbol=${symbol}&timeframe=5m" 
+            <a href="/kline_new.html?symbol=${symbol}&timeframe=5m" 
                target="_blank"
                class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition text-sm inline-flex items-center gap-1"
                title="查看${symbol}的5分钟K线详情">

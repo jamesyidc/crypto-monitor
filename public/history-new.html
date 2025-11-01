@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>历史数据回看 - 加密货币监控系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        .coin-row { transition: background-color 0.3s; }
+        .coin-row:hover { background-color: #f3f4f6; }
+        .green-text { color: #10b981; font-weight: bold; }
+        .red-text { color: #ef4444; font-weight: bold; }
+        .star-filled { color: #000; }
+        .star-empty { color: #000; border: 1px solid #000; border-radius: 50%; }
+        .status-badge { padding: 4px 12px; border-radius: 9999px; font-size: 0.875rem; font-weight: 600; }
+        .level-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+        .level-1 { background: #fef3c7; color: #92400e; }
+        .level-2 { background: #fde68a; color: #78350f; }
+        .level-3 { background: #fcd34d; color: #78350f; }
+        .loading-spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .time-option {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .time-option:hover {
+            background-color: #e5e7eb;
+        }
+        .time-option.selected {
+            background-color: #3b82f6;
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-6">
+        <!-- 标题和返回按钮 -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800 mb-2">
+                        <i class="fas fa-history text-blue-500 mr-2"></i>历史数据回看
+                    </h1>
+                    <p class="text-gray-600">查看首页历史快照（每10分钟保存一次）</p>
+                </div>
+                <a href="/" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">
+                    <i class="fas fa-home mr-2"></i>返回首页
+                </a>
+            </div>
+        </div>
+
+        <!-- 日期和时间选择器 -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- 左侧：日期选择 -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-3">
+                        <i class="fas fa-calendar-alt mr-2"></i>选择日期
+                    </label>
+                    <select id="dateSelector" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg">
+                        <option value="">加载中...</option>
+                    </select>
+                </div>
+
+                <!-- 右侧：时间选择 -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-3">
+                        <i class="fas fa-clock mr-2"></i>选择时间
+                    </label>
+                    <select id="timeSelector" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg" disabled>
+                        <option value="">请先选择日期</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 加载按钮 -->
+            <div class="mt-6 text-center">
+                <button id="loadSnapshotBtn" class="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:bg-gray-300 disabled:cursor-not-allowed text-lg font-semibold" disabled>
+                    <i class="fas fa-download mr-2"></i>加载历史数据
+                </button>
+            </div>
+        </div>
+
+        <!-- 加载状态 -->
+        <div id="loadingState" class="hidden bg-white rounded-lg shadow p-12 text-center">
+            <div class="loading-spinner mx-auto mb-4"></div>
+            <p class="text-gray-600">正在加载历史数据...</p>
+        </div>
+
+        <!-- 历史数据展示区域（与首页完全相同的布局） -->
+        <div id="snapshotContent" class="hidden">
+            <!-- 快照信息 -->
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded">
+                <div class="flex items-center">
+                    <i class="fas fa-info-circle text-blue-500 text-xl mr-3"></i>
+                    <div>
+                        <p class="font-semibold text-blue-800">历史快照</p>
+                        <p class="text-sm text-blue-700" id="snapshotInfo">--</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 🆕 今日重点统计面板 - 显眼位置 -->
+            <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg shadow-lg p-6 mb-6">
+                <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
+                    <i class="fas fa-fire mr-3"></i>今日重点统计
+                </h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <!-- 24h涨幅>10% -->
+                    <div class="bg-white bg-opacity-20 backdrop-blur-sm rounded-lg p-4 text-center">
+                        <div class="text-white text-opacity-90 text-sm mb-2">
+                            <i class="fas fa-arrow-up mr-1"></i>24h涨幅>10%
+                        </div>
+                        <div class="text-3xl font-bold text-white mb-1" id="change24hOver10Up">-</div>
+                        <div class="text-white text-opacity-80 text-xs">
+                            占比 <span id="change24hOver10UpPercent" class="font-bold">-</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 24h跌幅>10% -->
+                    <div class="bg-white bg-opacity-20 backdrop-blur-sm rounded-lg p-4 text-center">
+                        <div class="text-white text-opacity-90 text-sm mb-2">
+                            <i class="fas fa-arrow-down mr-1"></i>24h跌幅>10%
+                        </div>
+                        <div class="text-3xl font-bold text-white mb-1" id="change24hOver10Down">-</div>
+                        <div class="text-white text-opacity-80 text-xs">
+                            占比 <span id="change24hOver10DownPercent" class="font-bold">-</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 今日创新高次数 -->
+                    <div class="bg-white bg-opacity-20 backdrop-blur-sm rounded-lg p-4 text-center">
+                        <div class="text-white text-opacity-90 text-sm mb-2">
+                            <i class="fas fa-trophy mr-1"></i>今日创新高
+                        </div>
+                        <div class="text-3xl font-bold text-white" id="todayNewHighCount">-</div>
+                        <div class="text-white text-opacity-80 text-xs">总次数</div>
+                    </div>
+                    
+                    <!-- 今日创新低次数 -->
+                    <div class="bg-white bg-opacity-20 backdrop-blur-sm rounded-lg p-4 text-center">
+                        <div class="text-white text-opacity-90 text-sm mb-2">
+                            <i class="fas fa-chart-line mr-1"></i>今日创新低
+                        </div>
+                        <div class="text-3xl font-bold text-white" id="todayNewLowCount">-</div>
+                        <div class="text-white text-opacity-80 text-xs">总次数</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 统计卡片 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+                <!-- 基础统计 (5个卡片) -->
+                <div class="col-span-4 grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <!-- 平均涨跌幅 -->
+                    <div class="bg-white rounded-lg shadow p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-gray-600 text-xs">本轮平均涨跌幅</p>
+                            <i class="fas fa-chart-line text-gray-400"></i>
+                        </div>
+                        <p class="text-2xl font-bold" id="averageChange">--</p>
+                    </div>
+                    
+                    <!-- 涨跌占比 -->
+                    <div class="bg-white rounded-lg shadow p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-gray-600 text-xs">涨色占比</p>
+                            <i class="fas fa-balance-scale text-green-400"></i>
+                        </div>
+                        <p class="text-2xl font-bold text-green-600" id="riseRatio">--</p>
+                        <p class="text-xs text-gray-500" id="riseRatioDetail">--</p>
+                    </div>
+                    
+                    <!-- 急涨/急跌 -->
+                    <div class="bg-white rounded-lg shadow p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-gray-600 text-xs">急涨/急跌</p>
+                            <i class="fas fa-bolt text-blue-400"></i>
+                        </div>
+                        <p class="text-2xl font-bold" id="surgeCount">--</p>
+                        <p class="text-xs text-gray-500" id="surgeCrashDetail">--</p>
+                    </div>
+                    
+                    <!-- 极端拉市 -->
+                    <div class="bg-white rounded-lg shadow p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-gray-600 text-xs">极端拉市</p>
+                            <i class="fas fa-exclamation-triangle text-orange-400"></i>
+                        </div>
+                        <p class="text-2xl font-bold" id="extremeMarket">--</p>
+                        <p class="text-xs text-gray-500" id="extremeMarketDetail">--</p>
+                    </div>
+                    
+                    <!-- 风控提示 -->
+                    <div class="bg-white rounded-lg shadow p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-gray-600 text-xs">风控提示</p>
+                            <i class="fas fa-shield-alt text-red-400"></i>
+                        </div>
+                        <p class="text-2xl font-bold text-red-600" id="riskAlertCount">--</p>
+                        <p class="text-xs text-gray-500" id="riskAlertDetail">--</p>
+                    </div>
+                </div>
+                
+                <!-- 急涨急跌统计 -->
+                <div class="col-span-2 bg-white rounded-lg shadow-md p-4">
+                    <h3 class="text-sm font-bold text-gray-700 mb-3 border-b pb-2">
+                        <i class="fas fa-bolt mr-1"></i>急涨急跌统计
+                    </h3>
+                    <div class="space-y-2 text-xs">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">本轮急涨:</span>
+                            <span id="currentSurge" class="font-bold text-green-600">-</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">本轮急跌:</span>
+                            <span id="currentCrash" class="font-bold text-red-600">-</span>
+                        </div>
+                        <div class="flex justify-between items-center border-t pt-2">
+                            <span class="text-gray-600">总急涨:</span>
+                            <span id="totalSurge" class="font-bold text-green-600">-</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">总急跌:</span>
+                            <span id="totalCrash" class="font-bold text-red-600">-</span>
+                        </div>
+                        <div class="flex justify-between items-center border-t pt-2">
+                            <span class="text-gray-600">差值:</span>
+                            <span id="surgeDiff" class="font-bold text-blue-600">-</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600">比值:</span>
+                            <span id="surgeRatio" class="font-bold text-purple-600">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 市场趋势分析 -->
+            <div id="marketTrend" class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-chart-area mr-2"></i>市场趋势分析
+                </h2>
+                <div id="trendContent" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- 今日市场状态 -->
+                    <div class="text-center p-6 bg-green-50 rounded-lg">
+                        <p class="text-sm text-gray-600 mb-2">今日市场状态</p>
+                        <p class="text-2xl font-bold text-green-700 mb-2" id="marketState">--</p>
+                        <div id="marketStars" class="text-yellow-500 text-xl">--</div>
+                    </div>
+                    
+                    <!-- 今日急涨次数 -->
+                    <div class="text-center p-6 bg-blue-50 rounded-lg">
+                        <p class="text-sm text-gray-600 mb-2">今日急涨次数</p>
+                        <p class="text-4xl font-bold text-blue-700" id="todaySurgeCount">--</p>
+                    </div>
+                    
+                    <!-- 今日急跌次数 -->
+                    <div class="text-center p-6 bg-red-50 rounded-lg">
+                        <p class="text-sm text-gray-600 mb-2">今日急跌次数</p>
+                        <p class="text-4xl font-bold text-red-700" id="todayCrashCount">--</p>
+                    </div>
+                    
+                    <!-- 距离最高涨数 -->
+                    <div class="text-center p-4 bg-purple-50 rounded-lg">
+                        <p class="text-sm text-gray-600 mb-1">距离最高涨数</p>
+                        <p class="text-2xl font-bold text-purple-700" id="distanceToMaxSurge">--</p>
+                    </div>
+                    
+                    <!-- 距离新低数 -->
+                    <div class="text-center p-4 bg-orange-50 rounded-lg">
+                        <p class="text-sm text-gray-600 mb-1">距离新低数</p>
+                        <p class="text-2xl font-bold text-orange-700" id="distanceToNewLow">--</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 币种列表（19个字段） -->
+            <div class="bg-white rounded-lg shadow overflow-hidden">
+                <div class="px-6 py-4 bg-gray-50 border-b">
+                    <h2 class="text-lg font-bold text-gray-800">币种详情（19个字段）</h2>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-xs">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-2 py-1.5 text-center text-xs font-medium text-gray-600 uppercase">序号</th>
+                                <th class="px-2 py-1.5 text-left text-xs font-medium text-gray-600 uppercase">币名</th>
+                                <th class="px-2 py-1.5 text-right text-xs font-medium text-gray-600 uppercase">上轮涨跌</th>
+                                <th class="px-2 py-1.5 text-center text-xs font-medium text-gray-600 uppercase">急涨</th>
+                                <th class="px-2 py-1.5 text-center text-xs font-medium text-gray-600 uppercase">急跌</th>
+                                <th class="px-2 py-1.5 text-center text-xs font-medium text-gray-600 uppercase">+4%</th>
+                                <th class="px-2 py-1.5 text-center text-xs font-medium text-gray-600 uppercase">-3%</th>
+                                <th class="px-2 py-1.5 text-center text-xs font-medium text-gray-600 uppercase">今天V1</th>
+                                <th class="px-2 py-1.5 text-right text-xs font-medium text-gray-600 uppercase">当天涨幅</th>
+                                <th class="px-2 py-1.5 text-center text-xs font-medium text-gray-600 uppercase">更新时间</th>
+                                <th class="px-2 py-1.5 text-right text-xs font-medium text-gray-600 uppercase">历史高价</th>
+                                <th class="px-2 py-1.5 text-right text-xs font-medium text-gray-600 uppercase">现价跌幅</th>
+                                <th class="px-2 py-1.5 text-right text-xs font-medium text-gray-600 uppercase">24涨幅</th>
+                                <th class="px-2 py-1.5 text-center text-xs font-medium text-gray-600 uppercase">优先级</th>
+                                <th class="px-2 py-1.5 text-right text-xs font-medium text-gray-600 uppercase">最高占比</th>
+                                <th class="px-2 py-1.5 text-right text-xs font-medium text-gray-600 uppercase">最低占比</th>
+                                <th class="px-2 py-1.5 text-right text-xs font-medium text-gray-600 uppercase">这轮价格</th>
+                            </tr>
+                        </thead>
+                        <tbody id="coinTableBody" class="bg-white divide-y divide-gray-200">
+                            <!-- 动态填充 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/history-new.js"></script>
+</body>
+</html>

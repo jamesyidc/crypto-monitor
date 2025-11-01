@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试累计涨跌幅计算</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="p-8">
+    <h1 class="text-2xl font-bold mb-4">测试累计涨跌幅计算逻辑</h1>
+    <div id="output" class="bg-gray-100 p-4 rounded"></div>
+    
+    <script>
+        // 模拟 API 返回的数据（25根K线）
+        const testData = [
+            { time: "2025/10/29 17:05", change: "0.02%", close: 113025.9 },
+            { time: "2025/10/29 17:00", change: "0.06%", close: 113000.1 },
+            { time: "2025/10/29 16:55", change: "-0.04%", close: 112937.6 },
+            { time: "2025/10/29 16:50", change: "0.10%", close: 112979.5 },
+            { time: "2025/10/29 16:45", change: "-0.15%", close: 112865.0 },
+            { time: "2025/10/29 16:40", change: "0.20%", close: 113037.0 },
+            { time: "2025/10/29 16:35", change: "-0.10%", close: 112807.0 },
+            { time: "2025/10/29 16:30", change: "0.05%", close: 112917.0 },
+            { time: "2025/10/29 16:25", change: "0.15%", close: 112858.0 },
+            { time: "2025/10/29 16:20", change: "-0.20%", close: 112688.0 },
+            { time: "2025/10/29 16:15", change: "0.10%", close: 112910.0 },
+            { time: "2025/10/29 16:10", change: "-0.05%", close: 112794.0 },
+            { time: "2025/10/29 16:05", change: "0.25%", close: 112848.0 },
+            { time: "2025/10/29 16:00", change: "-0.10%", close: 112564.0 },
+            { time: "2025/10/29 15:55", change: "0.15%", close: 112675.0 },
+            { time: "2025/10/29 15:50", change: "-0.20%", close: 112505.0 },
+            { time: "2025/10/29 15:45", change: "0.30%", close: 112727.0 },
+            { time: "2025/10/29 15:40", change: "-0.15%", close: 112387.0 },
+            { time: "2025/10/29 15:35", change: "0.10%", close: 112554.0 },
+            { time: "2025/10/29 15:30", change: "0.20%", close: 112440.0 },
+            { time: "2025/10/29 15:25", change: "-0.25%", close: 112210.0 },
+            { time: "2025/10/29 15:20", change: "0.15%", close: 112484.0 },
+            { time: "2025/10/29 15:15", change: "-0.10%", close: 112308.0 },
+            { time: "2025/10/29 15:10", change: "0.05%", close: 112418.0 },
+            { time: "2025/10/29 15:05", change: "0.10%", close: 112360.0 }
+        ];
+        
+        // 测试累计计算逻辑
+        let output = '<div class="space-y-2">';
+        
+        testData.forEach((k, index) => {
+            // 计算向上20根K线的累计涨跌幅
+            let cumulative20Change = 0;
+            let hasEnoughData = false;
+            
+            if (index >= 20) {
+                for (let i = index - 20; i < index; i++) {
+                    const changeStr = testData[i].change;
+                    if (changeStr) {
+                        const changeValue = parseFloat(changeStr);
+                        if (!isNaN(changeValue)) {
+                            cumulative20Change += changeValue;
+                        }
+                    }
+                }
+                hasEnoughData = true;
+            }
+            
+            // 判断是否需要高亮
+            const isRisingPattern = hasEnoughData && cumulative20Change > 2;
+            const isFallingPattern = hasEnoughData && cumulative20Change < -3;
+            
+            // 生成badge
+            const cumulativeBadge = hasEnoughData 
+                ? `<span class="inline-block px-2 py-1 text-xs rounded ${
+                    isRisingPattern ? 'bg-green-600 text-white font-bold' : 
+                    isFallingPattern ? 'bg-red-600 text-white font-bold' : 
+                    'bg-gray-300 text-gray-700'
+                  }" title="过去20根K线累计涨跌幅">${cumulative20Change > 0 ? '+' : ''}${cumulative20Change.toFixed(2)}%</span>`
+                : '<span class="text-gray-400">-</span>';
+            
+            output += `
+                <div class="flex items-center gap-4 text-sm">
+                    <div class="w-32">${k.time}</div>
+                    <div class="w-20">${k.change}</div>
+                    <div class="w-48">${cumulativeBadge}</div>
+                    <div class="text-xs text-gray-500">index=${index}, hasEnoughData=${hasEnoughData}, cumulative=${cumulative20Change.toFixed(2)}%</div>
+                </div>
+            `;
+        });
+        
+        output += '</div>';
+        document.getElementById('output').innerHTML = output;
+    </script>
+</body>
+</html>

@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实盘交易 - 加密货币监控系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .account-card {
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        .account-card:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+        }
+        .account-card.active {
+            border-color: #10b981;
+            background: linear-gradient(135deg, #ecfdf5 0%, #ffffff 100%);
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .profit-positive { color: #10b981; font-weight: bold; }
+        .profit-negative { color: #ef4444; font-weight: bold; }
+        .control-section {
+            border-left: 4px solid #3b82f6;
+            background: #f8fafc;
+        }
+        .toggle-button {
+            transition: all 0.3s ease;
+        }
+        .toggle-button.active {
+            background: #10b981;
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        <!-- 页面标题 -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                        <i class="fas fa-coins mr-2 text-green-600"></i>
+                        实盘交易控制中心
+                    </h1>
+                    <p class="text-gray-600">OKX API 集成 · 多账户管理 · 智能策略执行</p>
+                </div>
+                <div class="flex gap-2">
+                    <a href="/" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg transition">
+                        <i class="fas fa-home mr-2"></i>返回首页
+                    </a>
+                    <button id="refreshAllBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition">
+                        <i class="fas fa-sync-alt mr-2"></i>刷新所有账户
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 账户列表 -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold text-gray-800">
+                    <i class="fas fa-wallet mr-2"></i>交易账户管理
+                </h2>
+                <button id="addAccountBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition">
+                    <i class="fas fa-plus mr-2"></i>添加账户
+                </button>
+            </div>
+
+            <!-- 账户卡片网格 -->
+            <div id="accountsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- 账户卡片将动态插入这里 -->
+                <div class="text-center py-12 text-gray-400 col-span-full">
+                    <i class="fas fa-wallet text-6xl mb-4"></i>
+                    <p>暂无账户，请点击"添加账户"开始</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 选中账户的详细信息 -->
+        <div id="selectedAccountDetails" class="hidden">
+            <!-- 账户余额统计 -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-chart-bar mr-2"></i>账户详情 - <span id="currentAccountName">--</span>
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- 交易账户余额 -->
+                    <div class="stat-card rounded-lg p-6 text-white">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm opacity-90">交易账户余额</span>
+                            <i class="fas fa-exchange-alt text-2xl opacity-75"></i>
+                        </div>
+                        <div class="text-3xl font-bold" id="tradingBalance">0.00</div>
+                        <div class="text-sm opacity-75 mt-1">USDT</div>
+                    </div>
+
+                    <!-- 资金账户余额 -->
+                    <div class="stat-card rounded-lg p-6 text-white" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm opacity-90">资金账户余额</span>
+                            <i class="fas fa-piggy-bank text-2xl opacity-75"></i>
+                        </div>
+                        <div class="text-3xl font-bold" id="fundingBalance">0.00</div>
+                        <div class="text-sm opacity-75 mt-1">USDT</div>
+                    </div>
+
+                    <!-- 当日盈亏 -->
+                    <div class="stat-card rounded-lg p-6 text-white" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm opacity-90">当日盈亏</span>
+                            <i class="fas fa-chart-line text-2xl opacity-75"></i>
+                        </div>
+                        <div class="text-3xl font-bold" id="dailyPnL">+0.00</div>
+                        <div class="text-sm opacity-75 mt-1">USDT (<span id="dailyPnLPercent">0.00%</span>)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 交易控制面板 -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-cogs mr-2"></i>交易控制面板
+                </h2>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- 左侧：交易模式和策略 -->
+                    <div class="space-y-6">
+                        <!-- 交易模式 -->
+                        <div class="control-section p-4 rounded-lg">
+                            <h3 class="font-bold text-gray-700 mb-3">
+                                <i class="fas fa-robot mr-2 text-blue-600"></i>交易模式
+                            </h3>
+                            <div class="flex gap-2">
+                                <button class="toggle-button flex-1 px-4 py-2 rounded-lg border-2 border-gray-300 bg-white" data-mode="auto">
+                                    <i class="fas fa-magic mr-2"></i>自动交易
+                                </button>
+                                <button class="toggle-button flex-1 px-4 py-2 rounded-lg border-2 border-gray-300 bg-white" data-mode="semi-auto">
+                                    <i class="fas fa-hand-pointer mr-2"></i>半自动交易
+                                </button>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                自动：系统自动执行 | 半自动：需要手动确认
+                            </p>
+                        </div>
+
+                        <!-- 策略选择 -->
+                        <div class="control-section p-4 rounded-lg">
+                            <h3 class="font-bold text-gray-700 mb-3">
+                                <i class="fas fa-brain mr-2 text-purple-600"></i>策略选择
+                            </h3>
+                            <select id="strategySelect" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
+                                <option value="">-- 请选择策略 --</option>
+                                <option value="pattern_buy_sell">特征库买卖点组合</option>
+                                <option value="trend_following">趋势跟随策略</option>
+                                <option value="mean_reversion">均值回归策略</option>
+                                <option value="custom">自定义策略</option>
+                            </select>
+                            <a href="/pattern.html" class="text-xs text-blue-600 hover:underline mt-2 inline-block">
+                                <i class="fas fa-external-link-alt mr-1"></i>前往特征库管理
+                            </a>
+                        </div>
+
+                        <!-- 币种选择 -->
+                        <div class="control-section p-4 rounded-lg">
+                            <h3 class="font-bold text-gray-700 mb-3">
+                                <i class="fas fa-coins mr-2 text-yellow-600"></i>币种选择
+                            </h3>
+                            <select id="symbolSelect" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
+                                <option value="">-- 加载中... --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 右侧：交易参数 -->
+                    <div class="space-y-6">
+                        <!-- 做多/做空 -->
+                        <div class="control-section p-4 rounded-lg">
+                            <h3 class="font-bold text-gray-700 mb-3">
+                                <i class="fas fa-arrows-alt-v mr-2 text-green-600"></i>交易方向
+                            </h3>
+                            <div class="flex gap-2">
+                                <button class="toggle-button flex-1 px-4 py-2 rounded-lg border-2 border-green-500 bg-green-50 text-green-700" data-direction="long">
+                                    <i class="fas fa-arrow-up mr-2"></i>做多 (Long)
+                                </button>
+                                <button class="toggle-button flex-1 px-4 py-2 rounded-lg border-2 border-gray-300 bg-white" data-direction="short">
+                                    <i class="fas fa-arrow-down mr-2"></i>做空 (Short)
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 杠杆倍数 -->
+                        <div class="control-section p-4 rounded-lg">
+                            <h3 class="font-bold text-gray-700 mb-3">
+                                <i class="fas fa-layer-group mr-2 text-red-600"></i>杠杆倍数
+                            </h3>
+                            <div class="flex items-center gap-3">
+                                <input type="range" id="leverageSlider" min="1" max="125" value="10" 
+                                    class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                                <span id="leverageValue" class="text-2xl font-bold text-gray-800 w-16 text-right">10x</span>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">
+                                <i class="fas fa-exclamation-triangle mr-1 text-yellow-500"></i>
+                                高杠杆有高风险，请谨慎使用
+                            </p>
+                        </div>
+
+                        <!-- 持仓占比 -->
+                        <div class="control-section p-4 rounded-lg">
+                            <h3 class="font-bold text-gray-700 mb-3">
+                                <i class="fas fa-percentage mr-2 text-blue-600"></i>最大持仓占比
+                            </h3>
+                            <div class="flex items-center gap-3">
+                                <input type="range" id="positionRatioSlider" min="5" max="100" value="30" step="5"
+                                    class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                                <span id="positionRatioValue" class="text-2xl font-bold text-gray-800 w-16 text-right">30%</span>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">
+                                单个币种最大可用资金占比
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 资金分份配置 -->
+                <div class="control-section p-4 rounded-lg mt-6">
+                    <h3 class="font-bold text-gray-700 mb-3">
+                        <i class="fas fa-divide mr-2 text-indigo-600"></i>资金分份策略
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">分份数量</label>
+                            <input type="number" id="fundsPartition" min="1" max="100" value="10" 
+                                class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
+                            <p class="text-xs text-gray-500 mt-1">将可用资金分成多少份进行交易</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">每份金额 (USDT)</label>
+                            <input type="text" id="perPartAmount" readonly 
+                                class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-100 text-gray-600">
+                            <p class="text-xs text-gray-500 mt-1">根据可用资金自动计算</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 托管资金限制 -->
+                <div class="control-section p-4 rounded-lg mt-6">
+                    <h3 class="font-bold text-gray-700 mb-3">
+                        <i class="fas fa-shield-alt mr-2 text-green-600"></i>托管资金限制
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">托管资金上限 (USDT)</label>
+                            <input type="number" id="fundsUpperLimit" min="0" step="100" value="10000" 
+                                class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
+                            <p class="text-xs text-gray-500 mt-1">
+                                <i class="fas fa-lock mr-1"></i>
+                                只操作上限以内的资金，超过部分不操作
+                            </p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">托管资金下限 (USDT)</label>
+                            <input type="number" id="fundsLowerLimit" min="0" step="100" value="100" 
+                                class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
+                            <p class="text-xs text-red-500 mt-1">
+                                <i class="fas fa-exclamation-triangle mr-1"></i>
+                                等于下限则全部平仓并锁定账户不交易
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 配置保存按钮 -->
+                <div class="flex gap-3 mt-6">
+                    <button id="saveConfigBtn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition font-bold">
+                        <i class="fas fa-save mr-2"></i>保存配置
+                    </button>
+                </div>
+
+                <!-- 交易操作按钮 - 左右分开布局 -->
+                <div class="grid grid-cols-3 gap-4 mt-6">
+                    <!-- 左侧：做多操作 -->
+                    <div class="space-y-3 p-4 bg-green-50 rounded-lg border-2 border-green-200">
+                        <h3 class="font-bold text-green-800 text-center mb-3 flex items-center justify-center">
+                            <i class="fas fa-arrow-up mr-2"></i>做多操作
+                        </h3>
+                        <button id="openLongBtn" class="w-full bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition font-bold shadow-md">
+                            <i class="fas fa-plus-circle mr-2"></i>开多仓
+                        </button>
+                        <button id="closeLongBtn" class="w-full bg-green-700 hover:bg-green-800 text-white px-6 py-3 rounded-lg transition font-bold shadow-md">
+                            <i class="fas fa-times-circle mr-2"></i>平多仓
+                        </button>
+                    </div>
+
+                    <!-- 中间：分隔和系统控制 -->
+                    <div class="space-y-3 p-4 bg-gray-50 rounded-lg border-2 border-gray-200 flex flex-col justify-center">
+                        <div class="text-center mb-2">
+                            <i class="fas fa-grip-lines-vertical text-gray-400 text-3xl"></i>
+                        </div>
+                        <button id="startTradingBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition font-bold text-sm">
+                            <i class="fas fa-play mr-2"></i>启动交易
+                        </button>
+                        <button id="stopTradingBtn" class="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition font-bold text-sm">
+                            <i class="fas fa-stop mr-2"></i>停止交易
+                        </button>
+                        <button id="closeAllBtn" class="w-full bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition font-bold text-sm">
+                            <i class="fas fa-ban mr-2"></i>全部平仓
+                        </button>
+                    </div>
+
+                    <!-- 右侧：做空操作 -->
+                    <div class="space-y-3 p-4 bg-red-50 rounded-lg border-2 border-red-200">
+                        <h3 class="font-bold text-red-800 text-center mb-3 flex items-center justify-center">
+                            <i class="fas fa-arrow-down mr-2"></i>做空操作
+                        </h3>
+                        <button id="openShortBtn" class="w-full bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg transition font-bold shadow-md">
+                            <i class="fas fa-plus-circle mr-2"></i>开空仓
+                        </button>
+                        <button id="closeShortBtn" class="w-full bg-red-700 hover:bg-red-800 text-white px-6 py-3 rounded-lg transition font-bold shadow-md">
+                            <i class="fas fa-times-circle mr-2"></i>平空仓
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 当前持仓 -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-list mr-2"></i>当前持仓
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="px-4 py-2 text-left">币种</th>
+                                <th class="px-4 py-2 text-left">方向</th>
+                                <th class="px-4 py-2 text-right">数量</th>
+                                <th class="px-4 py-2 text-right">开仓价</th>
+                                <th class="px-4 py-2 text-right">当前价</th>
+                                <th class="px-4 py-2 text-right">盈亏</th>
+                                <th class="px-4 py-2 text-right">盈亏率</th>
+                                <th class="px-4 py-2 text-center">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="positionsTableBody">
+                            <tr>
+                                <td colspan="8" class="px-4 py-8 text-center text-gray-400">
+                                    <i class="fas fa-inbox text-4xl mb-2"></i>
+                                    <p>暂无持仓</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 交易历史 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-history mr-2"></i>交易历史
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="px-4 py-2 text-left">时间</th>
+                                <th class="px-4 py-2 text-left">币种</th>
+                                <th class="px-4 py-2 text-left">方向</th>
+                                <th class="px-4 py-2 text-left">类型</th>
+                                <th class="px-4 py-2 text-right">价格</th>
+                                <th class="px-4 py-2 text-right">数量</th>
+                                <th class="px-4 py-2 text-right">金额</th>
+                                <th class="px-4 py-2 text-left">状态</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                            <tr>
+                                <td colspan="8" class="px-4 py-8 text-center text-gray-400">
+                                    <i class="fas fa-inbox text-4xl mb-2"></i>
+                                    <p>暂无交易历史</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加账户模态框 -->
+    <div id="addAccountModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+            <h3 class="text-2xl font-bold text-gray-800 mb-4">
+                <i class="fas fa-plus-circle mr-2 text-green-600"></i>添加 OKX 账户
+            </h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">账户名称</label>
+                    <input type="text" id="accountNameInput" placeholder="例如：主账户、测试账户" 
+                        class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">API Key</label>
+                    <input type="text" id="apiKeyInput" placeholder="输入 OKX API Key" 
+                        class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Secret Key</label>
+                    <input type="password" id="secretKeyInput" placeholder="输入 OKX Secret Key" 
+                        class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Passphrase</label>
+                    <input type="password" id="passphraseInput" placeholder="输入 OKX Passphrase" 
+                        class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
+                </div>
+                <div class="flex items-center">
+                    <input type="checkbox" id="testnetCheckbox" class="mr-2">
+                    <label for="testnetCheckbox" class="text-sm text-gray-700">使用测试网 (Testnet)</label>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button id="cancelAddAccountBtn" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-2 rounded-lg transition">
+                    取消
+                </button>
+                <button id="confirmAddAccountBtn" class="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition">
+                    <i class="fas fa-check mr-2"></i>确认添加
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/live-trading.js"></script>
+</body>
+</html>

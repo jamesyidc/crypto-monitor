@@ -1,5 +1,6 @@
 import { IndicatorService } from './indicatorService';
 import { isVolumeAboveV1, isVolumeAboveV2 } from '../config/volumeThresholds';
+import { KlineDbGuard } from './klineDbGuard';
 
 export class KlineService {
   private db: D1Database;
@@ -8,6 +9,9 @@ export class KlineService {
   constructor(db: D1Database) {
     this.db = db;
     this.indicatorService = new IndicatorService();
+    
+    // 🔒 声明此服务有K线数据写入权限
+    KlineDbGuard.checkWritePermission('KlineService');
   }
 
   // 从 OKX 获取 K线数据
@@ -47,10 +51,20 @@ export class KlineService {
       const v2 = isVolumeAboveV2(symbol, vol) ? 1 : 0;
       
       return this.db.prepare(`
-        INSERT OR IGNORE INTO kline_data (
+        INSERT INTO kline_data (
           symbol, timeframe, open_time, open, high, low, close, volume,
           quote_volume, trades_count, volume_v1, volume_v2
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(symbol, timeframe, open_time) 
+        DO UPDATE SET
+          open = excluded.open,
+          high = excluded.high,
+          low = excluded.low,
+          close = excluded.close,
+          volume = excluded.volume,
+          quote_volume = excluded.quote_volume,
+          volume_v1 = excluded.volume_v1,
+          volume_v2 = excluded.volume_v2
       `).bind(
         symbol,
         timeframe,
@@ -128,15 +142,22 @@ export class KlineService {
       const config = configs[i];
       try {
         const klineData = await this.fetchKlineFromOKX(config.okx_symbol, timeframe, limit);
-        await this.saveKlineData(config.symbol, timeframe, klineData);
         
-        // 🆕 清理30天以前的旧数据（保留30天 = 8640条5分钟K线）
-        await this.cleanOldKlineDataByDays(config.symbol, timeframe, 30);
+        // 🔥 过滤掉 confirm=0 的未完成K线（OKX格式第9个字段）
+        const confirmedKlines = klineData.filter((k: any) => k[8] === '1');
+        
+        // 🔥 只保存已确认的K线
+        await this.saveKlineData(config.symbol, timeframe, confirmedKlines);
+        
+        // 🆕 清理60天以前的旧数据（保留60天 = 17280条5分钟K线）
+        await this.cleanOldKlineDataByDays(config.symbol, timeframe, 60);
         
         results.push({
           symbol: config.symbol,
           success: true,
-          count: klineData.length
+          count: confirmedKlines.length,
+          total: klineData.length,
+          filtered: klineData.length - confirmedKlines.length
         });
         
         // 避免OKX API速率限制：每请求后延迟100ms
@@ -164,11 +185,11 @@ export class KlineService {
     }
 
     // 计算涨跌幅
-    const latest = klines[0];
+    const latest = klines[0]; // 最新的K线（第1根）
     const oldest = klines[klines.length - 1];
     const changePercent = ((latest.close - oldest.open) / oldest.open) * 100;
 
-    // 计算最高最低
+    // 🔥 从所有K线中计算最高最低价
     let highest = klines[0].high;
     let lowest = klines[0].low;
     let totalVolume = 0;
@@ -179,15 +200,24 @@ export class KlineService {
       totalVolume += kline.volume;
     }
 
+    // 🔥 只判断当前K线（第1根）是否创新高/新低
+    // 不判断历史K线（2-10根），保持它们原有的结果
+    const isNewHigh = latest.high >= highest; // 当前K线的最高价是否是这10根中的最高
+    const isNewLow = latest.low <= lowest;    // 当前K线的最低价是否是这10根中的最低
+
     return {
       symbol,
       timeframe,
       dataCount: klines.length,
       latestPrice: latest.close,
       latestTime: latest.open_time,
+      latestHigh: latest.high,
+      latestLow: latest.low,
       changePercent,
-      highest,
-      lowest,
+      highest,        // 10根K线中的最高价
+      lowest,         // 10根K线中的最低价
+      isNewHigh,      // 当前K线是否创新高
+      isNewLow,       // 当前K线是否创新低
       totalVolume,
       avgVolume: totalVolume / klines.length
     };
@@ -251,8 +281,39 @@ export class KlineService {
     const dbData: any = await this.getKlineData(symbol, timeframe, fetchLimit);
     
     let klineData: any[];
+    let dbIndicators: Map<number, any> = new Map(); // 存储数据库中的所有技术指标
     
-    if (dbData && dbData.length >= fetchLimit) {
+    // 🔥 强制重新计算所有技术指标（不使用数据库缓存）
+    // 这样确保每次查询都是最新的实时计算结果
+    const shouldRecalculateAll = true;
+    
+    // 优先使用数据库数据（只要有数据就用，不要求数量）
+    if (dbData && dbData.length > 50) {
+      // 保存数据库中的所有技术指标（按open_time索引）
+      dbData.forEach((k: any) => {
+        dbIndicators.set(k.open_time, {
+          signal: k.signal,
+          operation_tip: k.operation_tip,
+          channel_state: k.channel_state,
+          sar: k.sar,
+          sar_change: k.sar_change,
+          sar_change_percent: k.sar_change_percent,
+          rsi_5min: k.rsi_5min,
+          rsi_1h: k.rsi_1h,
+          change_percent: k.change_percent,
+          change_diff: k.change_diff,
+          boll_mb: k.boll_mb,
+          boll_ub: k.boll_ub,
+          boll_lb: k.boll_lb,
+          boll_sar_diff: k.boll_sar_diff,
+          boll_angle_mb: k.boll_angle_mb,
+          boll_width_change: k.boll_width_change,
+          up_channel_exhaustion_ratio: k.up_channel_exhaustion_ratio,
+          down_channel_exhaustion_ratio: k.down_channel_exhaustion_ratio,
+          volume_level: k.volume_level
+        });
+      });
+      
       // 数据库中有足够的数据，转换格式为 OKX 格式
       // OKX 格式: [timestamp, open, high, low, close, volume, ...]
       // 同时保留 volume_v1 和 volume_v2 标注
@@ -294,10 +355,55 @@ export class KlineService {
     
     // 重新计算 index，从 0 开始递增
     // 现在 index=0 是最新时间，index 越大时间越早
-    trimmedIndicators = trimmedIndicators.map((item, idx) => ({
-      ...item,
-      index: idx
-    }));
+    // 🆕 优先使用数据库中持久化存储的所有技术指标（如果存在）
+    // 🔥 但如果是10格查询(limit<=10)，则强制使用重新计算的值
+    trimmedIndicators = trimmedIndicators.map((item, idx) => {
+      // item.time 格式: "2025/10/30 00:00:00"
+      // 需要转换为时间戳以匹配数据库的 open_time
+      const timeStr = item.time.replace(/\//g, '-').replace(' ', 'T') + 'Z';
+      const timestamp = new Date(timeStr).getTime();
+      const dbData = dbIndicators.get(timestamp);
+      
+      // 辅助函数：优先使用数据库值，如果不存在或为null则使用计算值
+      // 🔥 如果shouldRecalculateAll=true（10格查询），则强制使用计算值
+      const getDbValue = (dbVal: any, calcVal: any) => {
+        if (shouldRecalculateAll) {
+          return calcVal; // 10格查询：强制使用重新计算的值
+        }
+        return (dbVal !== null && dbVal !== undefined && dbVal !== 'null') ? dbVal : calcVal;
+      };
+      
+      return {
+        ...item,
+        index: idx,
+        // 基础标记字段
+        signal: getDbValue(dbData?.signal, item.signal),
+        operation_tip: getDbValue(dbData?.operation_tip, null),
+        channel_state: getDbValue(dbData?.channel_state, item.channel_state),
+        // SAR 指标
+        sar: getDbValue(dbData?.sar, item.sar),
+        sarChange: getDbValue(dbData?.sar_change, item.sarChange),
+        sarChangePercent: getDbValue(dbData?.sar_change_percent, item.sarChangePercent),
+        // RSI 指标
+        rsi_5min: getDbValue(dbData?.rsi_5min, item.rsi_5min),
+        rsi_1h: getDbValue(dbData?.rsi_1h, item.rsi_1h),
+        // 涨跌幅
+        change: getDbValue(dbData?.change_percent, item.change),
+        'change-diff': getDbValue(dbData?.change_diff, item['change-diff']),
+        // BOLL 指标
+        boll_mb: getDbValue(dbData?.boll_mb, item.boll_mb),
+        boll_ub: getDbValue(dbData?.boll_ub, item.boll_ub),
+        boll_lb: getDbValue(dbData?.boll_lb, item.boll_lb),
+        boll_sar_diff: getDbValue(dbData?.boll_sar_diff, item.boll_sar_diff),
+        boll_angle_mb: getDbValue(dbData?.boll_angle_mb, item.boll_angle_mb),
+        boll_width_change: getDbValue(dbData?.boll_width_change, item.boll_width_change),
+        // 通道衰竭比率
+        up_channel_exhaustion_ratio: getDbValue(dbData?.up_channel_exhaustion_ratio, item.up_channel_exhaustion_ratio),
+        down_channel_exhaustion_ratio: getDbValue(dbData?.down_channel_exhaustion_ratio, item.down_channel_exhaustion_ratio),
+        // 成交量等级
+        volume_level: getDbValue(dbData?.volume_level, item.volume_level)
+      };
+    });
 
     return {
       symbol,

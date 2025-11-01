@@ -97,6 +97,9 @@
                         <i class="fas fa-tools mr-2"></i>交易操作
                     </h2>
                     <div class="flex gap-2">
+                        <button id="backtestBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition">
+                            <i class="fas fa-chart-line mr-2"></i>波段回测
+                        </button>
                         <button id="manualTradeBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition">
                             <i class="fas fa-hand-pointer mr-2"></i>手动交易
                         </button>
@@ -113,6 +116,9 @@
                 </div>
                 <div id="statusMessage" class="mt-4 hidden"></div>
             </div>
+            
+            <!-- 回测结果面板 -->
+            <div id="backtestResult" class="mb-6 hidden"></div>
 
             <!-- 当前持仓 -->
             <div class="bg-white rounded-lg shadow-md p-6 mb-6">
@@ -282,7 +288,206 @@
         </div>
     </div>
 
+    <!-- 回测配置模态框 -->
+    <div id="backtestModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
+        <div class="modal-overlay absolute inset-0" onclick="closeBacktestModal()"></div>
+        <div class="flex items-center justify-center min-h-screen px-4 py-8">
+            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 relative z-10 max-h-[90vh] overflow-y-auto">
+                <div class="flex items-center justify-between mb-6 sticky top-0 bg-white pb-4 border-b">
+                    <h3 class="text-xl font-bold text-gray-800"><i class="fas fa-chart-line mr-2 text-purple-600"></i>波段交易回测配置</h3>
+                    <button onclick="closeBacktestModal()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <form id="backtestForm" class="space-y-6">
+                    <!-- 策略选择 -->
+                    <div class="border-l-4 border-blue-500 pl-4 bg-blue-50 p-4 rounded">
+                        <label class="block text-sm font-bold text-gray-800 mb-3">
+                            <i class="fas fa-brain mr-2"></i>交易策略 <span class="text-red-500">*</span>
+                        </label>
+                        <div class="space-y-2">
+                            <label class="flex items-center space-x-3 cursor-pointer hover:bg-blue-100 p-2 rounded">
+                                <input type="checkbox" name="strategy" value="convergence" checked 
+                                       class="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500">
+                                <span class="text-sm text-gray-700">震荡收敛策略（5根K线内≥2次震荡收敛）</span>
+                            </label>
+                            <label class="flex items-center space-x-3 cursor-pointer hover:bg-blue-100 p-2 rounded">
+                                <input type="checkbox" name="strategy" value="peak" 
+                                       class="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500">
+                                <span class="text-sm text-gray-700">波段高点策略（RSI>65 且 涨幅≤0.1%）</span>
+                            </label>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">提示：可以多选策略组合使用</p>
+                    </div>
+
+                    <!-- 交易对选择 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fas fa-coins mr-2"></i>交易对 <span class="text-red-500">*</span>
+                        </label>
+                        <select id="backtestSymbol" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" required>
+                            <option value="ALL">全部交易对 (29个)</option>
+                            <option value="AAVEUSDT">AAVEUSDT</option>
+                            <option value="ADAUSDT">ADAUSDT</option>
+                            <option value="APTUSDT">APTUSDT</option>
+                            <option value="BCHUSDT">BCHUSDT</option>
+                            <option value="BNBUSDT">BNBUSDT</option>
+                            <option value="BTCUSDT">BTCUSDT</option>
+                            <option value="CFXUSDT">CFXUSDT</option>
+                            <option value="CROUSDT">CROUSDT</option>
+                            <option value="CRVUSDT">CRVUSDT</option>
+                            <option value="DOGEUSDT">DOGEUSDT</option>
+                            <option value="DOTUSDT">DOTUSDT</option>
+                            <option value="ETCUSDT">ETCUSDT</option>
+                            <option value="ETHUSDT">ETHUSDT</option>
+                            <option value="FILUSDT">FILUSDT</option>
+                            <option value="HBARUSDT">HBARUSDT</option>
+                            <option value="LDOUSDT">LDOUSDT</option>
+                            <option value="LINKUSDT">LINKUSDT</option>
+                            <option value="LTCUSDT">LTCUSDT</option>
+                            <option value="NEARUSDT">NEARUSDT</option>
+                            <option value="OKBUSDT">OKBUSDT</option>
+                            <option value="SOLUSDT">SOLUSDT</option>
+                            <option value="STXUSDT">STXUSDT</option>
+                            <option value="SUIUSDT">SUIUSDT</option>
+                            <option value="TAOUSDT">TAOUSDT</option>
+                            <option value="TONUSDT">TONUSDT</option>
+                            <option value="TRXUSDT">TRXUSDT</option>
+                            <option value="UNIUSDT">UNIUSDT</option>
+                            <option value="XLMUSDT">XLMUSDT</option>
+                            <option value="XRPUSDT">XRPUSDT</option>
+                        </select>
+                    </div>
+                    
+                    <!-- 币种等级筛选 -->
+                    <div class="border-l-4 border-yellow-500 pl-4 bg-yellow-50 p-4 rounded">
+                        <label class="block text-sm font-bold text-gray-800 mb-3">
+                            <i class="fas fa-star mr-2"></i>币种等级筛选
+                        </label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <label class="flex items-center space-x-2 cursor-pointer hover:bg-yellow-100 p-2 rounded">
+                                <input type="checkbox" name="coin_level" value="1" 
+                                       class="w-4 h-4 text-yellow-600 rounded focus:ring-2 focus:ring-yellow-500">
+                                <span class="text-sm text-gray-700">⭐ 1级</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer hover:bg-yellow-100 p-2 rounded">
+                                <input type="checkbox" name="coin_level" value="2" 
+                                       class="w-4 h-4 text-yellow-600 rounded focus:ring-2 focus:ring-yellow-500">
+                                <span class="text-sm text-gray-700">⭐⭐ 2级</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer hover:bg-yellow-100 p-2 rounded">
+                                <input type="checkbox" name="coin_level" value="3" 
+                                       class="w-4 h-4 text-yellow-600 rounded focus:ring-2 focus:ring-yellow-500">
+                                <span class="text-sm text-gray-700">⭐⭐⭐ 3级</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer hover:bg-yellow-100 p-2 rounded">
+                                <input type="checkbox" name="coin_level" value="4" 
+                                       class="w-4 h-4 text-yellow-600 rounded focus:ring-2 focus:ring-yellow-500">
+                                <span class="text-sm text-gray-700">⭐⭐⭐⭐ 4级</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer hover:bg-yellow-100 p-2 rounded">
+                                <input type="checkbox" name="coin_level" value="5" 
+                                       class="w-4 h-4 text-yellow-600 rounded focus:ring-2 focus:ring-yellow-500">
+                                <span class="text-sm text-gray-700">⭐⭐⭐⭐⭐ 5级</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer hover:bg-yellow-100 p-2 rounded">
+                                <input type="checkbox" name="coin_level" value="6" 
+                                       class="w-4 h-4 text-yellow-600 rounded focus:ring-2 focus:ring-yellow-500">
+                                <span class="text-sm text-gray-700">⭐⭐⭐⭐⭐⭐ 6级</span>
+                            </label>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">提示：不选择则使用全部等级币种</p>
+                    </div>
+
+                    <!-- 基础参数 -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-clock mr-2"></i>时间周期
+                            </label>
+                            <select id="backtestTimeframe" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" required>
+                                <option value="5m" selected>5分钟</option>
+                                <option value="15m">15分钟</option>
+                                <option value="1h">1小时</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-chart-bar mr-2"></i>K线数量
+                            </label>
+                            <input type="number" id="backtestLimit" value="500" min="50" max="1000" 
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        </div>
+                    </div>
+
+                    <!-- 杠杆和仓位设置 -->
+                    <div class="border-l-4 border-green-500 pl-4 bg-green-50 p-4 rounded">
+                        <label class="block text-sm font-bold text-gray-800 mb-3">
+                            <i class="fas fa-layer-group mr-2"></i>杠杆和仓位配置
+                        </label>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    杠杆倍数
+                                </label>
+                                <select id="backtestLeverage" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                                    <option value="1">1x (无杠杆)</option>
+                                    <option value="2">2x</option>
+                                    <option value="3">3x</option>
+                                    <option value="5">5x</option>
+                                    <option value="10" selected>10x</option>
+                                    <option value="20">20x</option>
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1">10倍杠杆：K线涨1% = 本金收益10%</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    本金分成份数
+                                </label>
+                                <select id="backtestPositionDivisions" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                                    <option value="2">2份 (每份$50,000)</option>
+                                    <option value="3">3份 (每份$33,333)</option>
+                                    <option value="4">4份 (每份$25,000)</option>
+                                    <option value="5">5份 (每份$20,000)</option>
+                                    <option value="10" selected>10份 (每份$10,000)</option>
+                                    <option value="20">20份 (每份$5,000)</option>
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1">10万本金分成N份，每次开仓使用1份</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 止损设置 -->
+                    <div class="border-l-4 border-red-500 pl-4 bg-red-50 p-4 rounded">
+                        <label class="block text-sm font-bold text-gray-800 mb-3">
+                            <i class="fas fa-shield-alt mr-2"></i>止损阈值
+                        </label>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                止损百分比（%）
+                            </label>
+                            <input type="number" id="backtestStopLoss" value="0" min="0" max="50" step="0.1" 
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
+                            <p class="text-xs text-gray-500 mt-1">
+                                0 = 不止损 | 5 = 亏损达到5%时自动平仓 | 建议：3-10%
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3 pt-2">
+                        <button type="submit" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg transition font-medium">
+                            <i class="fas fa-play mr-2"></i>开始回测
+                        </button>
+                        <button type="button" onclick="closeBacktestModal()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-3 rounded-lg transition font-medium">
+                            <i class="fas fa-times mr-2"></i>取消
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-    <script src="/static/trading.js"></script>
+    <script src="/static/trading-v2.js"></script>
 </body>
 </html>

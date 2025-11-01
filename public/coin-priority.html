@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>币种优先级 - Crypto Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .level-badge { 
+            display: inline-block; 
+            padding: 6px 16px; 
+            border-radius: 6px; 
+            font-size: 0.875rem; 
+            font-weight: bold; 
+        }
+        .level-1 { background: #fef3c7; color: #92400e; border: 2px solid #fbbf24; }
+        .level-2 { background: #d1fae5; color: #065f46; border: 2px solid #10b981; }
+        .level-3 { background: #bfdbfe; color: #1e40af; border: 2px solid #3b82f6; }
+        .level-4 { background: #fecaca; color: #991b1b; border: 2px solid #ef4444; }
+        .level-5 { background: #e5e7eb; color: #374151; border: 2px solid #6b7280; }
+        .level-box {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .level-box:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .level-box.active {
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+        }
+        .tab-button {
+            padding: 12px 24px;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .tab-button.active {
+            border-bottom-color: #3b82f6;
+            color: #3b82f6;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- 导航栏 -->
+    <nav class="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-8">
+                    <h1 class="text-xl font-bold">
+                        <i class="fas fa-chart-line mr-2"></i>
+                        Crypto Monitor
+                    </h1>
+                    <div class="flex gap-4">
+                        <a href="/" class="hover:text-blue-200 transition">
+                            <i class="fas fa-home mr-1"></i>首页
+                        </a>
+                        <a href="/live-trading" class="hover:text-blue-200 transition">
+                            <i class="fas fa-coins mr-1"></i>实盘交易
+                        </a>
+                        <a href="/pattern.html" class="hover:text-blue-200 transition">
+                            <i class="fas fa-brain mr-1"></i>特征库
+                        </a>
+                        <a href="/coin-priority.html" class="text-yellow-300 font-bold">
+                            <i class="fas fa-star mr-1"></i>币种优先级
+                        </a>
+                    </div>
+                </div>
+                <button onclick="refreshData()" class="px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg transition">
+                    <i class="fas fa-sync-alt mr-2"></i>刷新数据
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 py-6">
+        <!-- 标签页导航 -->
+        <div class="bg-white rounded-lg shadow-md mb-6">
+            <div class="border-b border-gray-200">
+                <div class="flex">
+                    <button class="tab-button active" onclick="switchTab('details')" id="detailsTab">
+                        <i class="fas fa-info-circle mr-2"></i>币种详情
+                    </button>
+                    <button class="tab-button" onclick="switchTab('rules')" id="rulesTab">
+                        <i class="fas fa-exchange-alt mr-2"></i>交易规则
+                    </button>
+                    <button class="tab-button" onclick="switchTab('support')" id="supportTab">
+                        <i class="fas fa-chart-line mr-2"></i>支撑线设置
+                    </button>
+                    <button class="tab-button" onclick="switchTab('priority')" id="priorityTab">
+                        <i class="fas fa-star mr-2"></i>币种优先级
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 币种详情标签页 -->
+        <div id="detailsContent" class="tab-content">
+            <!-- 币种优先级等级分布 -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-star mr-2 text-yellow-500"></i>
+                    币种优先级等级分布
+                </h2>
+                <div class="grid grid-cols-5 gap-4 mb-6">
+                    <div class="level-box level-1 rounded-lg p-4 text-center cursor-pointer" onclick="filterByLevel(1)">
+                        <div class="text-sm mb-2">等级1</div>
+                        <div class="text-3xl font-bold mb-1" id="level1Count">0</div>
+                        <div class="text-xs opacity-75">最高质量币种 (可设无模式)</div>
+                    </div>
+                    <div class="level-box level-2 rounded-lg p-4 text-center cursor-pointer" onclick="filterByLevel(2)">
+                        <div class="text-sm mb-2">等级2</div>
+                        <div class="text-3xl font-bold mb-1" id="level2Count">0</div>
+                        <div class="text-xs opacity-75">高质量币种 (可盘整买)</div>
+                    </div>
+                    <div class="level-box level-3 rounded-lg p-4 text-center cursor-pointer" onclick="filterByLevel(3)">
+                        <div class="text-sm mb-2">等级3</div>
+                        <div class="text-3xl font-bold mb-1" id="level3Count">0</div>
+                        <div class="text-xs opacity-75">中等质量币种</div>
+                    </div>
+                    <div class="level-box level-4 rounded-lg p-4 text-center cursor-pointer" onclick="filterByLevel(4)">
+                        <div class="text-sm mb-2">等级4</div>
+                        <div class="text-3xl font-bold mb-1" id="level4Count">0</div>
+                        <div class="text-xs opacity-75">较低质量币种</div>
+                    </div>
+                    <div class="level-box level-5 rounded-lg p-4 text-center cursor-pointer" onclick="filterByLevel(5)">
+                        <div class="text-sm mb-2">等级5+</div>
+                        <div class="text-3xl font-bold mb-1" id="level5Count">0</div>
+                        <div class="text-xs opacity-75">较低质量币种</div>
+                    </div>
+                </div>
+
+                <!-- 等级说明 -->
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
+                    <div class="flex items-start">
+                        <i class="fas fa-info-circle text-blue-500 text-xl mr-3 mt-1"></i>
+                        <div class="text-sm text-blue-800">
+                            <p class="font-bold mb-1">等级说明</p>
+                            <p class="mb-1"><strong>等级1:</strong> 最高质量币种 (可设无模式)</p>
+                            <p class="mb-1"><strong>等级2:</strong> 高质量币种 (可盘整买)</p>
+                            <p class="mb-1"><strong>等级3:</strong> 4: 中幸质量币种</p>
+                            <p><strong>等级5+:</strong> 较低质量币种</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 币种优先级设置表格 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center justify-between">
+                    <span>
+                        <i class="fas fa-cog mr-2"></i>
+                        币种优先级设置
+                    </span>
+                    <span class="text-sm text-gray-600 font-normal">
+                        当前筛选: <span id="currentFilter" class="text-blue-600 font-bold">全部</span>
+                    </span>
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50 border-b-2 border-gray-200">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-sm font-bold text-gray-700">币种</th>
+                                <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">当前等级</th>
+                                <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">极低占比</th>
+                                <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">最高占比</th>
+                                <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">交易状态</th>
+                                <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">支撑线</th>
+                                <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="coinTableBody">
+                            <tr>
+                                <td colspan="7" class="text-center py-8 text-gray-500">
+                                    <i class="fas fa-spinner fa-spin mr-2"></i>加载中...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 交易规则标签页 -->
+        <div id="rulesContent" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-shield-alt mr-2 text-blue-600"></i>
+                    等级相关交易规则
+                </h2>
+
+                <!-- 等级2规则 -->
+                <div class="mb-6 border-l-4 border-green-500 pl-4">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                        <span class="level-badge level-2 mr-2">等级 2</span>
+                        支撑线做多规则
+                    </h3>
+                    <div class="bg-green-50 rounded-lg p-4 space-y-2">
+                        <p class="text-sm text-gray-700">
+                            <i class="fas fa-check-circle text-green-600 mr-2"></i>
+                            <strong>允许操作:</strong> 大于等于2级的币种才可以通过支撑线做多
+                        </p>
+                        <p class="text-sm text-gray-700">
+                            <i class="fas fa-calendar-check text-green-600 mr-2"></i>
+                            <strong>7天记忆:</strong> 包含过去7天内达到过2级的币种
+                        </p>
+                        <p class="text-sm text-gray-600 italic mt-2">
+                            说明: 如果某个币种在过去7天内达到过等级2，即使当前等级下降，也可以使用支撑线做多策略
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 等级1规则 -->
+                <div class="mb-6 border-l-4 border-yellow-500 pl-4">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                        <span class="level-badge level-1 mr-2">等级 1</span>
+                        最高优先级规则
+                    </h3>
+                    <div class="bg-yellow-50 rounded-lg p-4 space-y-2">
+                        <p class="text-sm text-gray-700">
+                            <i class="fas fa-star text-yellow-600 mr-2"></i>
+                            <strong>特殊模式:</strong> 可设置无模式交易 (最高质量币种)
+                        </p>
+                        <p class="text-sm text-gray-700">
+                            <i class="fas fa-ban text-red-600 mr-2"></i>
+                            <strong>做空限制:</strong> 根据风控规则，等级1-2币种可能禁止做空
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 一般规则 -->
+                <div class="border-l-4 border-blue-500 pl-4">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                        <i class="fas fa-list-check mr-2 text-blue-600"></i>
+                        通用交易规则
+                    </h3>
+                    <div class="bg-blue-50 rounded-lg p-4 space-y-2">
+                        <p class="text-sm text-gray-700">
+                            <i class="fas fa-chart-line text-blue-600 mr-2"></i>
+                            等级越低 (1-2级) 表示币种质量越高，可获得更多交易优先权
+                        </p>
+                        <p class="text-sm text-gray-700">
+                            <i class="fas fa-exclamation-triangle text-orange-600 mr-2"></i>
+                            等级4及以上币种需要更谨慎的交易策略
+                        </p>
+                        <p class="text-sm text-gray-700">
+                            <i class="fas fa-clock text-blue-600 mr-2"></i>
+                            等级变化会被记录7天，用于历史决策参考
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 支撑线设置标签页 -->
+        <div id="supportContent" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-chart-line mr-2 text-purple-600"></i>
+                    支撑线设置
+                </h2>
+                <div class="bg-purple-50 border-l-4 border-purple-500 p-4 mb-6">
+                    <p class="text-sm text-purple-800">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <strong>支撑线做多策略:</strong> 只有大于等于2级的币种才允许使用支撑线做多。系统会自动检查币种当前等级或过去7天内是否达到过2级。
+                    </p>
+                </div>
+                <div id="supportLinesTable">
+                    <p class="text-center text-gray-500 py-8">
+                        <i class="fas fa-spinner fa-spin mr-2"></i>加载支撑线数据...
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 币种优先级标签页 -->
+        <div id="priorityContent" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-history mr-2 text-indigo-600"></i>
+                    币种等级历史 (最近7天)
+                </h2>
+                <div class="bg-indigo-50 border-l-4 border-indigo-500 p-4 mb-6">
+                    <p class="text-sm text-indigo-800">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <strong>7天记忆机制:</strong> 系统会记录币种在过去7天内达到的最高等级。如果币种在7天内达到过等级2，即使当前等级下降，依然可以使用支撑线做多策略。
+                    </p>
+                </div>
+                
+                <!-- 等级2历史记录 -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                        <span class="level-badge level-2 mr-2">等级 2</span>
+                        过去7天达到过2级的币种
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-green-50 border-b-2 border-green-200">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-sm font-bold text-gray-700">币种</th>
+                                    <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">最高等级</th>
+                                    <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">达到时间</th>
+                                    <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">过期时间</th>
+                                    <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">状态</th>
+                                </tr>
+                            </thead>
+                            <tbody id="level2HistoryBody">
+                                <tr>
+                                    <td colspan="5" class="text-center py-8 text-gray-500">
+                                        <i class="fas fa-spinner fa-spin mr-2"></i>加载中...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 所有历史记录 -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                        <i class="fas fa-list mr-2 text-gray-600"></i>
+                        所有等级历史记录
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50 border-b-2 border-gray-200">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-sm font-bold text-gray-700">币种</th>
+                                    <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">最高等级</th>
+                                    <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">达到时间</th>
+                                    <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">过期时间</th>
+                                    <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">剩余天数</th>
+                                    <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">状态</th>
+                                </tr>
+                            </thead>
+                            <tbody id="allHistoryBody">
+                                <tr>
+                                    <td colspan="6" class="text-center py-8 text-gray-500">
+                                        <i class="fas fa-spinner fa-spin mr-2"></i>加载中...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑支撑线模态框 -->
+    <div id="editModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="flex items-center justify-between p-6 border-b">
+                <h3 class="text-lg font-bold text-gray-800">
+                    <i class="fas fa-chart-line mr-2 text-purple-600"></i>
+                    设置支撑线
+                </h3>
+                <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="editForm" class="p-6 space-y-4">
+                <input type="hidden" id="editSymbol">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">币种</label>
+                    <input type="text" id="editSymbolDisplay" class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100" readonly>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">支撑价格 (USDT)</label>
+                    <input type="number" id="editSupportPrice" step="0.00000001" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="输入支撑价格" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">备注 (可选)</label>
+                    <textarea id="editNotes" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="输入备注信息"></textarea>
+                </div>
+                <div class="flex gap-3">
+                    <button type="submit" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-semibold transition">
+                        <i class="fas fa-save mr-2"></i>保存
+                    </button>
+                    <button type="button" onclick="closeEditModal()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-2 rounded-lg font-semibold transition">
+                        取消
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/coin-priority.js"></script>
+</body>
+</html>

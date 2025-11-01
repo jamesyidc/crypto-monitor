@@ -1,0 +1,391 @@
+{
+  "lastUpdate": "2025-11-01T20:01:07.278Z",
+  "lastUpdateDisplay": "2025-11-01 20:01:07",
+  "records": [
+    {
+      "timestamp": "2025-11-01T12:00:52.217Z",
+      "timestampDisplay": "2025-11-01 20:00:52",
+      "port": {
+        "status": "ok",
+        "pid": "65060",
+        "message": "端口 3000 正在被 PID 65060 使用"
+      },
+      "database": {
+        "status": "ok",
+        "size": "87.57 MB",
+        "lastModified": "2025-11-01 19:56:54",
+        "message": "数据库正常 (87.57 MB)"
+      },
+      "http": {
+        "status": "ok",
+        "statusCode": "200",
+        "responseTime": "3 ms",
+        "message": "HTTP响应正常 (3 ms)"
+      },
+      "api": {
+        "status": "warning",
+        "message": "API端点返回空响应"
+      },
+      "system": {
+        "status": "ok",
+        "memory": "31.0%",
+        "disk": "45%",
+        "message": "系统资源正常 (内存: 31.0%, 磁盘: 45%)"
+      },
+      "process": {
+        "status": "ok",
+        "count": 18,
+        "message": "发现 18 个相关进程"
+      },
+      "overall": "warning",
+      "overallMessage": "系统警告"
+    },
+    {
+      "timestamp": "2025-11-01T11:56:52.216Z",
+      "timestampDisplay": "2025-11-01 19:56:52",
+      "port": {
+        "status": "ok",
+        "pid": "65060",
+        "message": "端口 3000 正在被 PID 65060 使用"
+      },
+      "database": {
+        "status": "ok",
+        "size": "87.16 MB",
+        "lastModified": "2025-11-01 19:52:54",
+        "message": "数据库正常 (87.16 MB)"
+      },
+      "http": {
+        "status": "ok",
+        "statusCode": "200",
+        "responseTime": "3 ms",
+        "message": "HTTP响应正常 (3 ms)"
+      },
+      "api": {
+        "status": "warning",
+        "message": "API端点返回空响应"
+      },
+      "system": {
+        "status": "ok",
+        "memory": "31.3%",
+        "disk": "45%",
+        "message": "系统资源正常 (内存: 31.3%, 磁盘: 45%)"
+      },
+      "process": {
+        "status": "ok",
+        "count": 18,
+        "message": "发现 18 个相关进程"
+      },
+      "overall": "warning",
+      "overallMessage": "系统警告"
+    },
+    {
+      "timestamp": "2025-11-01T11:52:52.217Z",
+      "timestampDisplay": "2025-11-01 19:52:52",
+      "port": {
+        "status": "ok",
+        "pid": "65060",
+        "message": "端口 3000 正在被 PID 65060 使用"
+      },
+      "database": {
+        "status": "ok",
+        "size": "86.73 MB",
+        "lastModified": "2025-11-01 19:50:45",
+        "message": "数据库正常 (86.73 MB)"
+      },
+      "http": {
+        "status": "ok",
+        "statusCode": "200",
+        "responseTime": "3 ms",
+        "message": "HTTP响应正常 (3 ms)"
+      },
+      "api": {
+        "status": "warning",
+        "message": "API端点返回空响应"
+      },
+      "system": {
+        "status": "ok",
+        "memory": "29.8%",
+        "disk": "37%",
+        "message": "系统资源正常 (内存: 29.8%, 磁盘: 37%)"
+      },
+      "process": {
+        "status": "ok",
+        "count": 18,
+        "message": "发现 18 个相关进程"
+      },
+      "overall": "warning",
+      "overallMessage": "系统警告"
+    },
+    {
+      "timestamp": "2025-11-01T11:48:52.217Z",
+      "timestampDisplay": "2025-11-01 19:48:52",
+      "port": {
+        "status": "ok",
+        "pid": "65060",
+        "message": "端口 3000 正在被 PID 65060 使用"
+      },
+      "database": {
+        "status": "ok",
+        "size": "86.31 MB",
+        "lastModified": "2025-11-01 19:47:40",
+        "message": "数据库正常 (86.31 MB)"
+      },
+      "http": {
+        "status": "ok",
+        "statusCode": "200",
+        "responseTime": "4 ms",
+        "message": "HTTP响应正常 (4 ms)"
+      },
+      "api": {
+        "status": "warning",
+        "message": "API端点返回空响应"
+      },
+      "system": {
+        "status": "ok",
+        "memory": "22.7%",
+        "disk": "44%",
+        "message": "系统资源正常 (内存: 22.7%, 磁盘: 44%)"
+      },
+      "process": {
+        "status": "ok",
+        "count": 18,
+        "message": "发现 18 个相关进程"
+      },
+      "overall": "warning",
+      "overallMessage": "系统警告"
+    },
+    {
+      "timestamp": "2025-11-01T11:44:52.216Z",
+      "timestampDisplay": "2025-11-01 19:44:52",
+      "port": {
+        "status": "ok",
+        "pid": "62383",
+        "message": "端口 3000 正在被 PID 62383 使用"
+      },
+      "database": {
+        "status": "ok",
+        "size": "85.87 MB",
+        "lastModified": "2025-11-01 19:40:56",
+        "message": "数据库正常 (85.87 MB)"
+      },
+      "http": {
+        "status": "ok",
+        "statusCode": "200",
+        "responseTime": "3 ms",
+        "message": "HTTP响应正常 (3 ms)"
+      },
+      "api": {
+        "status": "ok",
+        "message": "API端点响应正常"
+      },
+      "system": {
+        "status": "ok",
+        "memory": "46.9%",
+        "disk": "44%",
+        "message": "系统资源正常 (内存: 46.9%, 磁盘: 44%)"
+      },
+      "process": {
+        "status": "ok",
+        "count": 34,
+        "message": "发现 34 个相关进程"
+      },
+      "overall": "ok",
+      "overallMessage": "系统正常"
+    },
+    {
+      "timestamp": "2025-11-01T11:40:52.217Z",
+      "timestampDisplay": "2025-11-01 19:40:52",
+      "port": {
+        "status": "ok",
+        "pid": "62383",
+        "message": "端口 3000 正在被 PID 62383 使用"
+      },
+      "database": {
+        "status": "ok",
+        "size": "85.45 MB",
+        "lastModified": "2025-11-01 19:40:10",
+        "message": "数据库正常 (85.45 MB)"
+      },
+      "http": {
+        "status": "ok",
+        "statusCode": "200",
+        "responseTime": "3 ms",
+        "message": "HTTP响应正常 (3 ms)"
+      },
+      "api": {
+        "status": "ok",
+        "message": "API端点响应正常"
+      },
+      "system": {
+        "status": "ok",
+        "memory": "46.7%",
+        "disk": "44%",
+        "message": "系统资源正常 (内存: 46.7%, 磁盘: 44%)"
+      },
+      "process": {
+        "status": "ok",
+        "count": 34,
+        "message": "发现 34 个相关进程"
+      },
+      "overall": "ok",
+      "overallMessage": "系统正常"
+    },
+    {
+      "timestamp": "2025-11-01T11:36:52.217Z",
+      "timestampDisplay": "2025-11-01 19:36:52",
+      "port": {
+        "status": "ok",
+        "pid": "62383",
+        "message": "端口 3000 正在被 PID 62383 使用"
+      },
+      "database": {
+        "status": "ok",
+        "size": "85.04 MB",
+        "lastModified": "2025-11-01 19:36:11",
+        "message": "数据库正常 (85.04 MB)"
+      },
+      "http": {
+        "status": "ok",
+        "statusCode": "200",
+        "responseTime": "3 ms",
+        "message": "HTTP响应正常 (3 ms)"
+      },
+      "api": {
+        "status": "ok",
+        "message": "API端点响应正常"
+      },
+      "system": {
+        "status": "ok",
+        "memory": "46.3%",
+        "disk": "37%",
+        "message": "系统资源正常 (内存: 46.3%, 磁盘: 37%)"
+      },
+      "process": {
+        "status": "ok",
+        "count": 34,
+        "message": "发现 34 个相关进程"
+      },
+      "overall": "ok",
+      "overallMessage": "系统正常"
+    },
+    {
+      "timestamp": "2025-11-01T11:32:52.216Z",
+      "timestampDisplay": "2025-11-01 19:32:52",
+      "port": {
+        "status": "ok",
+        "pid": "50121\n62383",
+        "message": "端口 3000 正在被 PID 50121\n62383 使用"
+      },
+      "database": {
+        "status": "ok",
+        "size": "84.62 MB",
+        "lastModified": "2025-11-01 19:32:40",
+        "message": "数据库正常 (84.62 MB)"
+      },
+      "http": {
+        "status": "ok",
+        "statusCode": "200",
+        "responseTime": "3 ms",
+        "message": "HTTP响应正常 (3 ms)"
+      },
+      "api": {
+        "status": "ok",
+        "message": "API端点响应正常"
+      },
+      "system": {
+        "status": "ok",
+        "memory": "45.0%",
+        "disk": "37%",
+        "message": "系统资源正常 (内存: 45.0%, 磁盘: 37%)"
+      },
+      "process": {
+        "status": "ok",
+        "count": 34,
+        "message": "发现 34 个相关进程"
+      },
+      "overall": "ok",
+      "overallMessage": "系统正常"
+    },
+    {
+      "timestamp": "2025-11-01T11:28:52.215Z",
+      "timestampDisplay": "2025-11-01 19:28:52",
+      "port": {
+        "status": "ok",
+        "pid": "62248",
+        "message": "端口 3000 正在被 PID 62248 使用"
+      },
+      "database": {
+        "status": "ok",
+        "size": "84.13 MB",
+        "lastModified": "2025-11-01 19:28:12",
+        "message": "数据库正常 (84.13 MB)"
+      },
+      "http": {
+        "status": "ok",
+        "statusCode": "200",
+        "responseTime": "4 ms",
+        "message": "HTTP响应正常 (4 ms)"
+      },
+      "api": {
+        "status": "ok",
+        "message": "API端点响应正常"
+      },
+      "system": {
+        "status": "ok",
+        "memory": "47.2%",
+        "disk": "37%",
+        "message": "系统资源正常 (内存: 47.2%, 磁盘: 37%)"
+      },
+      "process": {
+        "status": "ok",
+        "count": 34,
+        "message": "发现 34 个相关进程"
+      },
+      "overall": "ok",
+      "overallMessage": "系统正常"
+    },
+    {
+      "timestamp": "2025-11-01T11:24:52.216Z",
+      "timestampDisplay": "2025-11-01 19:24:52",
+      "port": {
+        "status": "ok",
+        "pid": "61865\n61884",
+        "message": "端口 3000 正在被 PID 61865\n61884 使用"
+      },
+      "database": {
+        "status": "ok",
+        "size": "83.70 MB",
+        "lastModified": "2025-11-01 19:23:23",
+        "message": "数据库正常 (83.70 MB)"
+      },
+      "http": {
+        "status": "ok",
+        "statusCode": "200",
+        "responseTime": "14 ms",
+        "message": "HTTP响应正常 (14 ms)"
+      },
+      "api": {
+        "status": "ok",
+        "message": "API端点响应正常"
+      },
+      "system": {
+        "status": "ok",
+        "memory": "45.5%",
+        "disk": "37%",
+        "message": "系统资源正常 (内存: 45.5%, 磁盘: 37%)"
+      },
+      "process": {
+        "status": "ok",
+        "count": 34,
+        "message": "发现 34 个相关进程"
+      },
+      "overall": "ok",
+      "overallMessage": "系统正常"
+    }
+  ],
+  "config": {
+    "checkInterval": "4 分钟",
+    "port": 3000,
+    "maxRecords": 10
+  }
+}

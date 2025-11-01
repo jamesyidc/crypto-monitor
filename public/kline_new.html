@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>K线数据查询 - 加密货币监控</title>
+    <!-- 标准CDN资源 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .timeframe-btn { transition: all 0.3s; }
+        .timeframe-btn.active { background: #2563eb; color: white; }
+        .coin-btn { transition: all 0.3s; }
+        .coin-btn.active { background: #10b981; color: white; border-color: #10b981; }
+        
+        /* 等级分组样式 */
+        .level-group { margin-bottom: 16px; }
+        .level-title { 
+            font-size: 0.875rem; 
+            font-weight: 600; 
+            color: #4B5563; 
+            margin-bottom: 8px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        .level-1-title { background: #FEF3C7; color: #92400E; }
+        .level-2-title { background: #FDE68A; color: #78350F; }
+        .level-3-title { background: #BFDBFE; color: #1E40AF; }
+        .level-4-title { background: #DDD6FE; color: #5B21B6; }
+        .level-5-title { background: #D1FAE5; color: #065F46; }
+        .level-6-title { background: #E5E7EB; color: #374151; }
+        
+        .coin-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); 
+            gap: 8px; 
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-[98%] mx-auto px-4 py-6">
+        <!-- 🔍 版本标识 - 用于确认页面已更新 -->
+        <div class="fixed top-2 right-2 bg-red-500 text-white px-3 py-1 rounded shadow-lg text-xs font-bold z-50">
+            版本 v5-居中布局 ✓ 两边留白
+        </div>
+        
+        <!-- 导航 -->
+        <div class="bg-white shadow-md p-4 mb-6">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex gap-4">
+                    <a href="/" class="text-blue-600 hover:text-blue-700">
+                        <i class="fas fa-home mr-1"></i>首页
+                    </a>
+                    <a href="/signal.html" class="text-green-600 hover:text-green-700">
+                        <i class="fas fa-signal mr-1"></i>买卖点信号
+                    </a>
+                    <a href="/static/signal-config.html" class="text-orange-600 hover:text-orange-700">
+                        <i class="fas fa-cog mr-1"></i>信号设置
+                    </a>
+                    <a href="/pattern.html" class="text-pink-600 hover:text-pink-700">
+                        <i class="fas fa-brain mr-1"></i>特征库
+                    </a>
+                    <a href="/correct.html" class="text-yellow-600 hover:text-yellow-700">
+                        <i class="fas fa-edit mr-1"></i>数据纠错
+                    </a>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-chart-candlestick mr-2"></i>K线数据查询
+                </h1>
+                <div class="flex gap-2">
+                    <button id="syncBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition">
+                        <i class="fas fa-sync mr-2"></i>同步最新
+                    </button>
+                    <button id="sync48hBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition">
+                        <i class="fas fa-database mr-2"></i>补全48小时
+                    </button>
+                </div>
+            </div>
+            <div class="text-center">
+                <div class="inline-block text-sm text-gray-600 bg-gray-100 px-4 py-2 rounded-lg">
+                    <i class="fas fa-clock mr-2"></i>
+                    <span id="countdown">30秒后自动刷新</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 币种选择 -->
+        <div class="bg-white shadow-md p-6 mb-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">选择币种</h2>
+            <div id="coinSelector">
+                <!-- 币种按钮将按等级分组在这里生成 -->
+            </div>
+        </div>
+
+        <!-- 时间周期选择 -->
+        <div class="bg-white shadow-md p-6 mb-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">时间周期</h2>
+            <div class="flex flex-wrap gap-2">
+                <button class="timeframe-btn px-4 py-2 rounded-lg border border-gray-300" data-tf="5m">5分钟</button>
+                <button class="timeframe-btn px-4 py-2 rounded-lg border border-gray-300 active" data-tf="15m">15分钟</button>
+                <button class="timeframe-btn px-4 py-2 rounded-lg border border-gray-300" data-tf="1H">1小时</button>
+                <button class="timeframe-btn px-4 py-2 rounded-lg border border-gray-300" data-tf="4H">4小时</button>
+                <button class="timeframe-btn px-4 py-2 rounded-lg border border-gray-300" data-tf="1D">1天</button>
+            </div>
+        </div>
+
+        <!-- 统计信息 -->
+        <div id="statsPanel" class="bg-white shadow-md p-6 mb-6 hidden">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">统计信息</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="text-center p-4 bg-blue-50 rounded-lg">
+                    <div class="text-sm text-gray-600 mb-1">最新价格</div>
+                    <div id="statPrice" class="text-2xl font-bold text-blue-600">-</div>
+                </div>
+                <div class="text-center p-4 bg-green-50 rounded-lg">
+                    <div class="text-sm text-gray-600 mb-1">涨跌幅</div>
+                    <div id="statChange" class="text-2xl font-bold text-green-600">-</div>
+                </div>
+                <div class="text-center p-4 bg-yellow-50 rounded-lg">
+                    <div class="text-sm text-gray-600 mb-1">最高价</div>
+                    <div id="statHigh" class="text-2xl font-bold text-yellow-600">-</div>
+                </div>
+                <div class="text-center p-4 bg-red-50 rounded-lg">
+                    <div class="text-sm text-gray-600 mb-1">最低价</div>
+                    <div id="statLow" class="text-2xl font-bold text-red-600">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- K线图表 -->
+        <div class="bg-white shadow-md p-6 mb-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">K线图</h2>
+            <div class="relative h-96">
+                <canvas id="klineChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 当天统计面板 -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">当天统计 (0:00-23:59)</h2>
+            <div class="grid grid-cols-5 gap-4">
+                <div class="text-center p-4 bg-green-100 rounded-lg">
+                    <div class="text-sm text-gray-700 font-semibold mb-1">起跌破纪录次数</div>
+                    <div class="text-sm text-gray-600 mb-2">累计20根 > +2%</div>
+                    <div id="newHighCount" class="text-3xl font-bold text-green-700">0</div>
+                    <div class="text-xs text-gray-600 mt-2">出生于 13:10</div>
+                </div>
+                <div class="text-center p-4 bg-red-100 rounded-lg">
+                    <div class="text-sm text-gray-700 font-semibold mb-1">起跌破纪录次数</div>
+                    <div class="text-sm text-gray-600 mb-2">累计20根 < -3%</div>
+                    <div id="newLowCount" class="text-3xl font-bold text-red-700">0</div>
+                </div>
+                <div class="text-center p-4 bg-green-100 rounded-lg">
+                    <div class="text-sm text-gray-700 font-semibold mb-1">极快触碰上沿</div>
+                    <div class="text-sm text-gray-600 mb-2">占比上涨>占比下跌</div>
+                    <div id="fastUpperTouch" class="text-3xl font-bold text-green-700">48</div>
+                    <div class="text-xs text-gray-600 mt-2">出生于 13:10</div>
+                </div>
+                <div class="text-center p-4 bg-red-100 rounded-lg">
+                    <div class="text-sm text-gray-700 font-semibold mb-1">极快触碰下沿</div>
+                    <div class="text-sm text-gray-600 mb-2">占比下跌>占比上涨</div>
+                    <div id="fastLowerTouch" class="text-3xl font-bold text-red-700">106</div>
+                    <div class="text-xs text-gray-600 mt-2">出生于 04:15</div>
+                </div>
+                <div class="text-center p-4 bg-blue-100 rounded-lg">
+                    <div class="text-sm text-gray-700 font-semibold mb-1">震荡收敛带宽均值</div>
+                    <div class="text-sm text-gray-600 mb-2">起涨后收敛前最小3个</div>
+                    <div id="convergenceBandwidth" class="text-3xl font-bold text-blue-700">-</div>
+                    <div class="text-xs text-gray-600 mt-2">无数据</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- K线数据表格 -->
+        <div class="bg-white shadow-md p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold text-gray-800">
+                    K线数据与技术指标
+                    <button id="toggleIndicators" class="ml-4 px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition">
+                        <i class="fas fa-eye-slash mr-1"></i>隐藏指标
+                    </button>
+                </h2>
+            </div>
+            
+            <!-- 🔍 列说明提示框 -->
+            <div class="mb-4 bg-gradient-to-r from-blue-100 to-orange-100 border-l-4 border-blue-600 p-4 rounded">
+                <div class="flex items-start gap-2">
+                    <i class="fas fa-info-circle text-blue-600 mt-1"></i>
+                    <div class="text-sm">
+                        <strong class="text-gray-800">新增列说明：</strong>
+                        <div class="mt-1 space-y-1">
+                            <div>• <span class="bg-blue-200 px-2 py-0.5 rounded font-bold">第2列（蓝色）</span> = <strong>起涨/起跌点</strong>：显示过去20根K线累计涨跌幅</div>
+                            <div>• <span class="bg-orange-200 px-2 py-0.5 rounded font-bold">第3列（橙色）</span> = <strong>操作提示</strong>：满足高抛条件时显示"高抛"标记</div>
+                            <div class="text-xs text-gray-600 mt-2">💡 前20行显示"-"，第20行及以后显示累计百分比值</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="text-xs" style="width: 100%; table-layout: auto;">
+                    <thead>
+                        <tr class="border-b-2 border-gray-200">
+                            <th class="text-left py-2 px-1 sticky left-0 bg-white">时间</th>
+                            <th class="text-center py-1 px-1 bg-blue-50 min-w-[40px]">起涨/起跌点</th>
+                            <th class="text-center py-1 px-1 bg-orange-50 min-w-[40px]">操作提示</th>
+                            <th class="text-right py-2 px-1">开盘</th>
+                            <th class="text-right py-2 px-1">最高</th>
+                            <th class="text-right py-2 px-1">最低</th>
+                            <th class="text-right py-2 px-1">收盘</th>
+                            <th class="text-right py-2 px-1">涨跌幅</th>
+                            <th class="text-right py-2 px-1">成交量</th>
+                            <th class="text-center py-2 px-1">
+                                <span class="text-red-600 font-bold">V1</span>
+                            </th>
+                            <th class="text-center py-2 px-1">
+                                <span class="text-orange-600 font-bold">V2</span>
+                            </th>
+                            <!-- 技术指标列（默认显示） -->
+                            <th class="text-center py-2 px-1 indicator-col">信号</th>
+                            <th class="text-right py-1 px-0.5 indicator-col min-w-[35px]">SAR</th>
+                            <th class="text-right py-1 px-0.5 indicator-col min-w-[35px]">SAR变化</th>
+                            <th class="text-right py-1 px-0.5 indicator-col min-w-[35px]">SAR变化%</th>
+                            <th class="text-right py-1 px-0.5 indicator-col min-w-[35px]">涨跌差值</th>
+                            <th class="text-right py-1 px-0.5 indicator-col min-w-[35px]">RSI_5m</th>
+                            <th class="text-right py-1 px-0.5 indicator-col min-w-[35px]">RSI_1h</th>
+                            <th class="text-right py-1 px-0.5 indicator-col min-w-[35px]">BOLL_MB</th>
+                            <th class="text-right py-1 px-0.5 indicator-col min-w-[35px]">BOLL_UB</th>
+                            <th class="text-right py-1 px-0.5 indicator-col min-w-[35px]">BOLL_LB</th>
+                            <th class="text-right py-1 px-0.5 indicator-col min-w-[35px]">占比下跌</th>
+                            <th class="text-right py-1 px-0.5 indicator-col min-w-[35px]">占比上涨</th>
+                            <th class="text-right py-2 px-1 indicator-col">带宽</th>
+                            <th class="text-center py-2 px-1 indicator-col">通道状态</th>
+                        </tr>
+                    </thead>
+                    <tbody id="klineTableBody">
+                        <tr>
+                            <td colspan="25" class="text-center py-8 text-gray-500">
+                                请选择币种查看数据
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script src="/static/kline_new_1761841505.js?v=20251031_004500"></script>
+</body>
+</html>
