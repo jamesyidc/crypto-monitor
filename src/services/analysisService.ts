@@ -48,7 +48,33 @@ export class AnalysisService {
         console.warn('⚠️  警告: 部分币种的24小时涨跌幅数据缺失');
       }
       
-      // 2. 分析每个币种
+      // 🆕 2. 检查价格是否有变化（防止保存无变化的数据）
+      let priceChangedCount = 0;
+      const sampleCheckSymbols = ['BTC', 'ETH', 'BNB']; // 检查主流币种
+      
+      for (const symbol of sampleCheckSymbols) {
+        const coinGeckoId = Object.keys(priceData).find(id => 
+          coingeckoIdToSymbol(id) === symbol
+        );
+        if (!coinGeckoId) continue;
+        
+        const data = priceData[coinGeckoId];
+        const prevRecord = await this.coinService.getPreviousPriceRecord(symbol);
+        
+        if (prevRecord && Math.abs(data.usd - prevRecord.price) > 0.000001) {
+          priceChangedCount++;
+        }
+      }
+      
+      // 🚫 如果主流币种价格都没变化，拒绝本次分析
+      if (priceChangedCount === 0) {
+        console.warn('⚠️ 价格数据未变化，跳过本次分析');
+        throw new Error('价格数据未更新，请稍后再试（CoinGecko API可能返回了缓存数据）');
+      }
+      
+      console.log(`✅ 价格变化检查通过: ${priceChangedCount}/${sampleCheckSymbols.length} 个币种有变化`);
+      
+      // 3. 分析每个币种
       const coinDetails: any[] = [];
       let greenCount = 0;
       let redCount = 0;
@@ -61,11 +87,11 @@ export class AnalysisService {
         const symbol = coingeckoIdToSymbol(coinGeckoId);
         if (!symbol) continue;
 
+        // 🔧 先获取上一次价格（在保存当前价格之前）
+        const prevRecord: any = await this.coinService.getPreviousPriceRecord(symbol);
+
         // 保存价格记录
         await this.coinService.savePriceRecord(symbol, data);
-
-        // 获取上一次价格
-        const prevRecord: any = await this.coinService.getPreviousPriceRecord(symbol);
         
         let changePercent = 0;
         let changeAmount = 0;
@@ -75,23 +101,21 @@ export class AnalysisService {
           changePercent = (changeAmount / prevRecord.price) * 100;
         }
 
-        // 🔧 修复：涨跌比应该基于24小时涨跌幅，不是轮次对比
-        // 判断涨跌（使用24小时涨跌幅）
-        const change24h = data.usd_24h_change || 0;
-        const isGreen = change24h > 0;
-        const isRed = change24h < 0;
+        // 判断涨跌（相对上一轮）
+        const isGreen = changePercent > 0;
+        const isRed = changePercent < 0;
         
         if (isGreen) greenCount++;
         if (isRed) redCount++;
 
-        // 判断极端行情
+        // 判断极端行情（相对上一轮）
         const isExtremeUp = changePercent >= 4;
         const isExtremeDown = changePercent <= -3;
         
         if (isExtremeUp) extremeUpCount++;
         if (isExtremeDown) extremeDownCount++;
 
-        // 判断急涨急跌
+        // 判断急涨急跌（相对上一轮）
         const isSurge = changePercent >= 1;
         const isCrash = changePercent <= -1;
         
@@ -169,32 +193,62 @@ export class AnalysisService {
         });
       }
 
-      // 3. 计算绿色占比
+      // 4. 计算绿色占比
       const totalCoins = coinDetails.length;
       const greenRatio = totalCoins > 0 ? (greenCount / totalCoins) * 100 : 0;
 
-      // 3.1. 🆕 计算平均涨跌幅（所有币种的24小时涨跌幅的算术平均值）
-      const totalChange24h = coinDetails.reduce((sum, coin) => sum + coin.change_24h, 0);
-      const averageChange = totalCoins > 0 ? totalChange24h / totalCoins : 0;
-
-      // 4. 风险提示
+      // 5. 风险提示（累计模式：当天累加，0:00清零，两次间隔≥10分钟）
       let riskAlertCount = 0;
       if (greenRatio === 0) {
-        riskAlertCount = 1;
+        // 🆕 检查距离上次风险事件是否≥10分钟
+        const lastEventTime = await this.coinService.getLastRiskEventTime(today);
+        let shouldIncrement = true;
+        
+        if (lastEventTime) {
+          const lastTime = new Date(lastEventTime).getTime();
+          const currentTime = new Date().getTime();
+          const minutesSinceLastEvent = (currentTime - lastTime) / (60 * 1000);
+          
+          if (minutesSinceLastEvent < 10) {
+            console.log(`⏱️  距离上次风险事件仅${minutesSinceLastEvent.toFixed(1)}分钟，不累加`);
+            shouldIncrement = false;
+          } else {
+            console.log(`✅ 距离上次风险事件${minutesSinceLastEvent.toFixed(1)}分钟，累加风险次数`);
+          }
+        }
+        
+        // 获取今天已有的风险提示次数
+        const todayRiskCount = await this.coinService.getTodayRiskAlertCount(today);
+        
+        if (shouldIncrement) {
+          riskAlertCount = todayRiskCount + 1;
+          // 🆕 保存风险事件详情
+          const eventTime = await this.coinService.saveRiskAlertEvent(
+            roundTime, 
+            greenRatio, 
+            coinDetails.length
+          );
+          // 保存累计次数和最后事件时间
+          await this.coinService.saveTodayRiskAlertCount(today, riskAlertCount, eventTime);
+        } else {
+          riskAlertCount = todayRiskCount;
+        }
+      } else {
+        // 绿色占比不为0时，读取今天已有的累计次数（不增加）
+        riskAlertCount = await this.coinService.getTodayRiskAlertCount(today);
       }
 
-      // 5. 按24小时涨跌幅排名
+      // 6. 按24小时涨跌幅排名
       coinDetails.sort((a, b) => b.change_24h - a.change_24h);
       coinDetails.forEach((detail, index) => {
         detail.rank_in_round = index + 1;
       });
 
-      // 6. 保存轮次统计
+      // 7. 保存轮次统计
       await this.coinService.saveRoundStat(roundTime, {
         green_count: greenCount,
         red_count: redCount,
         green_ratio: greenRatio,
-        average_change: averageChange,  // 🆕 添加平均涨跌幅
         extreme_up_count: extremeUpCount,
         extreme_down_count: extremeDownCount,
         surge_count: surgeCount,
@@ -202,7 +256,7 @@ export class AnalysisService {
         risk_alert_count: riskAlertCount
       });
 
-      // 7. 计算相对上一轮的涨跌幅并保存单币详情
+      // 8. 计算相对上一轮的涨跌幅并保存单币详情
       const extendedCoinDetails = [];
       for (const detail of coinDetails) {
         // 获取上一轮的数据用于计算涨跌幅
@@ -233,10 +287,10 @@ export class AnalysisService {
         await this.coinService.saveCoinRoundDetail(detail.symbol, roundTime, extendedDetail);
       }
 
-      // 8. 更新日统计（使用轮次对比的急涨急跌数据）
+      // 9. 更新日统计（使用轮次对比的急涨急跌数据）
       await this.updateDailyStats(today, extendedCoinDetails, surgeCount, crashCount);
 
-      // 9. 更新币种优先级
+      // 10. 更新币种优先级
       await this.updateCoinPriorities(extendedCoinDetails);
 
       return {
@@ -245,7 +299,6 @@ export class AnalysisService {
         greenCount,
         redCount,
         greenRatio,
-        averageChange,  // 🆕 添加平均涨跌幅到返回值
         extremeUpCount,
         extremeDownCount,
         surgeCount,
@@ -435,14 +488,44 @@ export class AnalysisService {
     // 🆕 查询今日每个币种的V1触发次数
     const todayV1Counts = await this.coinService.getTodayV1Counts(today);
 
-    // 🆕 增强coinDetails数据：添加今日V1触发次数
-    const finalEnhancedCoinDetails = enhancedCoinDetails.map((detail: any) => ({
-      ...detail,
-      today_v1_count: todayV1Counts[detail.symbol] || 0
-    }));
+    // 🆕 计算当天涨幅（使用OKX永续合约K线数据）
+    const todayStartPrices = await this.coinService.getTodayStartPrices(today);
+    const latestKlinePrices = await this.coinService.getLatestKlinePrices('5m');
+    
+    // 🆕 增强coinDetails数据：添加今日V1触发次数和当天涨幅
+    const finalEnhancedCoinDetails = enhancedCoinDetails.map((detail: any) => {
+      const startPrice = todayStartPrices[detail.symbol];
+      const currentPrice = latestKlinePrices[detail.symbol];
+      let change_today = null;
+      
+      // 使用OKX K线的当前价格和今天0点价格计算涨幅
+      if (startPrice && startPrice > 0 && currentPrice && currentPrice > 0) {
+        change_today = ((currentPrice - startPrice) / startPrice) * 100;
+      }
+      
+      return {
+        ...detail,
+        today_v1_count: todayV1Counts[detail.symbol] || 0,
+        change_today: change_today // 当天涨幅（%）- 基于OKX永续合约K线
+      };
+    });
+
+    // 🆕 计算平均涨跌幅（从coin_round_details计算）
+    let averageChange = 0;
+    if (latestRound && finalEnhancedCoinDetails.length > 0) {
+      const totalChange = finalEnhancedCoinDetails.reduce((sum: number, coin: any) => 
+        sum + (coin.change_percent || 0), 0);
+      averageChange = totalChange / finalEnhancedCoinDetails.length;
+    }
+
+    // 增强 latestRound，添加 average_change 字段
+    const enhancedLatestRound = latestRound ? {
+      ...latestRound,
+      average_change: averageChange
+    } : null;
 
     return {
-      latestRound,
+      latestRound: enhancedLatestRound,
       coinDetails: finalEnhancedCoinDetails,
       todayStats,
       extremes,
@@ -481,12 +564,31 @@ export class AnalysisService {
     // 获取优先级(使用当前最新的)
     const priorities = await this.coinService.getAllCoinPriorities();
 
+    // 🆕 计算该轮次的specialStats（用于历史回看）
+    const totalCoins = coinDetails.length;
+    const change24hOver10Up = coinDetails.filter((coin: any) => coin.change_24h >= 10).length;
+    const change24hOver10Down = coinDetails.filter((coin: any) => coin.change_24h <= -10).length;
+    const change24hOver10UpPercent = totalCoins > 0 ? ((change24hOver10Up / totalCoins) * 100).toFixed(1) : '0.0';
+    const change24hOver10DownPercent = totalCoins > 0 ? ((change24hOver10Down / totalCoins) * 100).toFixed(1) : '0.0';
+
+    // 🆕 查询该日期的创新高/新低的总次数
+    const todayNewHighCount = await this.coinService.getTodayExtremeCount(date, 'high');
+    const todayNewLowCount = await this.coinService.getTodayExtremeCount(date, 'low');
+
     return {
       latestRound: roundStat,
       coinDetails,
       todayStats,
       extremes,
       priorities,
+      specialStats: {
+        change24hOver10Up,
+        change24hOver10Down,
+        change24hOver10UpPercent,
+        change24hOver10DownPercent,
+        todayNewHighCount,
+        todayNewLowCount
+      },
       isHistorical: true,
       historicalRoundTime: roundTime
     };

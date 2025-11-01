@@ -230,6 +230,40 @@ export class SignalService {
           keepBars: 20 // 保留20根K线
         });
       }
+      
+      // === 波段高点信号检测（卖出） ===
+      // 条件：
+      // 1. RSI 5分钟 > 65（超买区域）
+      // 2. 涨跌幅 ≤ 0.1%（横盘整理，价格不再上涨）
+      // 3. 成交量 >= V2（有一定成交量支撑）
+      const isPeakRSI = rsi5min > 65;
+      const isSmallChange = Math.abs(changePercent) <= 0.1;
+      const hasVolume = volumeAboveV2 || volumeAboveV1;
+      
+      if (isPeakRSI && isSmallChange && hasVolume) {
+        signals.push({
+          symbol: current.symbol,
+          time: current.time,
+          type: 'SELL', // 卖出信号
+          price: currentClose, // 以收盘价作为卖出价格
+          reason: '波段高点',
+          details: {
+            rsi5min: rsi5min.toFixed(2),
+            changePercent: changePercent.toFixed(2) + '%',
+            volatility: volatility.toFixed(2) + '%',
+            sarChangePercent: sarChangePercent.toFixed(2) + '%',
+            currentVolume: currentVolume.toFixed(2),
+            volumeLevel: volumeAboveV1 ? 'V1+' : volumeAboveV2 ? 'V2+' : 'Normal',
+            signal: current.signal || ''
+          },
+          strength: this.calculatePeakStrength({
+            rsi: rsi5min,
+            changePercent: Math.abs(changePercent),
+            volumeRatio: currentVolume / avgVolume
+          }),
+          keepBars: 15 // 保留15根K线观察
+        });
+      }
     }
 
     // 🆕 === 主升信号检测 ===
@@ -404,6 +438,37 @@ export class SignalService {
     if (params.volumeRatio > 1.5) strength += 10;
     else if (params.volumeRatio > 1.2) strength += 8;
     else if (params.volumeRatio > 1) strength += 5;
+
+    return Math.min(100, strength);
+  }
+
+  // 🆕 计算波段高点信号强度
+  private calculatePeakStrength(params: {
+    rsi: number;           // RSI值（越高越强）
+    changePercent: number; // 涨跌幅绝对值（越小越好，表示横盘）
+    volumeRatio: number;   // 成交量比率
+  }): number {
+    let strength = 0;
+
+    // RSI超买加分（0-40分）
+    // RSI越高，超买信号越强
+    if (params.rsi > 75) strength += 40;
+    else if (params.rsi > 70) strength += 35;
+    else if (params.rsi > 68) strength += 30;
+    else if (params.rsi > 65) strength += 25;
+
+    // 横盘整理加分（0-35分）
+    // 涨跌幅越小，横盘信号越明显
+    if (params.changePercent <= 0.05) strength += 35;
+    else if (params.changePercent <= 0.08) strength += 30;
+    else if (params.changePercent <= 0.1) strength += 25;
+    else if (params.changePercent <= 0.15) strength += 15;
+
+    // 成交量加分（0-25分）
+    if (params.volumeRatio > 1.5) strength += 25;
+    else if (params.volumeRatio > 1.2) strength += 20;
+    else if (params.volumeRatio > 1.0) strength += 15;
+    else if (params.volumeRatio > 0.8) strength += 10;
 
     return Math.min(100, strength);
   }

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统健康监控中心</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .status-ok { background-color: #10b981; }
+        .status-warning { background-color: #f59e0b; }
+        .status-error { background-color: #ef4444; }
+        .blink {
+            animation: blink-animation 1.5s infinite;
+        }
+        @keyframes blink-animation {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .card {
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <i class="fas fa-heartbeat text-4xl text-blue-500 mr-4"></i>
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-800">系统健康监控中心</h1>
+                        <p class="text-gray-600">实时监控应用状态，每4分钟自动检查</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <div class="text-sm text-gray-600">最后更新</div>
+                    <div id="lastUpdate" class="text-lg font-semibold text-gray-800">--</div>
+                    <button onclick="refreshData()" class="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">
+                        <i class="fas fa-sync-alt mr-2"></i>手动刷新
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Overall Status -->
+        <div id="overallStatus" class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <div class="flex items-center justify-center">
+                <div class="text-center">
+                    <div id="overallIndicator" class="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center">
+                        <i class="fas fa-spinner fa-spin text-white text-3xl"></i>
+                    </div>
+                    <h2 id="overallMessage" class="text-2xl font-bold text-gray-800">加载中...</h2>
+                    <p id="overallTime" class="text-gray-600 mt-2">--</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Latest Check Details -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">
+                <i class="fas fa-info-circle text-blue-500 mr-2"></i>最新检查详情
+            </h2>
+            <div id="latestCheckDetails" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- 动态加载 -->
+            </div>
+        </div>
+
+        <!-- Historical Records -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">
+                <i class="fas fa-history text-blue-500 mr-2"></i>历史记录（最近10次）
+            </h2>
+            <div id="historicalRecords" class="overflow-x-auto">
+                <!-- 动态加载 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let autoRefreshInterval;
+
+        // 格式化时间
+        function formatTime(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+        }
+
+        // 获取相对时间
+        function getRelativeTime(isoString) {
+            const date = new Date(isoString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffSec = Math.floor(diffMs / 1000);
+            const diffMin = Math.floor(diffSec / 60);
+            const diffHour = Math.floor(diffMin / 60);
+
+            if (diffMin < 1) return '刚刚';
+            if (diffMin < 60) return `${diffMin} 分钟前`;
+            if (diffHour < 24) return `${diffHour} 小时前`;
+            return `${Math.floor(diffHour / 24)} 天前`;
+        }
+
+        // 获取状态图标
+        function getStatusIcon(status) {
+            switch(status) {
+                case 'ok':
+                    return '<i class="fas fa-check-circle text-green-500"></i>';
+                case 'warning':
+                    return '<i class="fas fa-exclamation-triangle text-yellow-500"></i>';
+                case 'error':
+                    return '<i class="fas fa-times-circle text-red-500"></i>';
+                default:
+                    return '<i class="fas fa-question-circle text-gray-500"></i>';
+            }
+        }
+
+        // 获取状态文本
+        function getStatusText(status) {
+            switch(status) {
+                case 'ok': return '正常';
+                case 'warning': return '警告';
+                case 'error': return '错误';
+                default: return '未知';
+            }
+        }
+
+        // 渲染最新检查详情
+        function renderLatestCheckDetails(record) {
+            const container = document.getElementById('latestCheckDetails');
+            
+            const checks = [
+                { key: 'port', title: '端口状态', icon: 'fa-network-wired' },
+                { key: 'database', title: '数据库', icon: 'fa-database' },
+                { key: 'http', title: 'HTTP响应', icon: 'fa-globe' },
+                { key: 'api', title: 'API端点', icon: 'fa-plug' },
+                { key: 'system', title: '系统资源', icon: 'fa-server' },
+                { key: 'process', title: '进程状态', icon: 'fa-cogs' }
+            ];
+
+            container.innerHTML = checks.map(check => {
+                const data = record[check.key];
+                if (!data) return '';
+
+                return `
+                    <div class="card border rounded-lg p-4 ${
+                        data.status === 'error' ? 'border-red-300 bg-red-50' :
+                        data.status === 'warning' ? 'border-yellow-300 bg-yellow-50' :
+                        'border-green-300 bg-green-50'
+                    }">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center">
+                                <i class="fas ${check.icon} text-2xl ${
+                                    data.status === 'error' ? 'text-red-500' :
+                                    data.status === 'warning' ? 'text-yellow-500' :
+                                    'text-green-500'
+                                } mr-3"></i>
+                                <h3 class="font-semibold text-gray-800">${check.title}</h3>
+                            </div>
+                            ${getStatusIcon(data.status)}
+                        </div>
+                        <p class="text-sm text-gray-700 mb-2">${data.message}</p>
+                        ${Object.entries(data).filter(([k, v]) => k !== 'status' && k !== 'message').map(([k, v]) => 
+                            `<div class="text-xs text-gray-600">${k}: ${v}</div>`
+                        ).join('')}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 渲染历史记录
+        function renderHistoricalRecords(records) {
+            const container = document.getElementById('historicalRecords');
+            
+            if (!records || records.length === 0) {
+                container.innerHTML = '<p class="text-gray-600 text-center py-4">暂无历史记录</p>';
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">检查时间</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">总体状态</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">端口</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">数据库</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">HTTP</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">API</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">系统</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">进程</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        ${records.map(record => `
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    ${record.timestampDisplay}<br>
+                                    <span class="text-xs text-gray-500">${getRelativeTime(record.timestamp)}</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                        record.overall === 'ok' ? 'bg-green-100 text-green-800' :
+                                        record.overall === 'warning' ? 'bg-yellow-100 text-yellow-800' :
+                                        'bg-red-100 text-red-800'
+                                    }">
+                                        ${record.overallMessage}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">${getStatusIcon(record.port?.status)}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">${getStatusIcon(record.database?.status)}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">${getStatusIcon(record.http?.status)}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">${getStatusIcon(record.api?.status)}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">${getStatusIcon(record.system?.status)}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">${getStatusIcon(record.process?.status)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // 加载数据
+        async function loadData() {
+            try {
+                const response = await fetch('/static/health-status.json');
+                if (!response.ok) {
+                    throw new Error('无法加载健康状态数据');
+                }
+                
+                const data = await response.json();
+                
+                // 更新最后更新时间（优先使用已格式化的北京时间）
+                document.getElementById('lastUpdate').textContent = data.lastUpdateDisplay || formatTime(data.lastUpdate);
+                
+                if (data.records && data.records.length > 0) {
+                    const latest = data.records[0];
+                    
+                    // 更新总体状态
+                    const indicator = document.getElementById('overallIndicator');
+                    const message = document.getElementById('overallMessage');
+                    const time = document.getElementById('overallTime');
+                    
+                    indicator.className = `w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center ${
+                        latest.overall === 'ok' ? 'status-ok' :
+                        latest.overall === 'warning' ? 'status-warning blink' :
+                        'status-error blink'
+                    }`;
+                    
+                    indicator.innerHTML = latest.overall === 'ok' 
+                        ? '<i class="fas fa-check text-white text-3xl"></i>'
+                        : latest.overall === 'warning'
+                        ? '<i class="fas fa-exclamation-triangle text-white text-3xl"></i>'
+                        : '<i class="fas fa-times text-white text-3xl"></i>';
+                    
+                    message.textContent = latest.overallMessage;
+                    time.textContent = `${latest.timestampDisplay} (${getRelativeTime(latest.timestamp)})`;
+                    
+                    // 渲染详情和历史
+                    renderLatestCheckDetails(latest);
+                    renderHistoricalRecords(data.records);
+                }
+            } catch (error) {
+                console.error('加载数据失败:', error);
+                document.getElementById('overallMessage').textContent = '数据加载失败';
+                document.getElementById('overallIndicator').innerHTML = '<i class="fas fa-exclamation-circle text-white text-3xl"></i>';
+            }
+        }
+
+        // 手动刷新
+        function refreshData() {
+            loadData();
+        }
+
+        // 启动自动刷新（每30秒）
+        function startAutoRefresh() {
+            autoRefreshInterval = setInterval(loadData, 30000);
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            startAutoRefresh();
+        });
+
+        // 页面可见性变化时控制刷新
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                clearInterval(autoRefreshInterval);
+            } else {
+                loadData();
+                startAutoRefresh();
+            }
+        });
+    </script>
+</body>
+</html>

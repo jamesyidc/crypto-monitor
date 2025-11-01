@@ -3,9 +3,128 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>模式特征库 - Crypto Monitor</title>
+    <title>交易管理中心 - Crypto Monitor</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .signal-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+        .signal-card.long {
+            border-left-color: #10b981;
+            background: linear-gradient(135deg, #ecfdf5 0%, #ffffff 100%);
+        }
+        .signal-card.short {
+            border-left-color: #ef4444;
+            background: linear-gradient(135deg, #fef2f2 0%, #ffffff 100%);
+        }
+        .signal-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+        .priority-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        .priority-high { background: #fee2e2; color: #991b1b; }
+        .priority-medium { background: #fef3c7; color: #92400e; }
+        .priority-low { background: #dbeafe; color: #1e40af; }
+        .level-badge { 
+            display: inline-block; 
+            padding: 6px 16px; 
+            border-radius: 6px; 
+            font-size: 0.875rem; 
+            font-weight: bold; 
+        }
+        .level-1 { background: #fef3c7; color: #92400e; border: 2px solid #fbbf24; }
+        .level-2 { background: #d1fae5; color: #065f46; border: 2px solid #10b981; }
+        .level-3 { background: #bfdbfe; color: #1e40af; border: 2px solid #3b82f6; }
+        .level-4 { background: #fecaca; color: #991b1b; border: 2px solid #ef4444; }
+        .level-5 { background: #e5e7eb; color: #374151; border: 2px solid #6b7280; }
+        .tab-button {
+            padding: 14px 28px;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        .tab-button.active {
+            border-bottom-color: #3b82f6;
+            color: #3b82f6;
+            font-weight: bold;
+            background: rgba(59, 130, 246, 0.05);
+        }
+        .tab-button:hover {
+            background: rgba(59, 130, 246, 0.05);
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        /* 自定义滚动条样式 */
+        .max-h-\[800px\]::-webkit-scrollbar {
+            width: 8px;
+        }
+        .max-h-\[800px\]::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        .max-h-\[800px\]::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        .max-h-\[800px\]::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        /* 最新操作提示面板的滚动条 */
+        .max-h-\[500px\]::-webkit-scrollbar {
+            width: 8px;
+        }
+        .max-h-\[500px\]::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        .max-h-\[500px\]::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        .max-h-\[500px\]::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        /* 通知动画 */
+        @keyframes slide-in {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        .animate-slide-in {
+            animation: slide-in 0.3s ease-out;
+        }
+        /* 弹窗缩放动画 */
+        @keyframes scale-in {
+            from {
+                transform: scale(0.9);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        .animate-scale-in {
+            animation: scale-in 0.3s ease-out;
+        }
+    </style>
 </head>
 <body class="bg-gray-50">
     <!-- 导航栏 -->
@@ -21,14 +140,14 @@
                         <a href="/" class="hover:text-blue-200 transition">
                             <i class="fas fa-home mr-1"></i>首页
                         </a>
-                        <a href="/kline.html" class="hover:text-blue-200 transition">
-                            <i class="fas fa-chart-bar mr-1"></i>K线
+                        <a href="/live-trading" class="hover:text-blue-200 transition">
+                            <i class="fas fa-coins mr-1"></i>实盘交易
+                        </a>
+                        <a href="/kline_v2.html" class="hover:text-blue-200 transition">
+                            <i class="fas fa-chart-bar mr-1"></i>K线V2
                         </a>
                         <a href="/pattern.html" class="text-yellow-300 font-bold">
-                            <i class="fas fa-brain mr-1"></i>特征库
-                        </a>
-                        <a href="/correct.html" class="hover:text-blue-200 transition">
-                            <i class="fas fa-edit mr-1"></i>数据纠错
+                            <i class="fas fa-cogs mr-1"></i>交易管理
                         </a>
                     </div>
                 </div>
@@ -37,389 +156,1637 @@
     </nav>
 
     <div class="max-w-7xl mx-auto px-4 py-6">
-        <!-- 全局交易策略 -->
-        <div class="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg shadow-lg p-6 mb-6 text-white">
-            <h2 class="text-2xl font-bold mb-4">
-                <i class="fas fa-trophy mr-2"></i>全局交易策略池
-            </h2>
-            <div id="strategiesGrid" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <!-- 策略卡片将在这里动态加载 -->
-                <div class="bg-white/20 backdrop-blur rounded-lg p-4 text-center">
-                    <i class="fas fa-spinner fa-spin text-2xl"></i>
-                    <p class="mt-2">加载中...</p>
-                </div>
-            </div>
+        <!-- 页面标题 -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                <i class="fas fa-cogs mr-2 text-blue-600"></i>
+                交易管理中心
+            </h1>
+            <p class="text-gray-600">统一管理交易信号库和币种优先级设置</p>
         </div>
 
-        <!-- Tabs -->
+        <!-- 标签页导航 -->
         <div class="bg-white rounded-lg shadow-md mb-6">
-            <div class="flex border-b">
-                <button onclick="switchTab('strategies')" id="tabStrategies" class="px-6 py-3 font-bold text-purple-600 border-b-2 border-purple-600">
-                    <i class="fas fa-chess mr-2"></i>策略详情
-                </button>
-                <button onclick="switchTab('rules')" id="tabRules" class="px-6 py-3 font-bold text-gray-500 hover:text-blue-600">
-                    <i class="fas fa-gavel mr-2"></i>交易规则
-                </button>
-                <button onclick="switchTab('support')" id="tabSupport" class="px-6 py-3 font-bold text-gray-500 hover:text-green-600">
-                    <i class="fas fa-chart-line mr-2"></i>支撑线管理
-                </button>
-                <button onclick="switchTab('priority')" id="tabPriority" class="px-6 py-3 font-bold text-gray-500 hover:text-orange-600">
-                    <i class="fas fa-star mr-2"></i>币种优先级
-                </button>
-                <button onclick="switchTab('consecutive')" id="tabConsecutive" class="px-6 py-3 font-bold text-gray-500 hover:text-red-600">
-                    <i class="fas fa-fire mr-2"></i>连续上涨占优
-                </button>
-            </div>
-        </div>
-
-        <!-- 策略详情内容 -->
-        <div id="strategiesContent">
-            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">
-                    <i class="fas fa-chess mr-2"></i>已配置交易策略
-                </h2>
-                <div id="strategiesDetailList" class="space-y-4">
-                    <div class="text-center py-8 text-gray-500">
-                        <i class="fas fa-spinner fa-spin mr-2"></i>加载中...
-                    </div>
+            <div class="border-b border-gray-200">
+                <div class="flex">
+                    <button class="tab-button active" onclick="switchMainTab('signals')" id="signalsTab">
+                        <i class="fas fa-signal mr-2"></i>交易信号库
+                    </button>
+                    <button class="tab-button" onclick="switchMainTab('coinPriority')" id="coinPriorityTab">
+                        <i class="fas fa-star mr-2"></i>币种优先级
+                    </button>
+                    <button class="tab-button" onclick="switchMainTab('strategies')" id="strategiesTab">
+                        <i class="fas fa-chess-knight mr-2"></i>策略信号库
+                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- 交易规则内容 -->
-        <div id="rulesContent" class="hidden">
-            <!-- 统计信息卡片 -->
-            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">
-                    <i class="fas fa-chart-pie mr-2"></i>交易规则统计
-                </h2>
-                <div class="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-                    <div class="text-center p-4 bg-gray-50 rounded-lg">
-                        <div class="text-gray-500 mb-1">币种总数</div>
-                        <div id="statsTotal" class="text-2xl font-bold text-gray-700">-</div>
+        <!-- 交易信号库标签页 -->
+        <div id="signalsContent" class="tab-content active">
+            <!-- 统计面板 -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg shadow-md p-6 text-white">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm opacity-90">做多信号</p>
+                            <p class="text-3xl font-bold" id="longSignalCount">-</p>
+                        </div>
+                        <i class="fas fa-arrow-trend-up text-4xl opacity-75"></i>
                     </div>
-                    <div class="text-center p-4 bg-green-50 rounded-lg">
-                        <div class="text-gray-500 mb-1">允许交易</div>
-                        <div id="statsTradingAllowed" class="text-2xl font-bold text-green-600">-</div>
+                </div>
+                
+                <div class="bg-gradient-to-r from-red-500 to-rose-600 rounded-lg shadow-md p-6 text-white">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm opacity-90">做空信号</p>
+                            <p class="text-3xl font-bold" id="shortSignalCount">-</p>
+                        </div>
+                        <i class="fas fa-arrow-trend-down text-4xl opacity-75"></i>
                     </div>
-                    <div class="text-center p-4 bg-blue-50 rounded-lg">
-                        <div class="text-gray-500 mb-1">允许做多</div>
-                        <div id="statsLongAllowed" class="text-2xl font-bold text-blue-600">-</div>
-                    </div>
-                    <div class="text-center p-4 bg-orange-50 rounded-lg">
-                        <div class="text-gray-500 mb-1">允许做空</div>
-                        <div id="statsShortAllowed" class="text-2xl font-bold text-orange-600">-</div>
-                    </div>
-                    <div class="text-center p-4 bg-red-50 rounded-lg">
-                        <div class="text-gray-500 mb-1">禁止交易</div>
-                        <div id="statsTradingDisabled" class="text-2xl font-bold text-red-600">-</div>
+                </div>
+                
+                <div class="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg shadow-md p-6 text-white">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm opacity-90">总计信号</p>
+                            <p class="text-3xl font-bold" id="totalSignalCount">-</p>
+                        </div>
+                        <i class="fas fa-signal text-4xl opacity-75"></i>
                     </div>
                 </div>
             </div>
 
-            <!-- 快速设置按钮 -->
-            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">
-                    <i class="fas fa-bolt mr-2"></i>批量快速设置
-                </h3>
-                <div class="flex flex-wrap gap-3">
-                    <button onclick="quickSetReset()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
-                        <i class="fas fa-redo mr-2"></i>重置全部（允许所有）
-                    </button>
-                    <button onclick="quickSetDisableAll()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition">
-                        <i class="fas fa-ban mr-2"></i>禁止所有交易
-                    </button>
-                    <button onclick="quickSetLongOnly()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
-                        <i class="fas fa-arrow-up mr-2"></i>仅允许做多
-                    </button>
-                    <button onclick="quickSetShortOnly()" class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition">
-                        <i class="fas fa-arrow-down mr-2"></i>仅允许做空
-                    </button>
-                    <button onclick="saveAllRules()" class="ml-auto px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition font-bold">
-                        <i class="fas fa-save mr-2"></i>保存所有更改
-                    </button>
-                </div>
-            </div>
-
-            <!-- 交易规则表格 -->
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">
-                    <i class="fas fa-list mr-2"></i>各币种交易规则设置
-                </h3>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="border-b-2 border-gray-200">
-                                <th class="text-left py-3 px-4">币种</th>
-                                <th class="text-center py-3 px-4">允许交易</th>
-                                <th class="text-center py-3 px-4">允许做多</th>
-                                <th class="text-center py-3 px-4">允许做空</th>
-                                <th class="text-left py-3 px-4">备注</th>
-                                <th class="text-center py-3 px-4">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="rulesTableBody">
-                            <tr>
-                                <td colspan="6" class="text-center py-8 text-gray-500">
-                                    <i class="fas fa-spinner fa-spin mr-2"></i>加载中...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- 支撑线管理内容 -->
-        <div id="supportContent" class="hidden">
-            <!-- 支撑线统计卡片 -->
-            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">
-                    <i class="fas fa-chart-line mr-2"></i>支撑线低吸策略
-                </h2>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div class="text-center p-4 bg-blue-50 rounded-lg">
-                        <div class="text-gray-500 mb-1">已设置支撑线</div>
-                        <div id="supportTotal" class="text-2xl font-bold text-blue-600">-</div>
+            <!-- 导入操作提示关键字模板区域 -->
+            <div class="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-lg shadow-md p-4 mb-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-tags text-3xl"></i>
+                        <div>
+                            <h3 class="font-bold text-lg">操作提示关键字模板</h3>
+                            <p class="text-sm opacity-90">一键导入预定义的操作提示信号模板（抄底做多、顶部做空、波段高点等）</p>
+                        </div>
                     </div>
-                    <div class="text-center p-4 bg-green-50 rounded-lg">
-                        <div class="text-gray-500 mb-1">低吸机会</div>
-                        <div id="supportOpportunities" class="text-2xl font-bold text-green-600">-</div>
-                    </div>
-                    <div class="text-center p-4 bg-yellow-50 rounded-lg">
-                        <div class="text-gray-500 mb-1">接近支撑线</div>
-                        <div id="supportNearCount" class="text-2xl font-bold text-yellow-600">-</div>
-                    </div>
-                    <div class="text-center p-4 bg-purple-50 rounded-lg">
-                        <div class="text-gray-500 mb-1">市场策略</div>
-                        <div id="marketStrategy" class="text-xl font-bold text-purple-600">-</div>
+                    <div class="flex gap-3">
+                        <button onclick="clearAllSignals()" class="bg-red-600 bg-opacity-80 hover:bg-opacity-100 text-white px-6 py-3 rounded-lg transition font-bold shadow-lg border-2 border-white border-opacity-30">
+                            <i class="fas fa-trash-alt mr-2"></i>清空所有信号
+                        </button>
+                        <button onclick="syncOperationTipsFromKline()" class="bg-blue-500 bg-opacity-80 hover:bg-opacity-100 text-white px-6 py-3 rounded-lg transition font-bold shadow-lg border-2 border-white border-opacity-30" title="从K线数据同步新的操作提示到模板库">
+                            <i class="fas fa-sync-alt mr-2"></i>同步K线数据
+                        </button>
+                        <button onclick="toggleTipsPanel()" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-6 py-3 rounded-lg transition font-bold shadow-lg border-2 border-white border-opacity-30">
+                            <i class="fas fa-eye mr-2"></i>
+                            <span id="tipsPanelToggleText">查看模板列表</span>
+                        </button>
+                        <button onclick="importOperationTipTemplates()" class="bg-white text-purple-600 hover:bg-purple-50 px-6 py-3 rounded-lg transition font-bold shadow-lg">
+                            <i class="fas fa-download mr-2"></i>一键导入全部
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <!-- 快速操作 -->
-            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">
-                    <i class="fas fa-bolt mr-2"></i>快速操作
-                </h3>
-                <div class="flex flex-wrap gap-3">
-                    <button onclick="checkOpportunities()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
-                        <i class="fas fa-search mr-2"></i>检查低吸机会
-                    </button>
-                    <button onclick="clearAllSupport()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition">
-                        <i class="fas fa-trash mr-2"></i>清零所有支撑线
-                    </button>
-                    <button onclick="saveAllSupport()" class="ml-auto px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition font-bold">
-                        <i class="fas fa-save mr-2"></i>保存所有更改
-                    </button>
+            <!-- 操作提示关键字模板面板（可折叠） -->
+            <div id="tipsPanel" class="bg-white rounded-lg shadow-md mb-6 overflow-hidden" style="display: none;">
+                <div class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-list-check text-2xl"></i>
+                            <div>
+                                <h3 class="font-bold text-lg">操作提示关键字模板列表</h3>
+                                <p class="text-sm opacity-90">预定义的操作提示信号模板，可单独导入或批量导入</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="p-6">
+                    <div id="tipsListContainer" class="space-y-3">
+                        <!-- 模板列表将在这里显示 -->
+                    </div>
                 </div>
             </div>
 
-            <!-- 支撑线设置表格 -->
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">
-                    <i class="fas fa-list mr-2"></i>支撑线设置（仅等级1-2币种）
-                </h3>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="border-b-2 border-gray-200">
-                                <th class="text-left py-3 px-4">币种</th>
-                                <th class="text-center py-3 px-4">等级</th>
-                                <th class="text-center py-3 px-4">当前价格</th>
-                                <th class="text-center py-3 px-4">支撑线价格</th>
-                                <th class="text-center py-3 px-4">距离</th>
-                                <th class="text-center py-3 px-4">状态</th>
-                                <th class="text-left py-3 px-4">备注</th>
-                                <th class="text-center py-3 px-4">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="supportTableBody">
-                            <tr>
-                                <td colspan="8" class="text-center py-8 text-gray-500">
-                                    <i class="fas fa-spinner fa-spin mr-2"></i>加载中...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+            <!-- 左右两列布局：做多信号 | 做空信号 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- 左侧：做多信号区域 -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-2xl font-bold text-gray-800">
+                            <i class="fas fa-arrow-circle-up text-green-600 mr-2"></i>
+                            做多信号
+                        </h2>
+                        <button onclick="openSignalModal('long')" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition text-sm">
+                            <i class="fas fa-plus mr-1"></i>新增
+                        </button>
+                    </div>
+                    
+                    <div id="longSignalsList" class="space-y-3">
+                        <div class="text-center py-8 text-gray-400">
+                            <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
+                            <p>加载中...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧：做空信号区域 -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-2xl font-bold text-gray-800">
+                            <i class="fas fa-arrow-circle-down text-red-600 mr-2"></i>
+                            做空信号
+                        </h2>
+                        <button onclick="openSignalModal('short')" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition text-sm">
+                            <i class="fas fa-plus mr-1"></i>新增
+                        </button>
+                    </div>
+                    
+                    <div id="shortSignalsList" class="space-y-3">
+                        <div class="text-center py-8 text-gray-400">
+                            <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
+                            <p>加载中...</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- 币种优先级内容 -->
-        <div id="priorityContent" class="hidden">
-            <!-- 优先级统计 -->
-            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">
-                    <i class="fas fa-star mr-2"></i>币种优先级分布
-                </h2>
-                <div class="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-                    <div class="text-center p-4 bg-yellow-50 rounded-lg border-2 border-yellow-300">
-                        <div class="text-gray-500 mb-1">等级1</div>
-                        <div id="level1Count" class="text-2xl font-bold text-yellow-600">-</div>
-                    </div>
-                    <div class="text-center p-4 bg-green-50 rounded-lg border-2 border-green-300">
-                        <div class="text-gray-500 mb-1">等级2</div>
-                        <div id="level2Count" class="text-2xl font-bold text-green-600">-</div>
-                    </div>
-                    <div class="text-center p-4 bg-blue-50 rounded-lg border-2 border-blue-300">
-                        <div class="text-gray-500 mb-1">等级3</div>
-                        <div id="level3Count" class="text-2xl font-bold text-blue-600">-</div>
-                    </div>
-                    <div class="text-center p-4 bg-orange-50 rounded-lg border-2 border-orange-300">
-                        <div class="text-gray-500 mb-1">等级4</div>
-                        <div id="level4Count" class="text-2xl font-bold text-orange-600">-</div>
-                    </div>
-                    <div class="text-center p-4 bg-gray-50 rounded-lg border-2 border-gray-300">
-                        <div class="text-gray-500 mb-1">等级5+</div>
-                        <div id="level5Count" class="text-2xl font-bold text-gray-600">-</div>
+        <!-- 币种优先级标签页 -->
+        <div id="coinPriorityContent" class="tab-content">
+            <!-- 子标签页导航 -->
+            <div class="bg-white rounded-lg shadow-md mb-6">
+                <div class="border-b border-gray-200">
+                    <div class="flex">
+                        <button class="tab-button active" onclick="switchCoinTab('details')" id="detailsTab">
+                            <i class="fas fa-info-circle mr-2"></i>币种详情
+                        </button>
+                        <button class="tab-button" onclick="switchCoinTab('rules')" id="rulesTab">
+                            <i class="fas fa-exchange-alt mr-2"></i>交易规则
+                        </button>
+                        <button class="tab-button" onclick="switchCoinTab('support')" id="supportTab">
+                            <i class="fas fa-chart-line mr-2"></i>支撑线设置
+                        </button>
+                        <button class="tab-button" onclick="switchCoinTab('history')" id="historyTab">
+                            <i class="fas fa-history mr-2"></i>等级历史
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <!-- 说明信息 -->
-            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
-                <div class="flex items-start">
-                    <i class="fas fa-info-circle text-blue-500 text-xl mr-3 mt-1"></i>
-                    <div>
-                        <p class="font-bold text-blue-800 mb-1">等级说明</p>
-                        <p class="text-sm text-blue-700">
-                            等级1：最高质量币种（可设置支撑线）<br>
-                            等级2：高质量币种（可设置支撑线）<br>
-                            等级3-4：中等质量币种<br>
-                            等级5+：较低质量币种
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 优先级表格 -->
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">
-                    <i class="fas fa-list mr-2"></i>币种优先级设置
-                </h3>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="border-b-2 border-gray-200">
-                                <th class="text-left py-3 px-4">币种</th>
-                                <th class="text-center py-3 px-4">当前等级</th>
-                                <th class="text-center py-3 px-4">最低占比</th>
-                                <th class="text-center py-3 px-4">最高占比</th>
-                                <th class="text-center py-3 px-4">交易状态</th>
-                                <th class="text-center py-3 px-4">支撑线</th>
-                                <th class="text-center py-3 px-4">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="priorityTableBody">
-                            <tr>
-                                <td colspan="7" class="text-center py-8 text-gray-500">
-                                    <i class="fas fa-spinner fa-spin mr-2"></i>加载中...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- 连续上涨占优内容 -->
-        <div id="consecutiveContent" class="hidden">
-            <!-- 统计概览 -->
-            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-lg font-bold text-gray-800">
-                        <i class="fas fa-fire mr-2"></i>连续上涨占优统计
+            <!-- 币种详情子标签页 -->
+            <div id="detailsSubContent" class="tab-content active">
+                <!-- 币种优先级等级分布 -->
+                <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-star mr-2 text-yellow-500"></i>
+                        币种优先级等级分布
                     </h2>
-                    <div class="flex gap-2">
-                        <button onclick="analyzeHistory()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
-                            <i class="fas fa-calendar-day mr-2"></i>分析今天数据
-                        </button>
-                        <button onclick="updateConsecutiveStats()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
-                            <i class="fas fa-sync mr-2"></i>更新统计
-                        </button>
+                    <div class="grid grid-cols-5 gap-4 mb-6">
+                        <div class="level-box level-1 rounded-lg p-4 text-center cursor-pointer" onclick="filterByLevel(1)">
+                            <div class="text-sm mb-2">等级1</div>
+                            <div class="text-3xl font-bold mb-1" id="level1Count">0</div>
+                            <div class="text-xs opacity-75">最高质量币种</div>
+                        </div>
+                        <div class="level-box level-2 rounded-lg p-4 text-center cursor-pointer" onclick="filterByLevel(2)">
+                            <div class="text-sm mb-2">等级2</div>
+                            <div class="text-3xl font-bold mb-1" id="level2Count">0</div>
+                            <div class="text-xs opacity-75">高质量币种</div>
+                        </div>
+                        <div class="level-box level-3 rounded-lg p-4 text-center cursor-pointer" onclick="filterByLevel(3)">
+                            <div class="text-sm mb-2">等级3</div>
+                            <div class="text-3xl font-bold mb-1" id="level3Count">0</div>
+                            <div class="text-xs opacity-75">中等质量币种</div>
+                        </div>
+                        <div class="level-box level-4 rounded-lg p-4 text-center cursor-pointer" onclick="filterByLevel(4)">
+                            <div class="text-sm mb-2">等级4</div>
+                            <div class="text-3xl font-bold mb-1" id="level4Count">0</div>
+                            <div class="text-xs opacity-75">较低质量币种</div>
+                        </div>
+                        <div class="level-box level-5 rounded-lg p-4 text-center cursor-pointer" onclick="filterByLevel(5)">
+                            <div class="text-sm mb-2">等级5+</div>
+                            <div class="text-3xl font-bold mb-1" id="level5Count">0</div>
+                            <div class="text-xs opacity-75">最低质量币种</div>
+                        </div>
                     </div>
                 </div>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div class="text-center p-4 bg-yellow-50 rounded-lg">
-                        <div class="text-gray-500 mb-1">连续≥20根</div>
-                        <div id="above20Count" class="text-2xl font-bold text-yellow-600">-</div>
-                    </div>
-                    <div class="text-center p-4 bg-orange-50 rounded-lg">
-                        <div class="text-gray-500 mb-1">连续≥30根</div>
-                        <div id="above30Count" class="text-2xl font-bold text-orange-600">-</div>
-                    </div>
-                    <div class="text-center p-4 bg-red-50 rounded-lg">
-                        <div class="text-gray-500 mb-1">连续≥40根</div>
-                        <div id="above40Count" class="text-2xl font-bold text-red-600">-</div>
-                    </div>
-                    <div class="text-center p-4 bg-purple-50 rounded-lg">
-                        <div class="text-gray-500 mb-1">历史最大连续</div>
-                        <div id="maxStreakOverall" class="text-2xl font-bold text-purple-600">-</div>
+
+                <!-- 币种优先级设置表格 -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center justify-between">
+                        <span>
+                            <i class="fas fa-cog mr-2"></i>
+                            币种优先级设置
+                        </span>
+                        <span class="text-sm text-gray-600 font-normal">
+                            当前筛选: <span id="currentFilter" class="text-blue-600 font-bold">全部</span>
+                        </span>
+                    </h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50 border-b-2 border-gray-200">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-sm font-bold text-gray-700">币种</th>
+                                    <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">当前等级</th>
+                                    <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">极低占比</th>
+                                    <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">最高占比</th>
+                                    <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">交易状态</th>
+                                    <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">支撑线</th>
+                                    <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="coinTableBody">
+                                <tr>
+                                    <td colspan="7" class="text-center py-8 text-gray-500">
+                                        <i class="fas fa-spinner fa-spin mr-2"></i>加载中...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
 
-            <!-- 说明信息 -->
-            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
-                <div class="flex items-start">
-                    <i class="fas fa-info-circle text-blue-500 text-xl mr-3 mt-1"></i>
-                    <div>
-                        <p class="font-bold text-blue-800 mb-1">统计说明</p>
-                        <p class="text-sm text-blue-700">
-                            • 上涨占优：每根K线检查，占比上涨（当前价/历史最高）> 占比下跌（当前价/历史最低）<br>
-                            • 连续K线数：上涨占优持续的K线根数，中断后重新计数<br>
-                            • 最大连续：历史上最长的连续上涨占优K线数<br>
-                            • 阈值20根：连续上涨占优达到20根K线及以上的币种会被记录
+            <!-- 交易规则子标签页 -->
+            <div id="rulesSubContent" class="tab-content">
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                            <i class="fas fa-shield-alt mr-2 text-blue-600"></i>
+                            交易规则管理
+                        </h2>
+                        <div class="flex gap-2">
+                            <button onclick="batchUpdateTradingRules('enable_all')" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition text-sm font-bold">
+                                <i class="fas fa-check-circle mr-2"></i>全部允许
+                            </button>
+                            <button onclick="batchUpdateTradingRules('long_only')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition text-sm font-bold">
+                                <i class="fas fa-arrow-up mr-2"></i>仅允许做多
+                            </button>
+                            <button onclick="batchUpdateTradingRules('disable_all')" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition text-sm font-bold">
+                                <i class="fas fa-ban mr-2"></i>全部禁止
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+                        <p class="text-sm text-blue-800">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            <strong>规则说明:</strong> 控制每个币种是否允许交易、允许开多、允许开空。等级2及以上可设置支撑线做多。
+                        </p>
+                    </div>
+                    
+                    <div id="tradingRulesTable">
+                        <p class="text-center text-gray-500 py-8">
+                            <i class="fas fa-spinner fa-spin mr-2"></i>加载交易规则数据...
                         </p>
                     </div>
                 </div>
             </div>
 
+            <!-- 支撑线设置子标签页 -->
+            <div id="supportSubContent" class="tab-content">
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-chart-line mr-2 text-purple-600"></i>
+                        支撑线设置
+                    </h2>
+                    <div class="bg-purple-50 border-l-4 border-purple-500 p-4 mb-6">
+                        <p class="text-sm text-purple-800">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            <strong>支撑线做多策略:</strong> 只有大于等于2级的币种才允许使用支撑线做多
+                        </p>
+                    </div>
+                    <div id="supportLinesTable">
+                        <p class="text-center text-gray-500 py-8">
+                            <i class="fas fa-spinner fa-spin mr-2"></i>加载支撑线数据...
+                        </p>
+                    </div>
+                </div>
+            </div>
 
+            <!-- 等级历史子标签页 -->
+            <div id="historySubContent" class="tab-content">
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                            <i class="fas fa-history mr-2 text-indigo-600"></i>
+                            币种等级历史 (最近7天)
+                        </h2>
+                        <button onclick="showAddHistoryDialog()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition font-bold">
+                            <i class="fas fa-plus mr-2"></i>手动添加
+                        </button>
+                    </div>
+                    <div class="bg-indigo-50 border-l-4 border-indigo-500 p-4 mb-6">
+                        <p class="text-sm text-indigo-800">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            <strong>7天记忆机制:</strong> 系统会记录币种在过去7天内达到的最高等级。可以手动添加自定义等级记录。
+                        </p>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50 border-b-2 border-gray-200">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-sm font-bold text-gray-700">币种</th>
+                                    <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">最高等级</th>
+                                    <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">达到时间</th>
+                                    <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">过期时间</th>
+                                    <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">剩余天数</th>
+                                    <th class="px-4 py-3 text-center text-sm font-bold text-gray-700">状态</th>
+                                </tr>
+                            </thead>
+                            <tbody id="allHistoryBody">
+                                <tr>
+                                    <td colspan="6" class="text-center py-8 text-gray-500">
+                                        <i class="fas fa-spinner fa-spin mr-2"></i>加载中...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-            <!-- 连续上涨表格 -->
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-bold text-gray-800">
-                        <i class="fas fa-list mr-2"></i>连续上涨占优记录（≥20根K线）
-                    </h3>
+        <!-- 策略信号库标签页 -->
+        <div id="strategiesContent" class="tab-content">
+            <!-- 统计卡片 -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-lg p-6 text-white">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-green-100 text-sm mb-1">做多策略</p>
+                            <h3 class="text-3xl font-bold" id="strategyLongCount">0</h3>
+                        </div>
+                        <i class="fas fa-arrow-trend-up text-5xl text-green-200 opacity-50"></i>
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-br from-red-500 to-red-600 rounded-lg shadow-lg p-6 text-white">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-red-100 text-sm mb-1">做空策略</p>
+                            <h3 class="text-3xl font-bold" id="strategyShortCount">0</h3>
+                        </div>
+                        <i class="fas fa-arrow-trend-down text-5xl text-red-200 opacity-50"></i>
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-blue-100 text-sm mb-1">总计策略</p>
+                            <h3 class="text-3xl font-bold" id="strategyTotalCount">0</h3>
+                        </div>
+                        <i class="fas fa-layer-group text-5xl text-blue-200 opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="bg-purple-100 rounded-lg shadow p-4 mb-6">
+                <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
-                        <label class="text-sm text-gray-600">阈值：</label>
-                        <select id="thresholdSelect" onchange="changeThreshold(this.value)" class="px-3 py-1 border rounded">
-                            <option value="20" selected>≥20根</option>
-                            <option value="30">≥30根</option>
-                            <option value="40">≥40根</option>
+                        <i class="fas fa-info-circle text-purple-600"></i>
+                        <span class="text-sm text-gray-700">策略 = 买点 + 卖点 + 分批建仓配置（买入支持分批，卖出一次性全部）</span>
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="openStrategyModal('create')" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition flex items-center gap-2">
+                            <i class="fas fa-plus"></i>新建策略
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 策略标签页 -->
+            <div class="bg-white rounded-lg shadow-md mb-6">
+                <div class="flex border-b">
+                    <button class="tab-button active" onclick="switchStrategyTab('long')" id="strategyLongTab">
+                        <i class="fas fa-arrow-up mr-2"></i>做多策略
+                    </button>
+                    <button class="tab-button" onclick="switchStrategyTab('short')" id="strategyShortTab">
+                        <i class="fas fa-arrow-down mr-2"></i>做空策略
+                    </button>
+                </div>
+            </div>
+
+            <!-- 策略列表容器 -->
+            <div id="strategyLongList" class="space-y-4">
+                <!-- 做多策略将在这里显示 -->
+            </div>
+
+            <div id="strategyShortList" class="space-y-4" style="display: none;">
+                <!-- 做空策略将在这里显示 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 策略创建/编辑模态框 -->
+    <div id="strategyModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-y-auto my-auto p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-plus-circle mr-2 text-blue-500"></i>
+                    <span id="strategyModalTitle">创建新策略</span>
+                </h2>
+                <button onclick="closeStrategyModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+
+            <form id="strategyForm" class="space-y-6">
+                <input type="hidden" id="strategyId">
+
+                <!-- 第一步：选择策略类型（突出显示） -->
+                <div class="bg-gradient-to-r from-blue-500 to-indigo-600 p-6 rounded-lg shadow-lg">
+                    <div class="flex items-center mb-4">
+                        <span class="bg-white text-blue-600 rounded-full w-10 h-10 flex items-center justify-center mr-3 font-bold text-xl shadow-md">1</span>
+                        <h3 class="text-2xl font-bold text-white">首先选择策略类型</h3>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-3 text-white">
+                            策略类型 * 
+                            <span class="text-yellow-300 ml-2">(选择后会自动加载对应的买卖点信号)</span>
+                        </label>
+                        <select id="strategyType" required class="w-full px-6 py-4 border-4 border-white rounded-lg text-gray-800 font-bold text-xl focus:ring-4 focus:ring-yellow-300 shadow-lg">
+                            <option value="long">📈 做多 (Long) - 低买高卖，看涨行情</option>
+                            <option value="short">📉 做空 (Short) - 高卖低买，看跌行情</option>
                         </select>
                     </div>
                 </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="border-b-2 border-gray-200">
-                                <th class="text-left py-3 px-4">币种</th>
-                                <th class="text-center py-3 px-4">最大连续K线数</th>
-                                <th class="text-center py-3 px-4">开始时间</th>
-                                <th class="text-center py-3 px-4">结束时间</th>
-                                <th class="text-center py-3 px-4">当前连续</th>
-                                <th class="text-center py-3 px-4">占比上涨</th>
-                                <th class="text-center py-3 px-4">占比下跌</th>
-                                <th class="text-center py-3 px-4">状态</th>
-                            </tr>
-                        </thead>
-                        <tbody id="consecutiveTableBody">
-                            <tr>
-                                <td colspan="8" class="text-center py-8 text-gray-500">
-                                    <i class="fas fa-spinner fa-spin mr-2"></i>加载中...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+
+                <!-- 第二步：基本信息 -->
+                <div class="bg-gray-50 p-4 rounded-lg border-2 border-gray-200">
+                    <h3 class="text-lg font-bold text-gray-700 mb-4 flex items-center">
+                        <span class="bg-gray-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-2 font-bold">2</span>
+                        填写基本信息
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">策略名称 *</label>
+                            <input type="text" id="strategyName" required placeholder="例如: 稳健做多策略" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">优先级</label>
+                            <select id="strategyPriority" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <option value="high">高优先级</option>
+                                <option value="medium" selected>中优先级</option>
+                                <option value="low">低优先级</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">是否启用</label>
+                            <select id="strategyEnabled" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <option value="1">启用</option>
+                                <option value="0">禁用</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 第三步：买点配置 -->
+                <div class="bg-green-50 p-4 rounded-lg border-2 border-green-300">
+                    <h3 class="text-lg font-bold text-green-700 mb-4 flex items-center">
+                        <span class="bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-2 font-bold">3</span>
+                        <i class="fas fa-sign-in-alt mr-2"></i>选择买点信号（入场点）
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">买点信号类型</label>
+                            <select id="entrySignal" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                                <option value="">-- 选择买点信号 --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">买点关键词</label>
+                            <input type="text" id="entryKeyword" placeholder="例如: 低吸" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 第四步：卖点配置 - 支持多个下拉选择 -->
+                <div class="bg-red-50 p-4 rounded-lg border-2 border-red-300">
+                    <h3 class="text-lg font-bold text-red-700 mb-4 flex items-center justify-between">
+                        <div class="flex items-center">
+                            <span class="bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-2 font-bold">4</span>
+                            <i class="fas fa-sign-out-alt mr-2"></i>选择卖点信号（出场点）
+                            <span class="text-sm font-normal text-red-600 ml-2">最多10个卖点</span>
+                        </div>
+                        <button type="button" onclick="addExitSignalDropdown()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition">
+                            <i class="fas fa-plus mr-1"></i>添加卖点
+                        </button>
+                    </h3>
+                    <div id="exitSignalsContainer" class="space-y-3">
+                        <!-- 卖点下拉框将动态添加到这里 -->
+                        <div class="exit-signal-group flex items-center gap-2">
+                            <label class="text-sm font-medium text-gray-700 w-20">卖点 1:</label>
+                            <select class="exit-signal-select flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
+                                <option value="">-- 选择卖点信号 --</option>
+                            </select>
+                            <button type="button" onclick="removeExitSignalDropdown(this)" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm transition" disabled>
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-3 text-xs text-gray-500">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        提示：可添加多个卖点信号，策略将在满足任一卖点条件时出场
+                    </div>
+                    <div class="mt-3">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">卖点关键词（可选）</label>
+                        <input type="text" id="exitKeyword" placeholder="例如: 高抛" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                </div>
+
+                <!-- 仓位管理 -->
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-bold text-blue-700 mb-4">
+                        <i class="fas fa-chart-pie mr-2"></i>仓位管理配置
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                分批次数（1-10）
+                                <span class="text-xs text-gray-500">仅买入分批</span>
+                            </label>
+                            <input type="number" id="positionSplits" min="1" max="10" value="1" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                间隔百分比（0.5-10%）
+                                <span class="text-xs text-red-500">价格下跌后加仓</span>
+                            </label>
+                            <input type="number" id="splitInterval" min="0.5" max="10" step="0.5" value="2.0" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                最大持仓周期（K线）
+                                <span class="text-xs text-gray-500">0=不限制</span>
+                            </label>
+                            <input type="number" id="maxHolding" min="0" value="0" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-2">
+                        <i class="fas fa-info-circle text-blue-500"></i>
+                        说明：采入时会分<span id="splitPreview">1</span>次建仓，每次间隔<span id="intervalPreview">2.0</span>%；
+                        <span class="text-red-600 font-semibold">价格每下跌<span id="intervalPreview2">2.0</span>%时加仓</span>；卖出时一次性全部卖出
+                    </p>
+                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-3 mt-3">
+                        <p class="text-xs text-gray-700">
+                            <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>
+                            <strong>分批加仓逻辑：</strong>例如分3次，间隔2%<br>
+                            • 第1次买入：价格100元<br>
+                            • 第2次加仓：价格跌到98元（-2%）时买入<br>
+                            • 第3次加仓：价格跌到96元（-2%）时买入<br>
+                            目的：摊低成本，降低持仓均价
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 币种级别过滤 -->
+                <div class="bg-purple-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-bold text-purple-700 mb-4">
+                        <i class="fas fa-filter mr-2"></i>币种级别过滤
+                    </h3>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            允许的币种级别（可多选）
+                            <span class="text-xs text-gray-500">不选表示不限制级别</span>
+                        </label>
+                        <div id="coinLevelsList" class="grid grid-cols-3 md:grid-cols-6 gap-2">
+                            <label class="flex items-center space-x-2 px-3 py-2 border-2 border-gray-300 rounded-lg hover:bg-purple-100 cursor-pointer transition">
+                                <input type="checkbox" name="coinLevel" value="1" class="form-checkbox h-4 w-4 text-purple-600">
+                                <span class="text-sm font-medium">1级</span>
+                            </label>
+                            <label class="flex items-center space-x-2 px-3 py-2 border-2 border-gray-300 rounded-lg hover:bg-purple-100 cursor-pointer transition">
+                                <input type="checkbox" name="coinLevel" value="2" class="form-checkbox h-4 w-4 text-purple-600">
+                                <span class="text-sm font-medium">2级</span>
+                            </label>
+                            <label class="flex items-center space-x-2 px-3 py-2 border-2 border-gray-300 rounded-lg hover:bg-purple-100 cursor-pointer transition">
+                                <input type="checkbox" name="coinLevel" value="3" class="form-checkbox h-4 w-4 text-purple-600">
+                                <span class="text-sm font-medium">3级</span>
+                            </label>
+                            <label class="flex items-center space-x-2 px-3 py-2 border-2 border-gray-300 rounded-lg hover:bg-purple-100 cursor-pointer transition">
+                                <input type="checkbox" name="coinLevel" value="4" class="form-checkbox h-4 w-4 text-purple-600">
+                                <span class="text-sm font-medium">4级</span>
+                            </label>
+                            <label class="flex items-center space-x-2 px-3 py-2 border-2 border-gray-300 rounded-lg hover:bg-purple-100 cursor-pointer transition">
+                                <input type="checkbox" name="coinLevel" value="5" class="form-checkbox h-4 w-4 text-purple-600">
+                                <span class="text-sm font-medium">5级</span>
+                            </label>
+                            <label class="flex items-center space-x-2 px-3 py-2 border-2 border-gray-300 rounded-lg hover:bg-purple-100 cursor-pointer transition">
+                                <input type="checkbox" name="coinLevel" value="6" class="form-checkbox h-4 w-4 text-purple-600">
+                                <span class="text-sm font-medium">6级</span>
+                            </label>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">
+                            <i class="fas fa-info-circle text-purple-500"></i>
+                            选择此策略适用的币种级别，可以多选。不选择表示适用于所有级别。
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 涨幅条件 -->
+                <div class="bg-orange-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-bold text-orange-700 mb-4">
+                        <i class="fas fa-chart-line mr-2"></i>当日涨幅条件
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">条件类型</label>
+                            <select id="gainConditionOperator" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                                <option value="">-- 不限制涨幅 --</option>
+                                <option value="less_than">小于（适合做多）</option>
+                                <option value="greater_than">大于（适合做空）</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">涨幅百分比 (%)</label>
+                            <input type="number" id="gainConditionValue" min="-100" max="100" step="0.1" placeholder="例如: 5" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-600 mt-2">
+                        <i class="fas fa-info-circle text-orange-500"></i>
+                        <strong>做多策略</strong>建议选择"小于"（例如涨幅小于5%时买入）；
+                        <strong>做空策略</strong>建议选择"大于"（例如涨幅大于10%时做空）
+                    </p>
+                </div>
+
+                <!-- 止盈止损配置（动态显示） -->
+                <div id="stopLossTakeProfitSection" class="bg-yellow-50 p-4 rounded-lg border-2 border-yellow-300" style="display: none;">
+                    <h3 class="text-lg font-bold text-yellow-700 mb-4">
+                        <i class="fas fa-shield-alt mr-2"></i>止盈止损配置
+                        <span class="text-sm font-normal text-yellow-600">（检测到选择了止盈止损卖点）</span>
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-arrow-up text-green-600 mr-1"></i>止盈百分比 (%)
+                                <span class="text-xs text-gray-500">达到此盈利即卖出</span>
+                            </label>
+                            <input type="number" id="takeProfitPct" min="0" max="1000" step="0.1" placeholder="例如: 10" class="w-full px-4 py-2 border-2 border-green-300 rounded-lg focus:border-green-500">
+                            <p class="text-xs text-gray-500 mt-1">
+                                例如：设置10%，买入价100元，涨到110元时自动止盈卖出
+                            </p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-arrow-down text-red-600 mr-1"></i>止损百分比 (%)
+                                <span class="text-xs text-gray-500">跌破此幅度即止损</span>
+                            </label>
+                            <input type="number" id="stopLossPct" min="0" max="100" step="0.1" placeholder="例如: 5" class="w-full px-4 py-2 border-2 border-red-300 rounded-lg focus:border-red-500">
+                            <p class="text-xs text-gray-500 mt-1">
+                                例如：设置5%，买入价100元，跌到95元时自动止损卖出
+                            </p>
+                        </div>
+                    </div>
+                    <div class="bg-white border-l-4 border-yellow-400 p-3 mt-3">
+                        <p class="text-xs text-gray-700">
+                            <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>
+                            <strong>重要说明：</strong><br>
+                            • 止盈止损是基于<strong>平均持仓成本</strong>计算的（如果分批建仓）<br>
+                            • 止盈和止损<strong>可以只设置一个</strong>，也可以两个都设置<br>
+                            • 建议：止盈设置较大（10-20%），止损设置较小（3-5%）<br>
+                            • 止盈止损优先级<strong>最高</strong>，会覆盖其他卖点条件
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 描述 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">策略描述</label>
+                    <textarea id="strategyDescription" rows="3" placeholder="策略的详细说明..." class="w-full px-4 py-2 border border-gray-300 rounded-lg"></textarea>
+                </div>
+
+                <!-- 按钮 -->
+                <div class="flex justify-end gap-3">
+                    <button type="button" onclick="closeStrategyModal()" class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                        取消
+                    </button>
+                    <button type="submit" class="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition">
+                        <i class="fas fa-save mr-2"></i>保存策略
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 手动添加等级历史对话框 -->
+    <div id="addHistoryModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+            <h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                <i class="fas fa-plus-circle mr-2 text-indigo-600"></i>
+                手动添加等级历史
+            </h3>
+            
+            <form id="addHistoryForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">币种 *</label>
+                    <input type="text" id="historySymbol" required
+                        class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"
+                        placeholder="例如：BNB">
+                    <p class="text-xs text-gray-500 mt-1">只需输入币名，系统将自动添加USDT交易对</p>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">等级 *</label>
+                    <select id="historyLevel" required
+                        class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none">
+                        <option value="">请选择等级</option>
+                        <option value="1">等级1</option>
+                        <option value="2">等级2</option>
+                        <option value="3">等级3</option>
+                        <option value="4">等级4</option>
+                        <option value="5">等级5</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">达到时间</label>
+                    <input type="datetime-local" id="historyReachedTime"
+                        class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none">
+                    <p class="text-xs text-gray-500 mt-1">留空则使用当前时间</p>
+                </div>
+                
+                <div class="flex gap-3 mt-6">
+                    <button type="button" onclick="closeAddHistoryDialog()"
+                        class="flex-1 px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-bold transition">
+                        <i class="fas fa-times mr-2"></i>取消
+                    </button>
+                    <button type="submit"
+                        class="flex-1 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold transition">
+                        <i class="fas fa-check mr-2"></i>确定添加
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 添加/编辑信号模态框 -->
+    <div id="signalModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-2xl font-bold text-gray-800 mb-4">
+                <i class="fas fa-edit mr-2"></i>
+                <span id="modalTitle">新增信号</span>
+            </h3>
+            
+            <form id="signalForm" class="space-y-4">
+                <input type="hidden" id="signalId">
+                <input type="hidden" id="signalType">
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">信号名称 *</label>
+                    <input type="text" id="signalName" required
+                        class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                        placeholder="例如：MACD金叉">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">信号分类 *</label>
+                    <select id="signalCategory" required
+                        class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
+                        <option value="">-- 请选择 --</option>
+                        <option value="convergence">趋同收敛</option>
+                        <option value="macd_cross">MACD交叉</option>
+                        <option value="rsi_oversold">RSI超卖</option>
+                        <option value="rsi_overbought">RSI超买</option>
+                        <option value="sar_signal">SAR信号</option>
+                        <option value="action_hint">操作提示</option>
+                        <option value="custom">自定义</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">信号描述</label>
+                    <textarea id="signalDescription" rows="3"
+                        class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                        placeholder="描述信号的含义和触发条件"></textarea>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">优先级 (0-100)</label>
+                    <input type="number" id="signalPriority" min="0" max="100" value="50"
+                        class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
+                    <p class="text-xs text-gray-500 mt-1">数字越大优先级越高</p>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">条件配置 (JSON格式)</label>
+                    <textarea id="signalConditions" rows="4"
+                        class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none font-mono text-sm"
+                        placeholder='{"indicator":"macd","fast":12,"slow":26}'></textarea>
+                    <p class="text-xs text-gray-500 mt-1">JSON格式的条件参数</p>
+                </div>
+                
+                <div class="flex items-center">
+                    <input type="checkbox" id="signalEnabled" checked class="mr-2">
+                    <label for="signalEnabled" class="text-sm text-gray-700">启用此信号</label>
+                </div>
+                
+                <div class="flex gap-3 mt-6">
+                    <button type="button" onclick="closeSignalModal()"
+                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-2 rounded-lg transition">
+                        取消
+                    </button>
+                    <button type="submit"
+                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition">
+                        <i class="fas fa-save mr-2"></i>保存
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 编辑支撑线模态框 -->
+    <div id="editModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="flex items-center justify-between p-6 border-b">
+                <h3 class="text-lg font-bold text-gray-800">
+                    <i class="fas fa-chart-line mr-2 text-purple-600"></i>
+                    设置支撑线
+                </h3>
+                <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="editForm" class="p-6 space-y-4">
+                <input type="hidden" id="editSymbol">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">币种</label>
+                    <input type="text" id="editSymbolDisplay" class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100" readonly>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">支撑价格 (USDT)</label>
+                    <input type="number" id="editSupportPrice" step="0.00000001" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="输入支撑价格" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">备注 (可选)</label>
+                    <textarea id="editNotes" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" placeholder="输入备注信息"></textarea>
+                </div>
+                <div class="flex gap-3">
+                    <button type="submit" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-semibold transition">
+                        <i class="fas fa-save mr-2"></i>保存
+                    </button>
+                    <button type="button" onclick="closeEditModal()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-2 rounded-lg font-semibold transition">
+                        取消
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 导入K线操作提示模态框 -->
+    <div id="importModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between p-6 border-b">
+                <h3 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-file-import mr-2 text-purple-600"></i>
+                    从K线操作提示导入信号
+                </h3>
+                <button onclick="closeImportDialog()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+            
+            <div class="p-6">
+                <!-- 说明 -->
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+                    <p class="text-sm text-blue-800">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <strong>导入规则：</strong>
+                    </p>
+                    <ul class="text-sm text-blue-800 mt-2 ml-6 space-y-1">
+                        <li>• <strong>低吸</strong>（RSI&lt;25 + 高成交量）→ 做多信号（买点）</li>
+                        <li>• <strong>高抛</strong>（RSI&gt;69 + 多头信号）→ 做空信号（卖点）</li>
+                        <li>• <strong>注意启动</strong>（震荡收敛）→ 做多信号（启动信号）</li>
+                    </ul>
+                </div>
+                
+                <!-- 币种选择 -->
+                <div class="mb-6">
+                    <label class="block text-sm font-semibold text-gray-700 mb-3">选择要导入的币种</label>
+                    <div class="grid grid-cols-3 gap-2" id="symbolCheckboxes">
+                        <div class="text-center text-gray-400">
+                            <i class="fas fa-spinner fa-spin mr-2"></i>加载币种列表...
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 参数设置 -->
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">时间周期</label>
+                        <select id="importTimeframe" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            <option value="5m">5分钟</option>
+                            <option value="15m">15分钟</option>
+                            <option value="1H">1小时</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">K线数量</label>
+                        <input type="number" id="importLimit" value="300" min="10" max="1000" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                </div>
+                
+                <!-- 导入进度 -->
+                <div id="importProgress" class="hidden mb-4">
+                    <div class="bg-gray-200 rounded-full h-4">
+                        <div id="importProgressBar" class="bg-purple-600 h-4 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-2 text-center" id="importStatus">准备导入...</p>
+                </div>
+                
+                <!-- 导入结果 -->
+                <div id="importResult" class="hidden mb-4"></div>
+                
+                <!-- 操作按钮 -->
+                <div class="flex gap-3">
+                    <button onclick="startImport()" id="startImportBtn" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition">
+                        <i class="fas fa-play mr-2"></i>开始导入
+                    </button>
+                    <button onclick="closeImportDialog()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-3 rounded-lg font-semibold transition">
+                        取消
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="/static/pattern.js"></script>
+    <script src="/static/pattern-merged.js"></script>
+    
+    <script>
+        // 策略库相关功能
+        let strategies = [];
+        let currentStrategyTab = 'long';
+
+        // 切换主标签页（添加策略库支持）
+        const originalSwitchMainTab = window.switchMainTab;
+        window.switchMainTab = function(tab) {
+            // 调用原始函数（如果存在）
+            if (originalSwitchMainTab) {
+                originalSwitchMainTab(tab);
+            }
+
+            // 更新标签按钮状态
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            if (tab === 'signals') {
+                document.getElementById('signalsTab').classList.add('active');
+                document.getElementById('signalsContent').classList.add('active');
+                document.getElementById('coinPriorityContent').classList.remove('active');
+                document.getElementById('strategiesContent').classList.remove('active');
+            } else if (tab === 'coinPriority') {
+                document.getElementById('coinPriorityTab').classList.add('active');
+                document.getElementById('coinPriorityContent').classList.add('active');
+                document.getElementById('signalsContent').classList.remove('active');
+                document.getElementById('strategiesContent').classList.remove('active');
+            } else if (tab === 'strategies') {
+                document.getElementById('strategiesTab').classList.add('active');
+                document.getElementById('strategiesContent').classList.add('active');
+                document.getElementById('signalsContent').classList.remove('active');
+                document.getElementById('coinPriorityContent').classList.remove('active');
+                // 加载策略数据
+                loadStrategies();
+            }
+        };
+
+        // 切换策略类型标签页
+        window.switchStrategyTab = function(type) {
+            currentStrategyTab = type;
+            
+            // 更新标签按钮
+            document.getElementById('strategyLongTab').classList.toggle('active', type === 'long');
+            document.getElementById('strategyShortTab').classList.toggle('active', type === 'short');
+            
+            // 更新显示内容
+            document.getElementById('strategyLongList').style.display = type === 'long' ? 'block' : 'none';
+            document.getElementById('strategyShortList').style.display = type === 'short' ? 'block' : 'none';
+        };
+
+        // 加载策略列表
+        async function loadStrategies() {
+            try {
+                const response = await fetch('/api/strategies');
+                const data = await response.json();
+                
+                if (data.success) {
+                    strategies = data.strategies || [];
+                    updateStrategyStats();
+                    renderStrategies();
+                }
+            } catch (error) {
+                console.error('加载策略失败:', error);
+            }
+        }
+
+        // 更新统计信息
+        function updateStrategyStats() {
+            const longCount = strategies.filter(s => s.strategy_type === 'long').length;
+            const shortCount = strategies.filter(s => s.strategy_type === 'short').length;
+            
+            document.getElementById('strategyLongCount').textContent = longCount;
+            document.getElementById('strategyShortCount').textContent = shortCount;
+            document.getElementById('strategyTotalCount').textContent = strategies.length;
+        }
+
+        // 渲染策略列表
+        function renderStrategies() {
+            const longStrategies = strategies.filter(s => s.strategy_type === 'long');
+            const shortStrategies = strategies.filter(s => s.strategy_type === 'short');
+
+            document.getElementById('strategyLongList').innerHTML = renderStrategyCards(longStrategies, 'long');
+            document.getElementById('strategyShortList').innerHTML = renderStrategyCards(shortStrategies, 'short');
+        }
+
+        // 渲染策略卡片
+        function renderStrategyCards(strategyList, type) {
+            if (strategyList.length === 0) {
+                return `
+                    <div class="bg-white rounded-lg shadow-md p-12 text-center">
+                        <i class="fas fa-inbox text-6xl text-gray-300 mb-4"></i>
+                        <p class="text-gray-500">暂无${type === 'long' ? '做多' : '做空'}策略</p>
+                        <button onclick="openStrategyModal('create', '${type}')" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition">
+                            <i class="fas fa-plus mr-2"></i>创建第一个策略
+                        </button>
+                    </div>
+                `;
+            }
+
+            return strategyList.map(strategy => {
+                const priorityText = {high: '高优先级', medium: '中优先级', low: '低优先级'}[strategy.priority];
+                const priorityColor = {high: 'priority-high', medium: 'priority-medium', low: 'priority-low'}[strategy.priority];
+                const holdingText = strategy.max_holding_periods === 0 ? '不限制' : `${strategy.max_holding_periods}K线`;
+                
+                return `
+                    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 ${type === 'long' ? 'border-green-500' : 'border-red-500'}">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <h3 class="text-xl font-bold text-gray-800">${strategy.strategy_name}</h3>
+                                    <span class="priority-badge ${priorityColor}">${priorityText}</span>
+                                    <span class="${strategy.is_enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'} px-3 py-1 rounded-full text-xs font-semibold">
+                                        ${strategy.is_enabled ? '已启用' : '已禁用'}
+                                    </span>
+                                </div>
+                                ${strategy.description ? `<p class="text-sm text-gray-600 mb-3">${strategy.description}</p>` : ''}
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="editStrategy(${strategy.id})" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition text-sm">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button onclick="deleteStrategy(${strategy.id})" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition text-sm">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <!-- 买点信息 -->
+                            <div class="bg-green-50 p-3 rounded-lg">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <i class="fas fa-sign-in-alt text-green-600"></i>
+                                    <span class="font-semibold text-gray-700">买点</span>
+                                </div>
+                                <p class="text-sm text-gray-600">${strategy.entry_signal_type || '-'}</p>
+                                <p class="text-xs text-gray-500">${strategy.entry_signal_keyword || ''}</p>
+                            </div>
+
+                            <!-- 卖点信息（支持多个） -->
+                            <div class="bg-red-50 p-3 rounded-lg">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <i class="fas fa-sign-out-alt text-red-600"></i>
+                                    <span class="font-semibold text-gray-700">卖点</span>
+                                </div>
+                                ${(() => {
+                                    try {
+                                        if (strategy.exit_signals_json) {
+                                            const exitSignals = JSON.parse(strategy.exit_signals_json);
+                                            if (exitSignals.length > 1) {
+                                                return `<p class="text-xs text-gray-600">多卖点 (${exitSignals.length}个):</p>` +
+                                                       exitSignals.slice(0, 3).map(s => `<span class="inline-block bg-red-200 text-red-800 px-2 py-0.5 rounded text-xs mr-1 mt-1">${s}</span>`).join('') +
+                                                       (exitSignals.length > 3 ? '<span class="text-xs text-gray-500">...</span>' : '');
+                                            }
+                                        }
+                                        return `<p class="text-sm text-gray-600">${strategy.exit_signal_type || '-'}</p>`;
+                                    } catch (e) {
+                                        return `<p class="text-sm text-gray-600">${strategy.exit_signal_type || '-'}</p>`;
+                                    }
+                                })()}
+                                <p class="text-xs text-gray-500">${strategy.exit_signal_keyword || ''}</p>
+                            </div>
+
+                            <!-- 仓位管理 -->
+                            <div class="bg-blue-50 p-3 rounded-lg">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <i class="fas fa-chart-pie text-blue-600"></i>
+                                    <span class="font-semibold text-gray-700">仓位管理</span>
+                                </div>
+                                <p class="text-xs text-gray-600">分${strategy.position_splits}次买入，间隔${strategy.split_interval_pct}%</p>
+                                <p class="text-xs text-gray-600">持仓周期: ${holdingText}</p>
+                            </div>
+                        </div>
+                        
+                        <!-- 止盈止损和其他条件 -->
+                        ${(strategy.take_profit_pct || strategy.stop_loss_pct || strategy.daily_gain_condition_value || strategy.allowed_coin_levels) ? `
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                            ${strategy.take_profit_pct || strategy.stop_loss_pct ? `
+                            <div class="bg-yellow-50 p-3 rounded-lg border-l-4 border-yellow-400">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <i class="fas fa-shield-alt text-yellow-600"></i>
+                                    <span class="font-semibold text-gray-700">止盈止损</span>
+                                </div>
+                                ${strategy.take_profit_pct ? `<p class="text-xs text-green-700">止盈: +${strategy.take_profit_pct}%</p>` : ''}
+                                ${strategy.stop_loss_pct ? `<p class="text-xs text-red-700">止损: -${strategy.stop_loss_pct}%</p>` : ''}
+                            </div>
+                            ` : ''}
+                            ${strategy.daily_gain_condition_value ? `
+                            <div class="bg-orange-50 p-3 rounded-lg">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <i class="fas fa-chart-line text-orange-600"></i>
+                                    <span class="font-semibold text-gray-700">涨幅条件</span>
+                                </div>
+                                <p class="text-xs text-gray-600">当日涨幅${strategy.daily_gain_condition_operator === 'greater_than' ? '>' : '<'}${strategy.daily_gain_condition_value}%</p>
+                            </div>
+                            ` : ''}
+                            ${strategy.allowed_coin_levels ? `
+                            <div class="bg-purple-50 p-3 rounded-lg">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <i class="fas fa-filter text-purple-600"></i>
+                                    <span class="font-semibold text-gray-700">级别过滤</span>
+                                </div>
+                                <p class="text-xs text-gray-600">仅${JSON.parse(strategy.allowed_coin_levels).join('、')}级币种</p>
+                            </div>
+                            ` : ''}
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 打开策略模态框
+        // 加载信号列表到下拉框
+        // 全局变量存储信号数据，便于多个下拉框共享
+        let cachedLongSignals = [];
+        let cachedShortSignals = [];
+        let exitSignalDropdownCount = 1; // 当前卖点下拉框数量
+        
+        async function loadSignalsToDropdown(strategyType = 'long') {
+            try {
+                console.log('🔄 [loadSignalsToDropdown] 开始执行，策略类型:', strategyType);
+                
+                // 加载做多信号
+                const longResponse = await fetch('/api/signals/long');
+                const longData = await longResponse.json();
+                
+                // 加载做空信号
+                const shortResponse = await fetch('/api/signals/short');
+                const shortData = await shortResponse.json();
+                
+                // API返回的是数组，不是 {success, signals} 对象
+                cachedLongSignals = Array.isArray(longData) ? longData : (longData.signals || []);
+                cachedShortSignals = Array.isArray(shortData) ? shortData : (shortData.signals || []);
+                
+                console.log('📊 处理后的信号数据:', {
+                    strategyType,
+                    longSignalsCount: cachedLongSignals.length,
+                    shortSignalsCount: cachedShortSignals.length
+                });
+                
+                const entrySelect = document.getElementById('entrySignal');
+                
+                if (!entrySelect) {
+                    console.error('❌ 找不到买点信号选择框元素！');
+                    alert('错误：找不到信号选择框元素，请刷新页面重试');
+                    return;
+                }
+                
+                // 清空现有买点选项
+                entrySelect.innerHTML = '<option value="">-- 选择买点信号 --</option>';
+                
+                // 根据策略类型决定显示哪些信号
+                if (strategyType === 'long') {
+                    // 做多策略：买点用做多信号，卖点用做空信号
+                    if (cachedLongSignals.length > 0) {
+                        cachedLongSignals.forEach(signal => {
+                            const option = document.createElement('option');
+                            option.value = signal.signal_name;
+                            option.textContent = `${signal.signal_name}${signal.description ? ' - ' + signal.description : ''}`;
+                            entrySelect.appendChild(option);
+                        });
+                    }
+                } else {
+                    // 做空策略：买点用做空信号，卖点用做多信号
+                    if (cachedShortSignals.length > 0) {
+                        cachedShortSignals.forEach(signal => {
+                            const option = document.createElement('option');
+                            option.value = signal.signal_name;
+                            option.textContent = `${signal.signal_name}${signal.description ? ' - ' + signal.description : ''}`;
+                            entrySelect.appendChild(option);
+                        });
+                    }
+                }
+                
+                // 更新所有卖点下拉框
+                updateAllExitSignalDropdowns(strategyType);
+                
+                const entryCount = entrySelect.options.length - 1;
+                const exitSignals = strategyType === 'long' ? cachedShortSignals : cachedLongSignals;
+                console.log(`✅ 信号加载完成！买点: ${entryCount}个, 卖点: ${exitSignals.length}个`);
+                
+                // 如果没有加载到任何信号，显示警告
+                if (entryCount === 0 || exitSignals.length === 0) {
+                    alert(`⚠️ 警告：信号加载不完整！\n买点信号: ${entryCount}个\n卖点信号: ${exitSignals.length}个\n请检查交易信号库是否有数据`);
+                }
+            } catch (error) {
+                console.error('❌ 加载信号列表失败:', error);
+                alert(`加载信号失败: ${error.message}\n请查看浏览器控制台获取详细信息`);
+            }
+        }
+        
+        // 更新所有卖点下拉框的选项
+        function updateAllExitSignalDropdowns(strategyType) {
+            const exitSelects = document.querySelectorAll('.exit-signal-select');
+            const exitSignals = strategyType === 'long' ? cachedShortSignals : cachedLongSignals;
+            
+            exitSelects.forEach(select => {
+                const currentValue = select.value; // 保存当前选中的值
+                select.innerHTML = '<option value="">-- 选择卖点信号 --</option>';
+                
+                exitSignals.forEach(signal => {
+                    const option = document.createElement('option');
+                    option.value = signal.signal_name;
+                    option.textContent = `${signal.signal_name}${signal.description ? ' - ' + signal.description : ''}`;
+                    select.appendChild(option);
+                });
+                
+                // 尝试恢复之前的选择
+                if (currentValue && Array.from(select.options).some(opt => opt.value === currentValue)) {
+                    select.value = currentValue;
+                }
+                
+                // 添加change事件监听
+                select.removeEventListener('change', checkStopLossTakeProfitSignal); // 先移除避免重复
+                select.addEventListener('change', checkStopLossTakeProfitSignal);
+            });
+        }
+        
+        // 添加卖点下拉框
+        function addExitSignalDropdown() {
+            if (exitSignalDropdownCount >= 10) {
+                alert('最多只能添加10个卖点！');
+                return;
+            }
+            
+            exitSignalDropdownCount++;
+            const container = document.getElementById('exitSignalsContainer');
+            const strategyType = document.getElementById('strategyType').value;
+            const exitSignals = strategyType === 'long' ? cachedShortSignals : cachedLongSignals;
+            
+            const group = document.createElement('div');
+            group.className = 'exit-signal-group flex items-center gap-2';
+            group.innerHTML = `
+                <label class="text-sm font-medium text-gray-700 w-20">卖点 ${exitSignalDropdownCount}:</label>
+                <select class="exit-signal-select flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
+                    <option value="">-- 选择卖点信号 --</option>
+                    ${exitSignals.map(signal => `
+                        <option value="${signal.signal_name}">
+                            ${signal.signal_name}${signal.description ? ' - ' + signal.description : ''}
+                        </option>
+                    `).join('')}
+                </select>
+                <button type="button" onclick="removeExitSignalDropdown(this)" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm transition">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            container.appendChild(group);
+            
+            // 为新添加的下拉框添加事件监听
+            const newSelect = group.querySelector('.exit-signal-select');
+            newSelect.addEventListener('change', checkStopLossTakeProfitSignal);
+            
+            // 更新删除按钮状态
+            updateRemoveButtonStates();
+        }
+        
+        // 移除卖点下拉框
+        function removeExitSignalDropdown(button) {
+            const group = button.closest('.exit-signal-group');
+            if (group) {
+                group.remove();
+                exitSignalDropdownCount--;
+                
+                // 重新编号
+                const groups = document.querySelectorAll('.exit-signal-group');
+                groups.forEach((g, index) => {
+                    const label = g.querySelector('label');
+                    if (label) {
+                        label.textContent = `卖点 ${index + 1}:`;
+                    }
+                });
+                
+                exitSignalDropdownCount = groups.length;
+                
+                // 更新删除按钮状态
+                updateRemoveButtonStates();
+                
+                // 重新检查止盈止损信号
+                checkStopLossTakeProfitSignal();
+            }
+        }
+        
+        // 更新删除按钮的启用/禁用状态
+        function updateRemoveButtonStates() {
+            const removeButtons = document.querySelectorAll('.exit-signal-group button');
+            removeButtons.forEach(btn => {
+                if (exitSignalDropdownCount <= 1) {
+                    btn.disabled = true;
+                    btn.classList.add('opacity-50', 'cursor-not-allowed');
+                } else {
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            });
+        }
+
+        // 检查是否选择了止盈止损卖点，动态显示配置区域
+        function checkStopLossTakeProfitSignal() {
+            const exitSignals = Array.from(document.querySelectorAll('.exit-signal-select'))
+                .map(select => select.value)
+                .filter(value => value !== ''); // 过滤掉空选项
+            
+            const stopLossSection = document.getElementById('stopLossTakeProfitSection');
+            
+            // 检查是否包含"止盈止损"相关信号（可能的信号名称）
+            const hasStopLossSignal = exitSignals.some(signal => 
+                signal.includes('止盈') || 
+                signal.includes('止损') ||
+                signal.toLowerCase().includes('stop') ||
+                signal.toLowerCase().includes('loss') ||
+                signal.toLowerCase().includes('profit')
+            );
+            
+            if (hasStopLossSignal) {
+                stopLossSection.style.display = 'block';
+                console.log('✅ 检测到止盈止损卖点，显示配置区域');
+            } else {
+                stopLossSection.style.display = 'none';
+                console.log('ℹ️ 未选择止盈止损卖点，隐藏配置区域');
+            }
+        }
+        
+        window.openStrategyModal = function(mode, type = 'long') {
+            console.log('🔵 openStrategyModal被调用！mode:', mode, 'type:', type);
+            document.getElementById('strategyModal').classList.remove('hidden');
+            document.getElementById('strategyModalTitle').textContent = mode === 'create' ? '创建新策略' : '编辑策略';
+            document.getElementById('strategyType').value = type;
+            
+            if (mode === 'create') {
+                document.getElementById('strategyForm').reset();
+                document.getElementById('strategyId').value = '';
+                // 重置时隐藏止盈止损配置
+                document.getElementById('stopLossTakeProfitSection').style.display = 'none';
+            }
+            
+            // 根据策略类型加载对应的信号列表
+            console.log('🔵 准备调用loadSignalsToDropdown，type:', type);
+            loadSignalsToDropdown(type);
+            
+            updateSplitPreview();
+        };
+
+        // 关闭策略模态框
+        window.closeStrategyModal = function() {
+            document.getElementById('strategyModal').classList.add('hidden');
+        };
+
+        // 更新分批预览
+        function updateSplitPreview() {
+            const splits = document.getElementById('positionSplits').value;
+            const interval = document.getElementById('splitInterval').value;
+            document.getElementById('splitPreview').textContent = splits;
+            document.getElementById('intervalPreview').textContent = interval;
+            // 更新第二个预览（如果存在）
+            const intervalPreview2 = document.getElementById('intervalPreview2');
+            if (intervalPreview2) {
+                intervalPreview2.textContent = interval;
+            }
+        }
+
+        // 监听分批参数变化
+        if (document.getElementById('positionSplits')) {
+            document.getElementById('positionSplits').addEventListener('input', updateSplitPreview);
+            document.getElementById('splitInterval').addEventListener('input', updateSplitPreview);
+        }
+
+        // 监听策略类型变化，动态更新信号列表
+        if (document.getElementById('strategyType')) {
+            document.getElementById('strategyType').addEventListener('change', function(e) {
+                const strategyType = e.target.value;
+                loadSignalsToDropdown(strategyType);
+            });
+        }
+
+        // 提交策略表单
+        if (document.getElementById('strategyForm')) {
+            document.getElementById('strategyForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                // 收集选中的卖点信号（从多个下拉框）
+                const exitSignals = Array.from(document.querySelectorAll('.exit-signal-select'))
+                    .map(select => select.value)
+                    .filter(value => value !== ''); // 过滤掉空选项
+                
+                // 验证至少选择一个卖点
+                if (exitSignals.length === 0) {
+                    alert('请至少选择一个卖点信号！');
+                    return;
+                }
+                
+                // 收集选中的币种级别（多选）
+                const coinLevels = Array.from(document.querySelectorAll('input[name="coinLevel"]:checked'))
+                    .map(checkbox => checkbox.value);
+                
+                // 检查是否选择了止盈止损卖点
+                const hasStopLossSignal = exitSignals.some(signal => 
+                    signal.includes('止盈') || signal.includes('止损') ||
+                    signal.toLowerCase().includes('stop') || signal.toLowerCase().includes('loss') || signal.toLowerCase().includes('profit')
+                );
+                
+                // 如果选择了止盈止损，但没有设置百分比，给出警告
+                if (hasStopLossSignal) {
+                    const takeProfitPct = document.getElementById('takeProfitPct').value;
+                    const stopLossPct = document.getElementById('stopLossPct').value;
+                    if (!takeProfitPct && !stopLossPct) {
+                        if (!confirm('您选择了止盈止损卖点，但未设置止盈或止损百分比。\n\n建议至少设置一个，确定要继续吗？')) {
+                            return;
+                        }
+                    }
+                }
+                
+                const strategyData = {
+                    strategy_name: document.getElementById('strategyName').value,
+                    strategy_type: document.getElementById('strategyType').value,
+                    priority: document.getElementById('strategyPriority').value,
+                    is_enabled: parseInt(document.getElementById('strategyEnabled').value),
+                    entry_signal_type: document.getElementById('entrySignal').value,
+                    entry_signal_keyword: document.getElementById('entryKeyword').value,
+                    // 新增：多卖点支持
+                    exit_signals_json: JSON.stringify(exitSignals),
+                    exit_signal_type: exitSignals[0], // 保持向后兼容，存储第一个卖点
+                    exit_signal_keyword: document.getElementById('exitKeyword').value,
+                    // 新增：币种级别过滤
+                    allowed_coin_levels: coinLevels.length > 0 ? JSON.stringify(coinLevels) : null,
+                    // 新增：涨幅条件
+                    daily_gain_condition_operator: document.getElementById('gainConditionOperator').value || null,
+                    daily_gain_condition_value: document.getElementById('gainConditionValue').value ? parseFloat(document.getElementById('gainConditionValue').value) : null,
+                    // 新增：止盈止损百分比
+                    take_profit_pct: document.getElementById('takeProfitPct').value ? parseFloat(document.getElementById('takeProfitPct').value) : null,
+                    stop_loss_pct: document.getElementById('stopLossPct').value ? parseFloat(document.getElementById('stopLossPct').value) : null,
+                    // 仓位管理
+                    position_splits: parseInt(document.getElementById('positionSplits').value),
+                    split_interval_pct: parseFloat(document.getElementById('splitInterval').value),
+                    max_holding_periods: parseInt(document.getElementById('maxHolding').value),
+                    description: document.getElementById('strategyDescription').value
+                };
+
+                try {
+                    const strategyId = document.getElementById('strategyId').value;
+                    const url = strategyId ? `/api/strategies/${strategyId}` : '/api/strategies';
+                    const method = strategyId ? 'PUT' : 'POST';
+
+                    const response = await fetch(url, {
+                        method: method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(strategyData)
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        alert(strategyId ? '策略更新成功！' : '策略创建成功！');
+                        closeStrategyModal();
+                        loadStrategies();
+                    } else {
+                        alert('操作失败：' + result.error);
+                    }
+                } catch (error) {
+                    console.error('保存策略失败:', error);
+                    alert('保存失败，请重试');
+                }
+            });
+        }
+
+        // 编辑策略
+        window.editStrategy = async function(id) {
+            try {
+                const strategy = strategies.find(s => s.id === id);
+                if (!strategy) return;
+
+                document.getElementById('strategyId').value = strategy.id;
+                document.getElementById('strategyName').value = strategy.strategy_name;
+                document.getElementById('strategyType').value = strategy.strategy_type;
+                document.getElementById('strategyPriority').value = strategy.priority;
+                document.getElementById('strategyEnabled').value = strategy.is_enabled;
+                document.getElementById('entrySignal').value = strategy.entry_signal_type || '';
+                document.getElementById('entryKeyword').value = strategy.entry_signal_keyword || '';
+                document.getElementById('exitKeyword').value = strategy.exit_signal_keyword || '';
+                document.getElementById('positionSplits').value = strategy.position_splits;
+                document.getElementById('splitInterval').value = strategy.split_interval_pct;
+                document.getElementById('maxHolding').value = strategy.max_holding_periods;
+                document.getElementById('strategyDescription').value = strategy.description || '';
+                
+                // 填充止盈止损百分比
+                document.getElementById('takeProfitPct').value = strategy.take_profit_pct || '';
+                document.getElementById('stopLossPct').value = strategy.stop_loss_pct || '';
+                
+                // 填充涨幅条件
+                document.getElementById('gainConditionOperator').value = strategy.daily_gain_condition_operator || '';
+                document.getElementById('gainConditionValue').value = strategy.daily_gain_condition_value || '';
+                
+                // 填充币种级别（延迟执行，等待DOM更新）
+                setTimeout(() => {
+                    if (strategy.allowed_coin_levels) {
+                        try {
+                            const levels = JSON.parse(strategy.allowed_coin_levels);
+                            levels.forEach(level => {
+                                const checkbox = document.querySelector(`input[name="coinLevel"][value="${level}"]`);
+                                if (checkbox) checkbox.checked = true;
+                            });
+                        } catch (e) {
+                            console.error('解析币种级别失败:', e);
+                        }
+                    }
+                    
+                    // 填充多卖点（使用下拉框）
+                    if (strategy.exit_signals_json) {
+                        try {
+                            const exitSignals = JSON.parse(strategy.exit_signals_json);
+                            
+                            // 清除现有的卖点下拉框（除了第一个）
+                            const container = document.getElementById('exitSignalsContainer');
+                            container.innerHTML = '';
+                            exitSignalDropdownCount = 0;
+                            
+                            // 为每个卖点创建一个下拉框
+                            exitSignals.forEach((signalName, index) => {
+                                if (index === 0) {
+                                    // 第一个下拉框已存在，直接设置值
+                                    addExitSignalDropdown();
+                                    const firstSelect = container.querySelector('.exit-signal-select');
+                                    if (firstSelect) firstSelect.value = signalName;
+                                } else {
+                                    // 添加额外的下拉框
+                                    addExitSignalDropdown();
+                                    const selects = container.querySelectorAll('.exit-signal-select');
+                                    const lastSelect = selects[selects.length - 1];
+                                    if (lastSelect) lastSelect.value = signalName;
+                                }
+                            });
+                            
+                            // 检查是否需要显示止盈止损配置区域
+                            checkStopLossTakeProfitSignal();
+                        } catch (e) {
+                            console.error('解析多卖点失败:', e);
+                        }
+                    } else if (strategy.exit_signal_type) {
+                        // 向后兼容：如果没有多卖点JSON，使用单个卖点
+                        const firstSelect = document.querySelector('.exit-signal-select');
+                        if (firstSelect) firstSelect.value = strategy.exit_signal_type;
+                        checkStopLossTakeProfitSignal();
+                    }
+                }, 500);
+
+                openStrategyModal('edit', strategy.strategy_type);
+            } catch (error) {
+                console.error('加载策略失败:', error);
+            }
+        };
+
+        // 删除策略
+        window.deleteStrategy = async function(id) {
+            if (!confirm('确定要删除这个策略吗？')) return;
+
+            try {
+                const response = await fetch(`/api/strategies/${id}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('策略删除成功！');
+                    loadStrategies();
+                } else {
+                    alert('删除失败：' + result.error);
+                }
+            } catch (error) {
+                console.error('删除策略失败:', error);
+                alert('删除失败，请重试');
+            }
+        };
+    </script>
 </body>
 </html>

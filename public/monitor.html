@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>监控日志查看 - 北京时间</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                <i class="fas fa-heartbeat text-red-500"></i>
+                监控日志查看器（北京时间）
+            </h1>
+            <p class="text-gray-600">每4分钟自动检查一次系统健康状态</p>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="text-sm text-gray-600">监控进程</div>
+                <div id="processCount" class="text-2xl font-bold text-blue-600">检查中...</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="text-sm text-gray-600">总检查次数</div>
+                <div id="totalChecks" class="text-2xl font-bold text-green-600">-</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="text-sm text-gray-600">上次检查</div>
+                <div id="lastCheck" class="text-lg font-bold text-purple-600">-</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="text-sm text-gray-600">平均间隔</div>
+                <div id="avgInterval" class="text-2xl font-bold text-orange-600">-</div>
+            </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="mb-4 flex gap-4">
+            <button onclick="loadLog()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                <i class="fas fa-sync-alt"></i> 刷新
+            </button>
+            <button onclick="copyLogUrl()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+                <i class="fas fa-copy"></i> 复制链接
+            </button>
+        </div>
+
+        <!-- 说明 -->
+        <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+            <div class="flex items-start">
+                <i class="fas fa-info-circle text-blue-500 mt-1 mr-3"></i>
+                <div>
+                    <p class="font-semibold text-blue-800">监控说明：</p>
+                    <ul class="text-sm text-blue-700 mt-2 space-y-1">
+                        <li>• <strong>检查频率：</strong>每240秒（4分钟）自动检查</li>
+                        <li>• <strong>检查项目：</strong>端口3000、Web服务、数据库、PM2状态</li>
+                        <li>• <strong>自动修复：</strong>检测到异常会自动重启服务</li>
+                        <li>• <strong>时间显示：</strong>所有时间均为北京时间（UTC+8）</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 日志内容 -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h2 class="text-lg font-semibold">
+                    <i class="fas fa-list"></i> 最近10次检查记录
+                </h2>
+                <span id="updateTime" class="text-sm text-gray-500"></span>
+            </div>
+            <div class="p-4">
+                <pre id="logContent" class="bg-gray-900 text-green-400 p-4 rounded text-sm overflow-x-auto max-h-[600px] overflow-y-auto font-mono">加载中...</pre>
+            </div>
+        </div>
+
+        <!-- 原始脚本命令 -->
+        <div class="mt-6 bg-white rounded-lg shadow">
+            <div class="p-4 border-b">
+                <h2 class="text-lg font-semibold">
+                    <i class="fas fa-terminal"></i> SSH查看命令
+                </h2>
+            </div>
+            <div class="p-4">
+                <div class="bg-gray-800 text-gray-200 p-4 rounded">
+                    <code class="text-sm">
+# 查看实时状态<br/>
+/home/user/webapp/scripts/watch-monitor.sh<br/>
+<br/>
+# 查看完整历史<br/>
+/home/user/webapp/scripts/show-monitor-log.sh<br/>
+<br/>
+# 查看原始日志<br/>
+tail -f /home/user/webapp/health-monitor.log
+                    </code>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadLog() {
+            try {
+                // 获取监控进程数
+                const processResp = await fetch('/api/system-status');
+                if (processResp.ok) {
+                    const processData = await processResp.json();
+                    document.getElementById('processCount').textContent = processData.monitorProcesses + ' 个运行中';
+                }
+
+                // 直接获取日志文件（通过简单的文本读取）
+                const logResp = await fetch('/static/monitor-log-view.txt');
+                if (!logResp.ok) {
+                    throw new Error('无法读取日志');
+                }
+                
+                const logText = await logResp.text();
+                const allLines = logText.split('\n');
+                
+                // 找到所有"开始健康检查"的行索引
+                const checkStartIndices = [];
+                allLines.forEach((line, index) => {
+                    if (line.includes('开始健康检查')) {
+                        checkStartIndices.push(index);
+                    }
+                });
+                
+                // 只显示最近10次检查的完整日志
+                let displayText = '';
+                if (checkStartIndices.length > 0) {
+                    const startIndex = checkStartIndices[Math.max(0, checkStartIndices.length - 10)];
+                    displayText = allLines.slice(startIndex).join('\n');
+                } else {
+                    displayText = logText;
+                }
+                
+                document.getElementById('logContent').textContent = displayText;
+                document.getElementById('totalChecks').textContent = checkStartIndices.length;
+                
+                // 显示上次检查时间
+                if (checkStartIndices.length > 0) {
+                    const lastCheckLine = allLines[checkStartIndices[checkStartIndices.length - 1]];
+                    const match = lastCheckLine.match(/\[(.+?)\]/);
+                    if (match) {
+                        document.getElementById('lastCheck').textContent = match[1];
+                    }
+                }
+                
+                // 计算平均间隔（只统计最近10次正常间隔）
+                if (checkStartIndices.length > 1) {
+                    const times = checkStartIndices.slice(-20).map(idx => {
+                        const line = allLines[idx];
+                        const match = line.match(/\[(.+?)\]/);
+                        return match ? new Date(match[1]).getTime() : 0;
+                    }).filter(t => t > 0);
+                    
+                    if (times.length > 1) {
+                        let validDiffs = [];
+                        for (let i = 1; i < times.length; i++) {
+                            const diff = (times[i] - times[i-1]) / 1000;
+                            // 只计算正常间隔：10秒-10分钟之间
+                            if (diff >= 10 && diff <= 600) {
+                                validDiffs.push(diff);
+                            }
+                        }
+                        
+                        // 取最近10个有效间隔计算平均值
+                        if (validDiffs.length > 0) {
+                            const recent = validDiffs.slice(-10);
+                            const avg = Math.round(recent.reduce((a,b) => a+b, 0) / recent.length);
+                            const color = (avg >= 210 && avg <= 270) ? 'text-green-600' : 'text-red-600';
+                            document.getElementById('avgInterval').className = `text-2xl font-bold ${color}`;
+                            document.getElementById('avgInterval').textContent = avg + '秒';
+                        }
+                    }
+                }
+                
+                document.getElementById('updateTime').textContent = '更新于: ' + new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+                
+            } catch (error) {
+                document.getElementById('logContent').textContent = '❌ 加载失败: ' + error.message + '\n\n请使用SSH命令查看:\ntail -50 /home/user/webapp/health-monitor.log';
+            }
+        }
+
+        function copyLogUrl() {
+            const url = window.location.href;
+            navigator.clipboard.writeText(url).then(() => {
+                alert('✅ 链接已复制到剪贴板！');
+            });
+        }
+
+        // 每30秒自动刷新
+        loadLog();
+        setInterval(loadLog, 30000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>监控日志查看 - 加密货币监控系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <!-- 标题 -->
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                <i class="fas fa-heartbeat text-red-500"></i>
+                监控日志查看
+            </h1>
+            <p class="text-gray-600">实时查看系统健康检查记录（北京时间）</p>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="text-sm text-gray-600">总检查次数</div>
+                <div id="totalChecks" class="text-2xl font-bold text-blue-600">-</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="text-sm text-gray-600">平均间隔</div>
+                <div id="avgInterval" class="text-2xl font-bold text-green-600">-</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="text-sm text-gray-600">上次检查</div>
+                <div id="lastCheck" class="text-2xl font-bold text-purple-600">-</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="text-sm text-gray-600">下次检查</div>
+                <div id="nextCheck" class="text-2xl font-bold text-orange-600">-</div>
+            </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="mb-4 flex gap-4">
+            <button onclick="loadLog()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                <i class="fas fa-sync-alt"></i> 刷新
+            </button>
+            <button onclick="toggleAutoRefresh()" id="autoRefreshBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+                <i class="fas fa-play"></i> 启动自动刷新
+            </button>
+            <select id="lineCount" onchange="loadLog()" class="border rounded px-4 py-2">
+                <option value="50">显示50条</option>
+                <option value="100" selected>显示100条</option>
+                <option value="200">显示200条</option>
+                <option value="500">显示500条</option>
+            </select>
+        </div>
+
+        <!-- 日志表格 -->
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="p-4 border-b">
+                <h2 class="text-lg font-semibold">
+                    <i class="fas fa-list"></i> 检查记录
+                </h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">序号</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">检查时间（北京时间）</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">距上次（秒）</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">状态</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">结果</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logTable" class="divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+                                <i class="fas fa-spinner fa-spin"></i> 加载中...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 原始日志 -->
+        <div class="mt-6 bg-white rounded-lg shadow">
+            <div class="p-4 border-b">
+                <h2 class="text-lg font-semibold">
+                    <i class="fas fa-file-alt"></i> 原始日志
+                </h2>
+            </div>
+            <div class="p-4">
+                <pre id="rawLog" class="bg-gray-900 text-green-400 p-4 rounded text-xs overflow-x-auto max-h-96">加载中...</pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let autoRefreshInterval = null;
+
+        async function loadLog() {
+            try {
+                // 从静态JSON文件读取（每4分钟更新一次）
+                const response = await fetch('/static/monitor-log.json?t=' + Date.now());
+                const data = await response.json();
+
+                // 更新统计信息
+                document.getElementById('totalChecks').textContent = data.totalChecks;
+                document.getElementById('avgInterval').textContent = data.avgInterval + '秒';
+                document.getElementById('lastCheck').textContent = data.lastCheck;
+                document.getElementById('nextCheck').textContent = data.nextCheck;
+
+                // 更新表格
+                const tbody = document.getElementById('logTable');
+                tbody.innerHTML = data.checks.map((check, index) => `
+                    <tr class="${check.status === '✅' ? 'bg-green-50' : check.status === '⚠️' ? 'bg-yellow-50' : ''}">
+                        <td class="px-4 py-3 text-sm">${index + 1}</td>
+                        <td class="px-4 py-3 text-sm font-mono">${check.time}</td>
+                        <td class="px-4 py-3 text-sm">${check.interval}</td>
+                        <td class="px-4 py-3 text-sm text-center">${check.status}</td>
+                        <td class="px-4 py-3 text-sm">${check.result}</td>
+                    </tr>
+                `).join('');
+
+                // 更新原始日志
+                document.getElementById('rawLog').textContent = data.rawLog;
+
+            } catch (error) {
+                console.error('加载日志失败:', error);
+                document.getElementById('logTable').innerHTML = `
+                    <tr>
+                        <td colspan="5" class="px-4 py-8 text-center text-red-500">
+                            <i class="fas fa-exclamation-triangle"></i> 加载失败：${error.message}
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        function toggleAutoRefresh() {
+            const btn = document.getElementById('autoRefreshBtn');
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+                btn.innerHTML = '<i class="fas fa-play"></i> 启动自动刷新';
+                btn.className = 'bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded';
+            } else {
+                autoRefreshInterval = setInterval(loadLog, 30000); // 30秒刷新一次
+                btn.innerHTML = '<i class="fas fa-pause"></i> 停止自动刷新';
+                btn.className = 'bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded';
+            }
+        }
+
+        // 页面加载时自动刷新
+        loadLog();
+    </script>
+</body>
+</html>

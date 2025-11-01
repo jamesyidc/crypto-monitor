@@ -163,8 +163,29 @@ function renderStatsCards(latestRound) {
     return;
   }
   
-  // 本轮平均涨跌幅（直接从latestRound.average_change获取，这是后端计算的准确值）
-  let avgChange = latestRound.average_change || 0;
+  // 计算本轮平均涨跌幅（使用本轮相对上一轮的涨跌幅）
+  let avgChange = 0;
+  if (currentData && currentData.coinDetails && currentData.coinDetails.length > 0) {
+    const totalChange = currentData.coinDetails.reduce((sum, coin) => {
+      return sum + (parseFloat(coin.change_percent) || 0);
+    }, 0);
+    avgChange = totalChange / currentData.coinDetails.length;
+    console.log('✅ 平均涨跌幅计算:', {
+      coinCount: currentData.coinDetails.length,
+      totalChange: totalChange.toFixed(4),
+      avgChange: avgChange.toFixed(4),
+      sample: currentData.coinDetails.slice(0, 3).map(c => ({
+        symbol: c.symbol,
+        change_percent: c.change_percent
+      }))
+    });
+  } else {
+    console.warn('⚠️ currentData或coinDetails为空:', {
+      hasCurrentData: !!currentData,
+      hasCoinDetails: currentData?.coinDetails !== undefined,
+      coinDetailsLength: currentData?.coinDetails?.length
+    });
+  }
   
   const cards = [
     {
@@ -172,7 +193,7 @@ function renderStatsCards(latestRound) {
       value: (avgChange >= 0 ? '+' : '') + avgChange.toFixed(2) + '%',
       icon: 'fa-chart-line',
       color: avgChange >= 0 ? 'green' : 'red',
-      detail: `29个币种平均值`
+      detail: `本轮相对上一轮的平均涨跌`
     },
     {
       title: '绿色占比',
@@ -217,16 +238,36 @@ function renderStatsCards(latestRound) {
     }
   ];
   
-  container.innerHTML = cards.map(card => `
-    <div class="bg-white rounded-lg shadow-md p-6">
-      <div class="flex items-center justify-between mb-2">
-        <h3 class="text-gray-600 text-sm font-medium">${card.title}</h3>
-        <i class="fas ${card.icon} text-${card.color}-500"></i>
+  container.innerHTML = cards.map(card => {
+    // 🆕 风险提示卡片特殊处理：添加查看按钮
+    if (card.title === '风险提示') {
+      return `
+        <div class="bg-white rounded-lg shadow-md p-6">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-gray-600 text-sm font-medium">${card.title}</h3>
+            <i class="fas ${card.icon} text-${card.color}-500"></i>
+          </div>
+          <div class="text-2xl font-bold text-gray-800 mb-1">${card.value}</div>
+          <div class="text-xs text-gray-500 mb-3">${card.detail}</div>
+          <a href="/risk-events" class="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors">
+            <i class="fas fa-history mr-1"></i>查看历史
+          </a>
+        </div>
+      `;
+    }
+    
+    // 其他卡片正常渲染
+    return `
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-gray-600 text-sm font-medium">${card.title}</h3>
+          <i class="fas ${card.icon} text-${card.color}-500"></i>
+        </div>
+        <div class="text-2xl font-bold text-gray-800 mb-1">${card.value}</div>
+        <div class="text-xs text-gray-500">${card.detail}</div>
       </div>
-      <div class="text-2xl font-bold text-gray-800 mb-1">${card.value}</div>
-      <div class="text-xs text-gray-500">${card.detail}</div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 // 渲染市场趋势
@@ -251,6 +292,12 @@ function renderMarketTrend(todayStats) {
     totalNewLows += stat.new_low_count || 0;
   });
   
+  // 🆕 计算24小时跌幅>10%的币种数量
+  let change24hOver10DownCount = 0;
+  if (currentData && currentData.coinDetails) {
+    change24hOver10DownCount = currentData.coinDetails.filter(coin => coin.change_24h <= -10).length;
+  }
+  
   // 确定趋势
   let trend = '无序震荡';
   let trendColor = 'gray';
@@ -259,7 +306,12 @@ function renderMarketTrend(todayStats) {
   const highLowDiff = totalNewHighs - totalNewLows;
   const lowHighDiff = totalNewLows - totalNewHighs;
   
-  if (totalSurges >= 10) {
+  // 🆕 优先判断：24小时跌幅>10%的币种≥3，直接判定为单边主跌
+  if (change24hOver10DownCount >= 3) {
+    trend = '单边主跌';
+    trendColor = 'red';
+    stars = '☆☆☆';  // 直接给3颗空心星
+  } else if (totalSurges >= 10) {
     const diff = totalSurges - totalCrashes;
     const ratio = totalCrashes > 0 ? diff / totalCrashes : diff;
     
@@ -311,12 +363,14 @@ function renderMarketTrend(todayStats) {
           <div class="text-3xl font-bold text-red-600">${totalCrashes}</div>
         </div>
         <div class="bg-blue-50 rounded-lg p-4 text-center">
-          <div class="text-sm text-gray-600 mb-1">创新高次数</div>
+          <div class="text-sm text-gray-600 mb-1">距新高轮数</div>
           <div class="text-3xl font-bold text-blue-600">${totalNewHighs}</div>
+          <div class="text-xs text-gray-500 mt-1">各币种累计</div>
         </div>
         <div class="bg-purple-50 rounded-lg p-4 text-center">
-          <div class="text-sm text-gray-600 mb-1">创新低次数</div>
+          <div class="text-sm text-gray-600 mb-1">距新低轮数</div>
           <div class="text-3xl font-bold text-purple-600">${totalNewLows}</div>
+          <div class="text-xs text-gray-500 mt-1">各币种累计</div>
         </div>
       </div>
     </div>
@@ -370,7 +424,7 @@ function renderCoinTable(coinDetails, extremes, priorities) {
   const tbody = document.getElementById('coinTableBody');
   
   if (!coinDetails || coinDetails.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="21" class="text-center py-8 text-gray-500">暂无币种数据</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="22" class="text-center py-8 text-gray-500">暂无币种数据</td></tr>';
     return;
   }
   
@@ -389,16 +443,33 @@ function renderCoinTable(coinDetails, extremes, priorities) {
     let highRatio = '-';
     let lowRatio = '-';
     
+    // 调试日志（仅输出第一个币种）
+    if (index === 0) {
+      console.log('🔍 占比数据调试:', {
+        hasCompareData: !!currentData.compareData,
+        compareDataLength: currentData.compareData?.length,
+        coinSymbol: coin.symbol,
+        hasExtreme: !!extreme
+      });
+    }
+    
     if (currentData.compareData) {
       const compareItem = currentData.compareData.find(c => c.symbol === coin.symbol);
       if (compareItem) {
         highRatio = compareItem.highRatio.toFixed(2);
         lowRatio = compareItem.lowRatio.toFixed(2);
+      } else if (index === 0) {
+        console.warn(`⚠️ ${coin.symbol} 在 compareData 中未找到`);
       }
     } else if (extreme) {
       // 降级方案：如果没有比价数据，使用本地计算
       highRatio = ((coin.price / extreme.all_time_high) * 100).toFixed(2);
       lowRatio = ((coin.price / extreme.all_time_low) * 100).toFixed(2);
+      if (index === 0) {
+        console.log('📊 使用降级方案计算占比:', { highRatio, lowRatio });
+      }
+    } else if (index === 0) {
+      console.error('❌ 既没有 compareData 也没有 extreme 数据');
     }
     
     // 序号
@@ -443,6 +514,14 @@ function renderCoinTable(coinDetails, extremes, priorities) {
     const todayV1Cell = todayV1Count > 0
       ? `<span class="inline-block w-full py-1 px-2 bg-blue-100 text-blue-700 font-bold rounded">${todayV1Count}</span>`
       : '<span class="text-gray-300">0</span>';
+    
+    // 🆕 当天涨幅 - 北京时间今天0点到现在的涨跌幅
+    let changeTodayDisplay = '-';
+    if (coin.change_today !== null && coin.change_today !== undefined) {
+      const changeToday = coin.change_today;
+      const changeTodayClass = changeToday >= 0 ? 'text-green-600' : 'text-red-600';
+      changeTodayDisplay = `<span class="${changeTodayClass} font-bold">${changeToday >= 0 ? '+' : ''}${changeToday.toFixed(2)}%</span>`;
+    }
     
     // 更新时间
     const updateTime = new Date(coin.round_time).toLocaleString('zh-CN', {
@@ -539,6 +618,7 @@ function renderCoinTable(coinDetails, extremes, priorities) {
         <td class="text-center py-2 px-1">${extremeUpCell}</td>
         <td class="text-center py-2 px-1">${extremeDownCell}</td>
         <td class="text-center py-2 px-1">${todayV1Cell}</td>
+        <td class="text-center py-2 px-1 bg-yellow-50 text-xs font-semibold">${changeTodayDisplay}</td>
         <td class="text-right py-2 px-1 text-xs text-gray-600">${updateTime}</td>
         <td class="text-right py-2 px-1 font-mono text-xs text-gray-700">${athPrice}</td>
         <td class="text-right py-2 px-1 text-xs text-gray-600">${athTime}</td>
@@ -579,30 +659,37 @@ function showStatus(message, type) {
 
 // 计算下一个整10分钟的时间戳
 function getNextRoundTime() {
+  // 🔒 核心规则：严格按照北京时间的整10分钟计算（0、10、20、30、40、50分）
+  // 这样确保刷新时间在每小时的固定时间点，与用户预期一致
+  
+  // 获取北京时间（UTC+8）
   const now = new Date();
-  const minutes = now.getMinutes();
-  const seconds = now.getSeconds();
-  const milliseconds = now.getMilliseconds();
+  const beijingTime = new Date(now.getTime() + (8 * 60 * 60 * 1000) + now.getTimezoneOffset() * 60 * 1000);
   
-  // 计算到下一个整10分钟还有多少毫秒
-  const currentRoundMinute = Math.floor(minutes / 10) * 10;
-  const nextRoundMinute = currentRoundMinute + 10;
+  // 获取当前分钟数
+  const currentMinute = beijingTime.getMinutes();
   
-  // 如果下一个整10分钟超过60分钟，需要进入下一小时
-  if (nextRoundMinute >= 60) {
-    const nextHour = new Date(now);
-    nextHour.setHours(nextHour.getHours() + 1);
-    nextHour.setMinutes(0);
-    nextHour.setSeconds(0);
-    nextHour.setMilliseconds(0);
-    return nextHour.getTime();
+  // 计算下一个整10分钟的分钟数
+  const nextMinute = Math.ceil((currentMinute + 1) / 10) * 10;
+  
+  // 创建下一个时间点
+  const nextTime = new Date(beijingTime);
+  
+  if (nextMinute >= 60) {
+    // 如果超过60分钟，进入下一小时
+    nextTime.setHours(nextTime.getHours() + 1);
+    nextTime.setMinutes(0);
   } else {
-    const nextRound = new Date(now);
-    nextRound.setMinutes(nextRoundMinute);
-    nextRound.setSeconds(0);
-    nextRound.setMilliseconds(0);
-    return nextRound.getTime();
+    nextTime.setMinutes(nextMinute);
   }
+  
+  nextTime.setSeconds(0);
+  nextTime.setMilliseconds(0);
+  
+  // 转换回本地时间
+  const localNextTime = new Date(nextTime.getTime() - (8 * 60 * 60 * 1000) - now.getTimezoneOffset() * 60 * 1000);
+  
+  return localNextTime.getTime();
 }
 
 // 启动自动刷新
@@ -713,11 +800,14 @@ function startCountdown() {
   
   // 更新倒计时
   countdownInterval = setInterval(() => {
-    if (!isAutoRunning || !nextAnalysisTime) {
+    if (!isAutoRunning) {
       return;
     }
     
-    const remaining = nextAnalysisTime - Date.now();
+    // 🔒 动态计算下一个整10分钟时间，确保页面刷新后倒计时不重置
+    const dynamicNextTime = getNextRoundTime();
+    const remaining = dynamicNextTime - Date.now();
+    
     if (remaining <= 0) {
       document.getElementById('countdown').textContent = '分析中...';
       return;

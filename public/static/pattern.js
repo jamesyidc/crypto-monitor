@@ -1,1057 +1,500 @@
-// 特征库管理系统 - 策略池
-// 包含：全局交易策略、交易规则、支撑线管理、币种优先级
+// Signal Library Management JavaScript
+// Manages long signals, short signals, and coin level history
 
-let currentTab = 'strategies';
-let strategiesData = [];
-let rulesData = [];
-let supportData = [];
-let priorityData = [];
-let modifiedRules = new Set();
-let modifiedSupport = new Set();
+let currentSignalType = null; // 'long' or 'short'
+let editingSignalId = null;
 
-// ========================================
-// 页面初始化
-// ========================================
-
+// Initialize page
 document.addEventListener('DOMContentLoaded', () => {
-  // 加载全局策略卡片
-  loadStrategiesCard();
-  // 默认加载策略详情标签
-  switchTab('strategies');
+    loadSignalStatistics();
+    loadLongSignals();
+    loadShortSignals();
+    loadLevelHistory();
+    
+    // Setup event listeners
+    document.getElementById('addLongSignalBtn')?.addEventListener('click', () => openSignalModal('long'));
+    document.getElementById('addShortSignalBtn')?.addEventListener('click', () => openSignalModal('short'));
+    document.getElementById('closeModalBtn')?.addEventListener('click', closeSignalModal);
+    document.getElementById('signalForm')?.addEventListener('submit', handleSignalSubmit);
+    
+    // Close modal on background click
+    document.getElementById('signalModal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'signalModal') {
+            closeSignalModal();
+        }
+    });
+    
+    // Auto-refresh level history every 5 minutes
+    setInterval(loadLevelHistory, 5 * 60 * 1000);
 });
 
-// ========================================
-// 标签切换
-// ========================================
-
-function switchTab(tab) {
-  currentTab = tab;
-  
-  // 更新标签样式
-  document.querySelectorAll('[id^="tab"]').forEach(btn => {
-    btn.className = 'px-6 py-3 font-bold text-gray-500';
-  });
-  
-  // 隐藏所有内容
-  document.getElementById('strategiesContent').classList.add('hidden');
-  document.getElementById('rulesContent').classList.add('hidden');
-  document.getElementById('supportContent').classList.add('hidden');
-  document.getElementById('priorityContent').classList.add('hidden');
-  document.getElementById('consecutiveContent').classList.add('hidden');
-  
-  if (tab === 'strategies') {
-    document.getElementById('tabStrategies').className = 'px-6 py-3 font-bold text-purple-600 border-b-2 border-purple-600';
-    document.getElementById('strategiesContent').classList.remove('hidden');
-    loadStrategiesDetail();
-  } else if (tab === 'rules') {
-    document.getElementById('tabRules').className = 'px-6 py-3 font-bold text-blue-600 border-b-2 border-blue-600';
-    document.getElementById('rulesContent').classList.remove('hidden');
-    loadTradingRules();
-  } else if (tab === 'support') {
-    document.getElementById('tabSupport').className = 'px-6 py-3 font-bold text-green-600 border-b-2 border-green-600';
-    document.getElementById('supportContent').classList.remove('hidden');
-    loadSupportLines();
-  } else if (tab === 'priority') {
-    document.getElementById('tabPriority').className = 'px-6 py-3 font-bold text-orange-600 border-b-2 border-orange-600';
-    document.getElementById('priorityContent').classList.remove('hidden');
-    loadPriority();
-  } else if (tab === 'consecutive') {
-    document.getElementById('tabConsecutive').className = 'px-6 py-3 font-bold text-red-600 border-b-2 border-red-600';
-    document.getElementById('consecutiveContent').classList.remove('hidden');
-    loadConsecutiveRise();
-  }
-}
-
-// ========================================
-// 全局交易策略管理
-// ========================================
-
-async function loadStrategiesCard() {
-  try {
-    const response = await fetch('/api/trading-strategies');
-    const data = await response.json();
-    
-    if (data.success) {
-      strategiesData = data.strategies;
-      renderStrategiesCard(strategiesData);
-    }
-  } catch (error) {
-    console.error('加载策略失败:', error);
-    showError('加载策略失败');
-  }
-}
-
-function renderStrategiesCard(strategies) {
-  const grid = document.getElementById('strategiesGrid');
-  
-  if (!strategies || strategies.length === 0) {
-    grid.innerHTML = '<div class="col-span-full text-center py-8">暂无策略配置</div>';
-    return;
-  }
-  
-  const strategyIcons = {
-    'SIGNAL_BASED': 'fa-bolt',
-    'RSI': 'fa-chart-line',
-    'MACD': 'fa-wave-square',
-    'MA': 'fa-arrows-alt-h'
-  };
-  
-  grid.innerHTML = strategies.map(s => `
-    <div class="bg-white/20 backdrop-blur rounded-lg p-4 hover:bg-white/30 transition cursor-pointer" onclick="viewStrategyDetail(${s.id})">
-      <div class="flex items-center justify-between mb-2">
-        <div class="flex items-center gap-2">
-          <i class="fas ${strategyIcons[s.strategy_type] || 'fa-cog'} text-2xl"></i>
-          <span class="font-bold">${s.strategy_name}</span>
-        </div>
-        <div class="text-xs px-2 py-1 rounded ${s.is_active ? 'bg-green-500' : 'bg-gray-500'}">
-          ${s.is_active ? '启用' : '禁用'}
-        </div>
-      </div>
-      <p class="text-sm text-white/80">${s.description || '暂无描述'}</p>
-      <div class="mt-2 text-xs text-white/60">
-        类型: ${s.strategy_type}
-      </div>
-    </div>
-  `).join('');
-}
-
-async function loadStrategiesDetail() {
-  try {
-    const response = await fetch('/api/trading-strategies');
-    const data = await response.json();
-    
-    if (data.success) {
-      strategiesData = data.strategies;
-      renderStrategiesDetail(strategiesData);
-    }
-  } catch (error) {
-    console.error('加载策略详情失败:', error);
-    showError('加载策略详情失败');
-  }
-}
-
-function renderStrategiesDetail(strategies) {
-  const container = document.getElementById('strategiesDetailList');
-  
-  if (!strategies || strategies.length === 0) {
-    container.innerHTML = '<div class="text-center py-8 text-gray-500">暂无策略配置</div>';
-    return;
-  }
-  
-  const strategyIcons = {
-    'SIGNAL_BASED': 'fa-bolt',
-    'RSI': 'fa-chart-line',
-    'MACD': 'fa-wave-square',
-    'MA': 'fa-arrows-alt-h'
-  };
-  
-  const strategyColors = {
-    'SIGNAL_BASED': 'blue',
-    'RSI': 'green',
-    'MACD': 'purple',
-    'MA': 'orange'
-  };
-  
-  container.innerHTML = strategies.map(s => {
-    const color = strategyColors[s.strategy_type] || 'gray';
-    let config = {};
+// Load signal statistics
+async function loadSignalStatistics() {
     try {
-      config = s.config ? JSON.parse(s.config) : {};
+        const [longResponse, shortResponse] = await Promise.all([
+            fetch('/api/signals/long'),
+            fetch('/api/signals/short')
+        ]);
+        
+        const longSignals = await longResponse.json();
+        const shortSignals = await shortResponse.json();
+        
+        const longCount = Array.isArray(longSignals) ? longSignals.length : 0;
+        const shortCount = Array.isArray(shortSignals) ? shortSignals.length : 0;
+        
+        document.getElementById('longSignalCount').textContent = longCount;
+        document.getElementById('shortSignalCount').textContent = shortCount;
+        document.getElementById('totalSignalCount').textContent = longCount + shortCount;
+    } catch (error) {
+        console.error('Failed to load signal statistics:', error);
+        document.getElementById('longSignalCount').textContent = '0';
+        document.getElementById('shortSignalCount').textContent = '0';
+        document.getElementById('totalSignalCount').textContent = '0';
+    }
+}
+
+// Load long signals
+async function loadLongSignals() {
+    const listContainer = document.getElementById('longSignalsList');
+    listContainer.innerHTML = '<div class="text-center py-4">加载中...</div>';
+    
+    try {
+        const response = await fetch('/api/signals/long');
+        if (!response.ok) throw new Error('Failed to load long signals');
+        
+        const signals = await response.json();
+        
+        if (!Array.isArray(signals) || signals.length === 0) {
+            listContainer.innerHTML = '<div class="text-center py-4 text-gray-500">暂无做多信号</div>';
+            return;
+        }
+        
+        listContainer.innerHTML = signals.map(signal => renderSignalCard(signal, 'long')).join('');
+        
+        // Attach event listeners
+        signals.forEach(signal => {
+            // 交易操作按钮
+            document.getElementById(`open-${signal.id}`)?.addEventListener('click', () => openPositionFromSignal(signal, 'long'));
+            document.getElementById(`close-${signal.id}`)?.addEventListener('click', () => closePositionFromSignal(signal, 'long'));
+            // 管理按钮
+            document.getElementById(`edit-${signal.id}`)?.addEventListener('click', () => editSignal(signal));
+            document.getElementById(`delete-${signal.id}`)?.addEventListener('click', () => deleteSignal(signal.id, signal.signal_name));
+            document.getElementById(`toggle-${signal.id}`)?.addEventListener('change', (e) => toggleSignal(signal.id, e.target.checked));
+        });
+    } catch (error) {
+        console.error('Failed to load long signals:', error);
+        listContainer.innerHTML = '<div class="text-center py-4 text-red-500">加载失败</div>';
+    }
+}
+
+// Load short signals
+async function loadShortSignals() {
+    const listContainer = document.getElementById('shortSignalsList');
+    listContainer.innerHTML = '<div class="text-center py-4">加载中...</div>';
+    
+    try {
+        const response = await fetch('/api/signals/short');
+        if (!response.ok) throw new Error('Failed to load short signals');
+        
+        const signals = await response.json();
+        
+        if (!Array.isArray(signals) || signals.length === 0) {
+            listContainer.innerHTML = '<div class="text-center py-4 text-gray-500">暂无做空信号</div>';
+            return;
+        }
+        
+        listContainer.innerHTML = signals.map(signal => renderSignalCard(signal, 'short')).join('');
+        
+        // Attach event listeners
+        signals.forEach(signal => {
+            // 交易操作按钮
+            document.getElementById(`open-${signal.id}`)?.addEventListener('click', () => openPositionFromSignal(signal, 'short'));
+            document.getElementById(`close-${signal.id}`)?.addEventListener('click', () => closePositionFromSignal(signal, 'short'));
+            // 管理按钮
+            document.getElementById(`edit-${signal.id}`)?.addEventListener('click', () => editSignal(signal));
+            document.getElementById(`delete-${signal.id}`)?.addEventListener('click', () => deleteSignal(signal.id, signal.signal_name));
+            document.getElementById(`toggle-${signal.id}`)?.addEventListener('change', (e) => toggleSignal(signal.id, e.target.checked));
+        });
+    } catch (error) {
+        console.error('Failed to load short signals:', error);
+        listContainer.innerHTML = '<div class="text-center py-4 text-red-500">加载失败</div>';
+    }
+}
+
+// Render signal card
+function renderSignalCard(signal, type) {
+    const categoryNames = {
+        'convergence': '趋同收敛',
+        'macd_cross': 'MACD交叉',
+        'rsi_oversold': 'RSI超卖',
+        'rsi_overbought': 'RSI超买',
+        'sar_signal': 'SAR信号',
+        'action_hint': '操作提示',
+        'volume_spike': '成交量突破',
+        'support_resistance': '支撑/阻力',
+        'custom': '自定义'
+    };
+    
+    const bgColor = type === 'long' ? 'bg-green-50' : 'bg-red-50';
+    const borderColor = type === 'long' ? 'border-green-200' : 'border-red-200';
+    const badgeColor = type === 'long' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+    
+    let conditions = {};
+    try {
+        conditions = typeof signal.conditions === 'string' ? JSON.parse(signal.conditions) : signal.conditions;
     } catch (e) {
-      config = {};
+        conditions = {};
     }
     
+    // 根据信号类型确定开仓/平仓按钮的颜色和文字
+    const openBtnColor = type === 'long' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700';
+    const closeBtnColor = type === 'long' ? 'bg-green-700 hover:bg-green-800' : 'bg-red-700 hover:bg-red-800';
+    const openBtnText = type === 'long' ? '开多仓' : '开空仓';
+    const closeBtnText = type === 'long' ? '平多仓' : '平空仓';
+    const directionIcon = type === 'long' ? 'fa-arrow-up' : 'fa-arrow-down';
+    
     return `
-      <div class="border-l-4 border-${color}-500 bg-${color}-50 rounded-lg p-4">
-        <div class="flex items-start justify-between">
-          <div class="flex-1">
-            <div class="flex items-center gap-3 mb-2">
-              <i class="fas ${strategyIcons[s.strategy_type] || 'fa-cog'} text-${color}-600 text-xl"></i>
-              <h3 class="text-lg font-bold text-gray-800">${s.strategy_name}</h3>
-              <span class="text-xs px-2 py-1 rounded bg-gray-200 text-gray-700">${s.strategy_type}</span>
-            </div>
-            <p class="text-sm text-gray-600 mb-3">${s.description || '暂无描述'}</p>
-            
-            ${Object.keys(config).length > 0 ? `
-              <div class="bg-white rounded p-3 mb-2">
-                <div class="text-xs font-bold text-gray-500 mb-2">策略配置：</div>
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
-                  ${Object.entries(config).map(([key, value]) => `
-                    <div class="bg-gray-50 px-2 py-1 rounded">
-                      <span class="text-gray-500">${key}:</span>
-                      <span class="font-bold text-gray-800">${Array.isArray(value) ? value.join(', ') : value}</span>
+        <div class="border ${borderColor} ${bgColor} rounded-lg p-4 mb-3">
+            <div class="flex justify-between items-start mb-2">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                        <h3 class="text-lg font-semibold">${signal.signal_name}</h3>
+                        <span class="px-2 py-1 ${badgeColor} rounded text-xs">${categoryNames[signal.category] || signal.category}</span>
+                        <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">优先级: ${signal.priority}</span>
                     </div>
-                  `).join('')}
+                    ${signal.description ? `<p class="text-sm text-gray-600 mb-2">${signal.description}</p>` : ''}
+                    <div class="text-xs text-gray-500">
+                        ${Object.keys(conditions).length > 0 ? `<div class="mt-1">条件: ${JSON.stringify(conditions, null, 2).substring(0, 100)}...</div>` : ''}
+                        ${signal.success_rate ? `<div class="mt-1">成功率: ${(signal.success_rate * 100).toFixed(1)}%</div>` : ''}
+                    </div>
                 </div>
-              </div>
-            ` : ''}
-            
-            <div class="text-xs text-gray-500">
-              创建时间: ${new Date(s.created_at).toLocaleString('zh-CN')}
-              ${s.updated_at !== s.created_at ? ` | 更新: ${new Date(s.updated_at).toLocaleString('zh-CN')}` : ''}
+                <div class="flex items-center gap-2 ml-4">
+                    <!-- 交易操作按钮 -->
+                    <button id="open-${signal.id}" class="${openBtnColor} text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md transition flex items-center gap-1" title="${openBtnText}">
+                        <i class="fas fa-plus-circle"></i>
+                        <i class="fas ${directionIcon}"></i>
+                        <span>${openBtnText}</span>
+                    </button>
+                    <button id="close-${signal.id}" class="${closeBtnColor} text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md transition flex items-center gap-1" title="${closeBtnText}">
+                        <i class="fas fa-times-circle"></i>
+                        <i class="fas ${directionIcon}"></i>
+                        <span>${closeBtnText}</span>
+                    </button>
+                    <!-- 分隔线 -->
+                    <div class="h-8 w-px bg-gray-300 mx-1"></div>
+                    <!-- 管理按钮 -->
+                    <label class="relative inline-flex items-center cursor-pointer" title="启用/禁用">
+                        <input type="checkbox" id="toggle-${signal.id}" class="sr-only peer" ${signal.is_enabled ? 'checked' : ''}>
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                    <button id="edit-${signal.id}" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm">编辑</button>
+                    <button id="delete-${signal.id}" class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm">删除</button>
+                </div>
             </div>
-          </div>
-          
-          <div class="flex flex-col items-end gap-2 ml-4">
-            <button 
-              onclick="toggleStrategy(${s.id}, ${s.is_active ? 0 : 1})"
-              class="px-4 py-2 rounded font-bold transition ${s.is_active ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}">
-              <i class="fas ${s.is_active ? 'fa-pause' : 'fa-play'} mr-1"></i>
-              ${s.is_active ? '禁用' : '启用'}
-            </button>
-            <button 
-              onclick="editStrategy(${s.id})"
-              class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded font-bold transition">
-              <i class="fas fa-edit mr-1"></i>编辑
-            </button>
-          </div>
         </div>
-      </div>
     `;
-  }).join('');
 }
 
-async function toggleStrategy(id, isActive) {
-  if (!confirm(`确定要${isActive ? '启用' : '禁用'}此策略吗？`)) return;
-  
-  try {
-    const response = await fetch(`/api/trading-strategies/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_active: isActive })
-    });
+// Load coin level history
+async function loadLevelHistory() {
+    const tableBody = document.getElementById('levelHistoryTableBody');
+    tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4">加载中...</td></tr>';
     
-    const data = await response.json();
-    if (data.success) {
-      showSuccess(`策略已${isActive ? '启用' : '禁用'}`);
-      await loadStrategiesCard();
-      await loadStrategiesDetail();
-    } else {
-      showError(data.error || '操作失败');
+    try {
+        const response = await fetch('/api/coin-levels');
+        if (!response.ok) throw new Error('Failed to load level history');
+        
+        const history = await response.json();
+        
+        if (!Array.isArray(history) || history.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">暂无等级记录</td></tr>';
+            return;
+        }
+        
+        tableBody.innerHTML = history.map(record => {
+            const reachedDate = new Date(record.reached_at);
+            const expiredDate = new Date(record.expired_at);
+            const now = new Date();
+            const isExpired = now > expiredDate;
+            const statusText = isExpired ? '已过期' : '有效';
+            const statusClass = isExpired ? 'text-gray-500' : 'text-green-600 font-semibold';
+            
+            return `
+                <tr class="${isExpired ? 'opacity-50' : ''}">
+                    <td class="font-medium">${record.symbol}</td>
+                    <td class="text-center">
+                        <span class="px-2 py-1 bg-purple-100 text-purple-800 rounded text-sm">等级 ${record.level}</span>
+                    </td>
+                    <td class="text-sm text-gray-600">${reachedDate.toLocaleString('zh-CN')}</td>
+                    <td class="text-sm text-gray-600">${expiredDate.toLocaleString('zh-CN')}</td>
+                    <td class="text-center ${statusClass}">${statusText}</td>
+                </tr>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Failed to load level history:', error);
+        tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-red-500">加载失败</td></tr>';
     }
-  } catch (error) {
-    console.error('切换策略状态失败:', error);
-    showError('操作失败');
-  }
 }
 
-function editStrategy(id) {
-  const strategy = strategiesData.find(s => s.id === id);
-  if (!strategy) return;
-  
-  const config = strategy.config ? JSON.parse(strategy.config) : {};
-  const configStr = JSON.stringify(config, null, 2);
-  
-  const newConfig = prompt(`编辑策略配置 (JSON格式):\n\n策略: ${strategy.strategy_name}`, configStr);
-  if (!newConfig || newConfig === configStr) return;
-  
-  try {
-    JSON.parse(newConfig); // 验证JSON格式
-    updateStrategyConfig(id, newConfig);
-  } catch (e) {
-    alert('JSON格式错误！请检查后重试。');
-  }
-}
-
-async function updateStrategyConfig(id, config) {
-  try {
-    const response = await fetch(`/api/trading-strategies/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ config })
-    });
+// Open signal modal
+function openSignalModal(type) {
+    currentSignalType = type;
+    editingSignalId = null;
     
-    const data = await response.json();
-    if (data.success) {
-      showSuccess('策略配置已更新');
-      await loadStrategiesCard();
-      await loadStrategiesDetail();
-    } else {
-      showError(data.error || '更新失败');
-    }
-  } catch (error) {
-    console.error('更新策略配置失败:', error);
-    showError('更新失败');
-  }
-}
-
-function viewStrategyDetail(id) {
-  switchTab('strategies');
-  // 平滑滚动到对应策略
-  setTimeout(() => {
-    const element = document.querySelector(`[onclick*="toggleStrategy(${id}"]`)?.closest('.border-l-4');
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      element.classList.add('ring-4', 'ring-purple-300');
-      setTimeout(() => {
-        element.classList.remove('ring-4', 'ring-purple-300');
-      }, 2000);
-    }
-  }, 100);
-}
-
-// ========================================
-// 交易规则管理
-// ========================================
-
-async function loadTradingRules() {
-  try {
-    const response = await fetch('/api/trading-rules');
-    const data = await response.json();
+    const modal = document.getElementById('signalModal');
+    const title = document.getElementById('modalTitle');
+    const form = document.getElementById('signalForm');
     
-    if (data.success) {
-      rulesData = data.rules;
-      renderRulesTable(rulesData);
-      await loadRulesStats();
-    }
-  } catch (error) {
-    console.error('加载交易规则失败:', error);
-    showError('加载交易规则失败');
-  }
-}
-
-async function loadRulesStats() {
-  try {
-    const response = await fetch('/api/trading-rules/stats');
-    const data = await response.json();
+    title.textContent = type === 'long' ? '新增做多信号' : '新增做空信号';
+    form.reset();
+    document.getElementById('signalPriority').value = '50';
+    document.getElementById('signalEnabled').checked = true;
     
-    if (data.success && data.stats) {
-      const stats = data.stats;
-      document.getElementById('statsTotal').textContent = stats.total || 0;
-      document.getElementById('statsTradingAllowed').textContent = stats.trading_allowed || 0;
-      document.getElementById('statsLongAllowed').textContent = stats.long_allowed || 0;
-      document.getElementById('statsShortAllowed').textContent = stats.short_allowed || 0;
-      document.getElementById('statsTradingDisabled').textContent = stats.trading_disabled || 0;
-    }
-  } catch (error) {
-    console.error('加载统计失败:', error);
-  }
+    modal.classList.remove('hidden');
 }
 
-function renderRulesTable(rules) {
-  const tbody = document.getElementById('rulesTableBody');
-  
-  tbody.innerHTML = rules.map(rule => `
-    <tr class="border-b border-gray-100 hover:bg-gray-50">
-      <td class="py-3 px-4 font-bold">${rule.symbol}</td>
-      <td class="py-3 px-4 text-center">
-        <input type="checkbox" 
-               ${rule.trading_allowed ? 'checked' : ''} 
-               onchange="toggleRule('${rule.symbol}', 'trading_allowed')"
-               class="w-5 h-5 text-green-600 cursor-pointer" />
-      </td>
-      <td class="py-3 px-4 text-center">
-        <input type="checkbox" 
-               ${rule.long_allowed ? 'checked' : ''} 
-               onchange="toggleRule('${rule.symbol}', 'long_allowed')"
-               class="w-5 h-5 text-blue-600 cursor-pointer" />
-      </td>
-      <td class="py-3 px-4 text-center">
-        <input type="checkbox" 
-               ${rule.short_allowed ? 'checked' : ''} 
-               onchange="toggleRule('${rule.symbol}', 'short_allowed')"
-               class="w-5 h-5 text-orange-600 cursor-pointer" />
-      </td>
-      <td class="py-3 px-4">
-        <input type="text" 
-               value="${rule.notes || ''}" 
-               onchange="updateRuleNote('${rule.symbol}', this.value)"
-               class="w-full px-2 py-1 border border-gray-300 rounded text-sm" 
-               placeholder="备注..." />
-      </td>
-      <td class="py-3 px-4 text-center">
-        <button onclick="saveRule('${rule.symbol}')" 
-                class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs">
-          保存
-        </button>
-      </td>
-    </tr>
-  `).join('');
+// Close signal modal
+function closeSignalModal() {
+    const modal = document.getElementById('signalModal');
+    modal.classList.add('hidden');
+    currentSignalType = null;
+    editingSignalId = null;
 }
 
-function toggleRule(symbol, field) {
-  const rule = rulesData.find(r => r.symbol === symbol);
-  if (rule) {
-    rule[field] = rule[field] ? 0 : 1;
-    modifiedRules.add(symbol);
-  }
-}
-
-function updateRuleNote(symbol, note) {
-  const rule = rulesData.find(r => r.symbol === symbol);
-  if (rule) {
-    rule.notes = note;
-    modifiedRules.add(symbol);
-  }
-}
-
-async function saveRule(symbol) {
-  const rule = rulesData.find(r => r.symbol === symbol);
-  if (!rule) return;
-  
-  try {
-    const response = await fetch(`/api/trading-rules/${symbol}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        trading_allowed: rule.trading_allowed,
-        long_allowed: rule.long_allowed,
-        short_allowed: rule.short_allowed,
-        notes: rule.notes
-      })
-    });
+// Edit signal
+function editSignal(signal) {
+    currentSignalType = signal.signal_type;
+    editingSignalId = signal.id;
     
-    const data = await response.json();
-    if (data.success) {
-      showSuccess(`${symbol} 规则已保存`);
-      modifiedRules.delete(symbol);
-      await loadRulesStats();
-    } else {
-      showError(`保存失败: ${data.error}`);
+    const modal = document.getElementById('signalModal');
+    const title = document.getElementById('modalTitle');
+    
+    title.textContent = signal.signal_type === 'long' ? '编辑做多信号' : '编辑做空信号';
+    
+    document.getElementById('signalName').value = signal.signal_name;
+    document.getElementById('signalCategory').value = signal.category;
+    document.getElementById('signalDescription').value = signal.description || '';
+    document.getElementById('signalPriority').value = signal.priority;
+    document.getElementById('signalEnabled').checked = signal.is_enabled === 1;
+    
+    let conditionsStr = '';
+    try {
+        const conditions = typeof signal.conditions === 'string' ? JSON.parse(signal.conditions) : signal.conditions;
+        conditionsStr = JSON.stringify(conditions, null, 2);
+    } catch (e) {
+        conditionsStr = signal.conditions || '{}';
     }
-  } catch (error) {
-    console.error('保存规则失败:', error);
-    showError('保存规则失败');
-  }
+    document.getElementById('signalConditions').value = conditionsStr;
+    
+    modal.classList.remove('hidden');
 }
 
-async function saveAllRules() {
-  if (modifiedRules.size === 0) {
-    showInfo('没有需要保存的更改');
-    return;
-  }
-  
-  const updates = Array.from(modifiedRules).map(symbol => {
-    const rule = rulesData.find(r => r.symbol === symbol);
-    return {
-      symbol: rule.symbol,
-      trading_allowed: rule.trading_allowed,
-      long_allowed: rule.long_allowed,
-      short_allowed: rule.short_allowed,
-      notes: rule.notes
+// Handle signal form submit
+async function handleSignalSubmit(e) {
+    e.preventDefault();
+    
+    const name = document.getElementById('signalName').value.trim();
+    const category = document.getElementById('signalCategory').value;
+    const description = document.getElementById('signalDescription').value.trim();
+    const priority = parseInt(document.getElementById('signalPriority').value);
+    const enabled = document.getElementById('signalEnabled').checked;
+    const conditionsStr = document.getElementById('signalConditions').value.trim();
+    
+    // Validate
+    if (!name) {
+        alert('请输入信号名称');
+        return;
+    }
+    
+    if (!category) {
+        alert('请选择信号分类');
+        return;
+    }
+    
+    if (priority < 0 || priority > 100) {
+        alert('优先级必须在 0-100 之间');
+        return;
+    }
+    
+    // Validate JSON
+    let conditions = {};
+    try {
+        conditions = conditionsStr ? JSON.parse(conditionsStr) : {};
+    } catch (e) {
+        alert('条件配置格式错误，请输入有效的 JSON');
+        return;
+    }
+    
+    const signalData = {
+        signal_type: currentSignalType,
+        signal_name: name,
+        category: category,
+        description: description || null,
+        conditions: JSON.stringify(conditions),
+        priority: priority,
+        is_enabled: enabled ? 1 : 0
     };
-  });
-  
-  try {
-    const response = await fetch('/api/trading-rules/batch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ updates })
-    });
     
-    const data = await response.json();
-    if (data.success) {
-      showSuccess(`已保存 ${modifiedRules.size} 个规则`);
-      modifiedRules.clear();
-      await loadRulesStats();
-    } else {
-      showError(`保存失败: ${data.error}`);
+    try {
+        let response;
+        if (editingSignalId) {
+            // Update existing signal
+            response = await fetch(`/api/signals/${editingSignalId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(signalData)
+            });
+        } else {
+            // Create new signal
+            response = await fetch('/api/signals', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(signalData)
+            });
+        }
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to save signal');
+        }
+        
+        closeSignalModal();
+        loadSignalStatistics();
+        
+        if (currentSignalType === 'long') {
+            loadLongSignals();
+        } else {
+            loadShortSignals();
+        }
+        
+        alert(editingSignalId ? '信号更新成功' : '信号创建成功');
+    } catch (error) {
+        console.error('Failed to save signal:', error);
+        alert('保存失败: ' + error.message);
     }
-  } catch (error) {
-    console.error('批量保存失败:', error);
-    showError('批量保存失败');
-  }
 }
 
-async function quickSetReset() {
-  if (!confirm('确定要重置所有规则为允许所有交易吗？')) return;
-  
-  try {
-    const response = await fetch('/api/trading-rules/reset', { method: 'POST' });
-    const data = await response.json();
-    
-    if (data.success) {
-      showSuccess('已重置所有规则');
-      await loadTradingRules();
+// Delete signal
+async function deleteSignal(signalId, signalName) {
+    if (!confirm(`确定要删除信号 "${signalName}" 吗？此操作不可恢复。`)) {
+        return;
     }
-  } catch (error) {
-    showError('重置失败');
-  }
+    
+    try {
+        const response = await fetch(`/api/signals/${signalId}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to delete signal');
+        }
+        
+        loadSignalStatistics();
+        loadLongSignals();
+        loadShortSignals();
+        
+        alert('信号删除成功');
+    } catch (error) {
+        console.error('Failed to delete signal:', error);
+        alert('删除失败: ' + error.message);
+    }
 }
 
-async function quickSetDisableAll() {
-  if (!confirm('确定要禁止所有币种交易吗？')) return;
-  
-  try {
-    const response = await fetch('/api/trading-rules/disable-all', { method: 'POST' });
-    const data = await response.json();
-    
-    if (data.success) {
-      showSuccess('已禁止所有交易');
-      await loadTradingRules();
+// Toggle signal enabled/disabled
+async function toggleSignal(signalId, enabled) {
+    try {
+        const response = await fetch(`/api/signals/${signalId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_enabled: enabled ? 1 : 0 })
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to toggle signal');
+        }
+        
+        // Optional: Show subtle feedback
+        console.log(`Signal ${signalId} ${enabled ? 'enabled' : 'disabled'}`);
+    } catch (error) {
+        console.error('Failed to toggle signal:', error);
+        alert('切换失败: ' + error.message);
+        // Revert checkbox state
+        const checkbox = document.getElementById(`toggle-${signalId}`);
+        if (checkbox) checkbox.checked = !enabled;
     }
-  } catch (error) {
-    showError('操作失败');
-  }
-}
-
-async function quickSetLongOnly() {
-  if (!confirm('确定要设置为仅允许做多吗？')) return;
-  
-  try {
-    const response = await fetch('/api/trading-rules/long-only', { method: 'POST' });
-    const data = await response.json();
-    
-    if (data.success) {
-      showSuccess('已设置为仅允许做多');
-      await loadTradingRules();
-    }
-  } catch (error) {
-    showError('操作失败');
-  }
-}
-
-async function quickSetShortOnly() {
-  if (!confirm('确定要设置为仅允许做空吗？')) return;
-  
-  try {
-    const response = await fetch('/api/trading-rules/short-only', { method: 'POST' });
-    const data = await response.json();
-    
-    if (data.success) {
-      showSuccess('已设置为仅允许做空');
-      await loadTradingRules();
-    }
-  } catch (error) {
-    showError('操作失败');
-  }
 }
 
 // ========================================
-// 支撑线管理
+// 交易操作函数
 // ========================================
 
-async function loadSupportLines() {
-  try {
-    // 并行加载支撑线和机会
-    const [supportResponse, opportunitiesResponse, marketResponse] = await Promise.all([
-      fetch('/api/support-lines'),
-      fetch('/api/support-lines/opportunities'),
-      fetch('/api/trading-rules/market-strategy')
-    ]);
+// 根据信号开仓
+async function openPositionFromSignal(signal, direction) {
+    const directionText = direction === 'long' ? '做多' : '做空';
     
-    const supportData = await supportResponse.json();
-    const opportunitiesData = await opportunitiesResponse.json();
-    const marketData = await marketResponse.json();
+    // 确认对话框
+    const confirmed = confirm(
+        `确认根据信号开仓？\n\n` +
+        `信号: ${signal.signal_name}\n` +
+        `方向: ${directionText}\n` +
+        `分类: ${signal.category}\n` +
+        `优先级: ${signal.priority}\n\n` +
+        `此操作将打开实盘交易页面执行开仓操作。`
+    );
     
-    if (supportData.success) {
-      document.getElementById('supportTotal').textContent = supportData.count;
+    if (!confirmed) return;
+    
+    try {
+        // 将信号信息存储到 localStorage，供实盘交易页面使用
+        const tradingData = {
+            signal: signal,
+            direction: direction,
+            timestamp: Date.now()
+        };
+        localStorage.setItem('pendingTrade', JSON.stringify(tradingData));
+        
+        // 跳转到实盘交易页面
+        window.location.href = `/live-trading?signal=${signal.id}&direction=${direction}`;
+        
+    } catch (error) {
+        console.error('开仓失败:', error);
+        alert('开仓失败: ' + error.message);
     }
+}
+
+// 根据信号平仓
+async function closePositionFromSignal(signal, direction) {
+    const directionText = direction === 'long' ? '多' : '空';
     
-    if (opportunitiesData.success) {
-      document.getElementById('supportOpportunities').textContent = opportunitiesData.total_opportunities;
-      document.getElementById('supportNearCount').textContent = opportunitiesData.near_support_count;
+    // 确认对话框
+    const confirmed = confirm(
+        `确认根据信号平仓？\n\n` +
+        `信号: ${signal.signal_name}\n` +
+        `方向: 平${directionText}仓\n\n` +
+        `将平掉所有${directionText}仓持仓。\n` +
+        `此操作不可撤销！`
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+        // 将信号信息存储到 localStorage
+        const tradingData = {
+            signal: signal,
+            action: 'close',
+            direction: direction,
+            timestamp: Date.now()
+        };
+        localStorage.setItem('pendingTrade', JSON.stringify(tradingData));
+        
+        // 跳转到实盘交易页面
+        window.location.href = `/live-trading?signal=${signal.id}&action=close&direction=${direction}`;
+        
+    } catch (error) {
+        console.error('平仓失败:', error);
+        alert('平仓失败: ' + error.message);
     }
-    
-    if (marketData.success) {
-      document.getElementById('marketStrategy').textContent = marketData.strategy;
-    }
-    
-    await renderSupportTable();
-  } catch (error) {
-    console.error('加载支撑线失败:', error);
-    showError('加载支撑线失败');
-  }
-}
-
-async function renderSupportTable() {
-  try {
-    // 获取等级1-2的币种
-    const priorityResponse = await fetch('/api/coin-priority');
-    const priorityData = await priorityResponse.json();
-    
-    const level12Coins = priorityData.coins.filter(c => c.level <= 2);
-    
-    // 获取当前价格
-    const dashboardResponse = await fetch('/api/dashboard');
-    const dashboardData = await dashboardResponse.json();
-    const priceMap = {};
-    dashboardData.coinDetails.forEach(coin => {
-      priceMap[coin.symbol] = coin.price;
-    });
-    
-    // 获取支撑线
-    const supportResponse = await fetch('/api/support-lines');
-    const supportData = await supportResponse.json();
-    const supportMap = {};
-    supportData.lines.forEach(line => {
-      supportMap[line.symbol] = line;
-    });
-    
-    const tbody = document.getElementById('supportTableBody');
-    tbody.innerHTML = level12Coins.map(coin => {
-      const currentPrice = priceMap[coin.symbol] || 0;
-      const supportLine = supportMap[coin.symbol];
-      const supportPrice = supportLine?.support_price || 0;
-      const distance = supportPrice > 0 ? ((currentPrice - supportPrice) / supportPrice * 100) : 0;
-      const isNear = Math.abs(distance) <= 1;
-      
-      return `
-        <tr class="border-b border-gray-100 hover:bg-gray-50 ${isNear ? 'bg-green-50' : ''}">
-          <td class="py-3 px-4 font-bold">${coin.symbol}</td>
-          <td class="py-3 px-4 text-center">
-            <span class="px-2 py-1 rounded ${coin.level === 1 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}">
-              等级${coin.level}
-            </span>
-          </td>
-          <td class="py-3 px-4 text-center font-mono">${currentPrice.toFixed(4)}</td>
-          <td class="py-3 px-4 text-center">
-            <input type="number" 
-                   value="${supportPrice}" 
-                   onchange="updateSupportPrice('${coin.symbol}', this.value)"
-                   class="w-24 px-2 py-1 border border-gray-300 rounded text-center" 
-                   placeholder="支撑价..." 
-                   step="0.01" />
-          </td>
-          <td class="py-3 px-4 text-center">
-            <span class="font-mono ${isNear ? 'text-green-600 font-bold' : distance > 0 ? 'text-blue-600' : 'text-red-600'}">
-              ${distance > 0 ? '+' : ''}${distance.toFixed(2)}%
-            </span>
-          </td>
-          <td class="py-3 px-4 text-center">
-            ${isNear ? '<span class="px-2 py-1 bg-green-500 text-white rounded text-xs font-bold">低吸机会</span>' : 
-              distance < -5 ? '<span class="px-2 py-1 bg-red-100 text-red-600 rounded text-xs">远低于支撑</span>' :
-              distance > 5 ? '<span class="px-2 py-1 bg-blue-100 text-blue-600 rounded text-xs">高于支撑</span>' :
-              '<span class="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">正常</span>'}
-          </td>
-          <td class="py-3 px-4">
-            <input type="text" 
-                   value="${supportLine?.notes || ''}" 
-                   onchange="updateSupportNote('${coin.symbol}', this.value)"
-                   class="w-full px-2 py-1 border border-gray-300 rounded text-sm" 
-                   placeholder="备注..." />
-          </td>
-          <td class="py-3 px-4 text-center">
-            <button onclick="saveSupport('${coin.symbol}')" 
-                    class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs mr-1">
-              保存
-            </button>
-            ${supportLine ? `
-              <button onclick="deleteSupport('${coin.symbol}')" 
-                      class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs">
-                删除
-              </button>
-            ` : ''}
-          </td>
-        </tr>
-      `;
-    }).join('');
-  } catch (error) {
-    console.error('渲染支撑线表格失败:', error);
-  }
-}
-
-function updateSupportPrice(symbol, price) {
-  // 标记为已修改
-  if (!supportData.find(s => s.symbol === symbol)) {
-    supportData.push({ symbol, support_price: parseFloat(price) });
-  } else {
-    const item = supportData.find(s => s.symbol === symbol);
-    item.support_price = parseFloat(price);
-  }
-  modifiedSupport.add(symbol);
-}
-
-function updateSupportNote(symbol, note) {
-  let item = supportData.find(s => s.symbol === symbol);
-  if (!item) {
-    item = { symbol, notes: note };
-    supportData.push(item);
-  } else {
-    item.notes = note;
-  }
-  modifiedSupport.add(symbol);
-}
-
-async function saveSupport(symbol) {
-  const item = supportData.find(s => s.symbol === symbol);
-  if (!item || !item.support_price) {
-    showError('请输入支撑价格');
-    return;
-  }
-  
-  try {
-    const response = await fetch('/api/support-lines', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        symbol: symbol,
-        support_price: item.support_price,
-        notes: item.notes || ''
-      })
-    });
-    
-    const data = await response.json();
-    if (data.success) {
-      showSuccess(`${symbol} 支撑线已保存`);
-      modifiedSupport.delete(symbol);
-      await loadSupportLines();
-    } else {
-      showError(`保存失败: ${data.error}`);
-    }
-  } catch (error) {
-    console.error('保存支撑线失败:', error);
-    showError('保存支撑线失败');
-  }
-}
-
-async function deleteSupport(symbol) {
-  if (!confirm(`确定要删除 ${symbol} 的支撑线吗？`)) return;
-  
-  try {
-    const response = await fetch(`/api/support-lines/${symbol}`, {
-      method: 'DELETE'
-    });
-    
-    const data = await response.json();
-    if (data.success) {
-      showSuccess(`${symbol} 支撑线已删除`);
-      await loadSupportLines();
-    }
-  } catch (error) {
-    showError('删除失败');
-  }
-}
-
-async function saveAllSupport() {
-  if (modifiedSupport.size === 0) {
-    showInfo('没有需要保存的更改');
-    return;
-  }
-  
-  const lines = Array.from(modifiedSupport).map(symbol => {
-    const item = supportData.find(s => s.symbol === symbol);
-    return {
-      symbol: item.symbol,
-      support_price: item.support_price,
-      notes: item.notes || ''
-    };
-  }).filter(line => line.support_price > 0);
-  
-  try {
-    const response = await fetch('/api/support-lines/batch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lines })
-    });
-    
-    const data = await response.json();
-    if (data.success) {
-      showSuccess(`已保存 ${lines.length} 个支撑线`);
-      modifiedSupport.clear();
-      await loadSupportLines();
-    }
-  } catch (error) {
-    showError('批量保存失败');
-  }
-}
-
-async function clearAllSupport() {
-  if (!confirm('确定要清零今天的所有支撑线吗？此操作不可撤销！')) return;
-  
-  try {
-    const response = await fetch('/api/support-lines/clear', { method: 'POST' });
-    const data = await response.json();
-    
-    if (data.success) {
-      showSuccess(`已清零 ${data.count} 个支撑线`);
-      await loadSupportLines();
-    }
-  } catch (error) {
-    showError('清零失败');
-  }
-}
-
-async function checkOpportunities() {
-  try {
-    const response = await fetch('/api/support-lines/opportunities');
-    const data = await response.json();
-    
-    if (data.success) {
-      if (data.near_support_count === 0) {
-        showInfo('当前没有低吸机会');
-      } else {
-        showSuccess(`发现 ${data.near_support_count} 个低吸机会！`);
-        // 刷新表格高亮显示
-        await renderSupportTable();
-      }
-    }
-  } catch (error) {
-    showError('检查失败');
-  }
-}
-
-// ========================================
-// 币种优先级管理
-// ========================================
-
-async function loadPriority() {
-  try {
-    const [priorityResponse, rulesResponse, supportResponse] = await Promise.all([
-      fetch('/api/coin-priority'),
-      fetch('/api/trading-rules'),
-      fetch('/api/support-lines')
-    ]);
-    
-    const priorityData = await priorityResponse.json();
-    const rulesData = await rulesResponse.json();
-    const supportData = await supportResponse.json();
-    
-    // 统计各等级数量
-    const levels = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    priorityData.coins.forEach(coin => {
-      if (coin.level <= 4) levels[coin.level]++;
-      else levels[5]++;
-    });
-    
-    document.getElementById('level1Count').textContent = levels[1];
-    document.getElementById('level2Count').textContent = levels[2];
-    document.getElementById('level3Count').textContent = levels[3];
-    document.getElementById('level4Count').textContent = levels[4];
-    document.getElementById('level5Count').textContent = levels[5];
-    
-    // 渲染表格
-    renderPriorityTable(priorityData.coins, rulesData.rules, supportData.lines);
-  } catch (error) {
-    console.error('加载优先级失败:', error);
-    showError('加载优先级失败');
-  }
-}
-
-function renderPriorityTable(coins, rules, supportLines) {
-  const tbody = document.getElementById('priorityTableBody');
-  
-  const rulesMap = {};
-  rules.forEach(rule => {
-    rulesMap[rule.symbol] = rule;
-  });
-  
-  const supportMap = {};
-  supportLines.forEach(line => {
-    supportMap[line.symbol] = line;
-  });
-  
-  tbody.innerHTML = coins.map(coin => {
-    const rule = rulesMap[coin.symbol];
-    const support = supportMap[coin.symbol];
-    
-    const levelColor = coin.level === 1 ? 'yellow' : 
-                       coin.level === 2 ? 'green' :
-                       coin.level === 3 ? 'blue' :
-                       coin.level === 4 ? 'orange' : 'gray';
-    
-    return `
-      <tr class="border-b border-gray-100 hover:bg-gray-50">
-        <td class="py-3 px-4 font-bold">${coin.symbol}</td>
-        <td class="py-3 px-4 text-center">
-          <span class="px-3 py-1 bg-${levelColor}-100 text-${levelColor}-800 rounded font-bold">
-            等级 ${coin.level}
-          </span>
-        </td>
-        <td class="py-3 px-4 text-center font-mono">${(coin.low_ratio || 0).toFixed(2)}%</td>
-        <td class="py-3 px-4 text-center font-mono">${(coin.high_ratio || 0).toFixed(2)}%</td>
-        <td class="py-3 px-4 text-center">
-          ${rule?.trading_allowed ? 
-            '<span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">允许交易</span>' :
-            '<span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">禁止交易</span>'}
-        </td>
-        <td class="py-3 px-4 text-center">
-          ${support ? 
-            `<span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-mono">${support.support_price}</span>` :
-            '<span class="text-gray-400 text-xs">未设置</span>'}
-        </td>
-        <td class="py-3 px-4 text-center">
-          <button onclick="switchTab('support')" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs">
-            设置支撑线
-          </button>
-        </td>
-      </tr>
-    `;
-  }).join('');
-}
-
-// ========================================
-// 工具函数
-// ========================================
-
-function showSuccess(message) {
-  showToast(message, 'success');
-}
-
-function showError(message) {
-  showToast(message, 'error');
-}
-
-function showInfo(message) {
-  showToast(message, 'info');
-}
-
-function showToast(message, type) {
-  const bgColor = type === 'success' ? 'bg-green-500' : 
-                  type === 'error' ? 'bg-red-500' : 
-                  'bg-blue-500';
-  const icon = type === 'success' ? 'fa-check-circle' : 
-               type === 'error' ? 'fa-exclamation-circle' : 
-               'fa-info-circle';
-  
-  const toast = document.createElement('div');
-  toast.className = `fixed top-20 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-3`;
-  toast.innerHTML = `
-    <i class="fas ${icon}"></i>
-    <span>${message}</span>
-  `;
-  
-  document.body.appendChild(toast);
-  
-  setTimeout(() => {
-    toast.remove();
-  }, 3000);
-}
-
-// ========================================
-// 连续上涨占优统计
-// ========================================
-
-let currentThreshold = 20;
-
-async function loadConsecutiveRise() {
-  try {
-    await loadConsecutiveOverview();
-    await loadConsecutiveTable(currentThreshold);
-  } catch (error) {
-    console.error('加载连续上涨统计失败:', error);
-    showError('加载失败');
-  }
-}
-
-async function loadConsecutiveOverview() {
-  try {
-    const response = await fetch('/api/consecutive-rise/overview');
-    const data = await response.json();
-    
-    if (data.success && data.overview) {
-      const overview = data.overview;
-      document.getElementById('above20Count').textContent = overview.above_20 || 0;
-      document.getElementById('above30Count').textContent = overview.above_30 || 0;
-      document.getElementById('above40Count').textContent = overview.above_40 || 0;
-      document.getElementById('maxStreakOverall').textContent = overview.max_streak_overall || 0;
-    }
-  } catch (error) {
-    console.error('加载连续上涨概览失败:', error);
-  }
-}
-
-async function loadConsecutiveTable(threshold = 20) {
-  try {
-    const response = await fetch(`/api/consecutive-rise/above-threshold?threshold=${threshold}`);
-    const data = await response.json();
-    
-    if (data.success) {
-      renderConsecutiveTable(data.coins);
-    }
-  } catch (error) {
-    console.error('加载连续上涨表格失败:', error);
-    showError('加载表格失败');
-  }
-}
-
-function renderConsecutiveTable(coins) {
-  const tbody = document.getElementById('consecutiveTableBody');
-  
-  if (!coins || coins.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-500">暂无数据</td></tr>';
-    return;
-  }
-  
-  tbody.innerHTML = coins.map(coin => {
-    const isCurrentlyRising = coin.current_streak > 0;
-    const highRatio = coin.last_high_ratio ? coin.last_high_ratio.toFixed(2) : '-';
-    const lowRatio = coin.last_low_ratio ? coin.last_low_ratio.toFixed(2) : '-';
-    
-    return `
-      <tr class="border-b border-gray-100 hover:bg-gray-50">
-        <td class="py-3 px-4 font-bold">${coin.symbol}</td>
-        <td class="py-3 px-4 text-center">
-          <span class="text-xl font-bold text-red-600">${coin.max_streak || 0}</span>
-          <span class="text-xs text-gray-500">根</span>
-        </td>
-        <td class="py-3 px-4 text-center text-sm text-gray-600">
-          ${coin.max_streak_start_time || '-'}
-        </td>
-        <td class="py-3 px-4 text-center text-sm text-gray-600">
-          ${coin.max_streak_end_time || '-'}
-        </td>
-        <td class="py-3 px-4 text-center">
-          ${isCurrentlyRising 
-            ? `<span class="text-lg font-bold text-green-600">${coin.current_streak}</span>` 
-            : '<span class="text-gray-400">0</span>'}
-          <span class="text-xs text-gray-500">根</span>
-        </td>
-        <td class="py-3 px-4 text-center font-bold text-blue-600">
-          ${highRatio}%
-        </td>
-        <td class="py-3 px-4 text-center font-bold text-orange-600">
-          ${lowRatio}%
-        </td>
-        <td class="py-3 px-4 text-center">
-          ${isCurrentlyRising 
-            ? '<span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">进行中</span>' 
-            : '<span class="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">已中断</span>'}
-        </td>
-      </tr>
-    `;
-  }).join('');
-}
-
-function changeThreshold(threshold) {
-  currentThreshold = parseInt(threshold);
-  loadConsecutiveTable(currentThreshold);
-}
-
-async function analyzeHistory() {
-  if (!confirm('确定要分析今天的K线数据吗？\n\n此操作会：\n1. 清空现有统计数据\n2. 分析今天（0点到现在）的K线\n3. 重新计算今天的连续统计\n\n注意：每天0点自动清零，仅统计当天数据。')) return;
-  
-  try {
-    showInfo('正在分析今天数据，请稍候...');
-    
-    const response = await fetch('/api/consecutive-rise/analyze-history', {
-      method: 'POST'
-    });
-    
-    const data = await response.json();
-    
-    if (data.success) {
-      showSuccess(`分析完成！已处理 ${data.analyzedRounds} 轮K线数据`);
-      await loadConsecutiveRise();
-    } else {
-      showError(data.error || '分析失败');
-    }
-  } catch (error) {
-    console.error('分析历史数据失败:', error);
-    showError('分析失败');
-  }
-}
-
-async function updateConsecutiveStats() {
-  if (!confirm('确定要更新连续上涨统计吗？此操作会计算当前最新K线的统计。')) return;
-  
-  try {
-    showInfo('正在更新统计...');
-    
-    const response = await fetch('/api/consecutive-rise/update', {
-      method: 'POST'
-    });
-    
-    const data = await response.json();
-    
-    if (data.success) {
-      showSuccess(`已更新 ${data.processedCoins} 个币种的统计数据`);
-      await loadConsecutiveRise();
-    } else {
-      showError(data.error || '更新失败');
-    }
-  } catch (error) {
-    console.error('更新连续上涨统计失败:', error);
-    showError('更新失败');
-  }
 }
