@@ -45,6 +45,10 @@ pids/
 *.tar.gz
 *.zip
 
+# Database backups (large files - use external storage)
+db_backups/
+*.sqlite
+
 # OS
 Thumbs.db
 
