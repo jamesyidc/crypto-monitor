@@ -6970,6 +6970,70 @@ app.delete('/api/signals', async (c) => {
   }
 });
 
+// 🆕 API: 获取做多买点信号 (long + entry)
+app.get('/api/signals/long/entry', async (c) => {
+  try {
+    const result = await c.env.DB.prepare(`
+      SELECT * FROM trading_signals_v2
+      WHERE signal_type = 'long' AND entry_exit = 'entry'
+      ORDER BY priority DESC, created_at DESC
+    `).all();
+    
+    return c.json(result.results || []);
+  } catch (error: any) {
+    console.error('❌ 获取做多买点信号失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// 🆕 API: 获取做多卖点信号 (long + exit)
+app.get('/api/signals/long/exit', async (c) => {
+  try {
+    const result = await c.env.DB.prepare(`
+      SELECT * FROM trading_signals_v2
+      WHERE signal_type = 'long' AND entry_exit = 'exit'
+      ORDER BY priority DESC, created_at DESC
+    `).all();
+    
+    return c.json(result.results || []);
+  } catch (error: any) {
+    console.error('❌ 获取做多卖点信号失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// 🆕 API: 获取做空买点信号 (short + entry)
+app.get('/api/signals/short/entry', async (c) => {
+  try {
+    const result = await c.env.DB.prepare(`
+      SELECT * FROM trading_signals_v2
+      WHERE signal_type = 'short' AND entry_exit = 'entry'
+      ORDER BY priority DESC, created_at DESC
+    `).all();
+    
+    return c.json(result.results || []);
+  } catch (error: any) {
+    console.error('❌ 获取做空买点信号失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// 🆕 API: 获取做空卖点信号 (short + exit)
+app.get('/api/signals/short/exit', async (c) => {
+  try {
+    const result = await c.env.DB.prepare(`
+      SELECT * FROM trading_signals_v2
+      WHERE signal_type = 'short' AND entry_exit = 'exit'
+      ORDER BY priority DESC, created_at DESC
+    `).all();
+    
+    return c.json(result.results || []);
+  } catch (error: any) {
+    console.error('❌ 获取做空卖点信号失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
 // API: 获取所有币种等级历史（包括已过期）
 app.get('/api/coin-levels', async (c) => {
   try {

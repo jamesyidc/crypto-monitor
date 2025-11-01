@@ -1336,22 +1336,39 @@
             try {
                 console.log('🔄 [loadSignalsToDropdown] 开始执行，策略类型:', strategyType);
                 
-                // 加载做多信号
-                const longResponse = await fetch('/api/signals/long');
-                const longData = await longResponse.json();
+                // 🆕 使用新的 API 端点，明确区分买点和卖点
+                let entrySignalsResponse, exitSignalsResponse;
                 
-                // 加载做空信号
-                const shortResponse = await fetch('/api/signals/short');
-                const shortData = await shortResponse.json();
+                if (strategyType === 'long') {
+                    // 做多策略：买点 = long/entry, 卖点 = long/exit
+                    entrySignalsResponse = await fetch('/api/signals/long/entry');
+                    exitSignalsResponse = await fetch('/api/signals/long/exit');
+                } else {
+                    // 做空策略：买点 = short/entry, 卖点 = short/exit
+                    entrySignalsResponse = await fetch('/api/signals/short/entry');
+                    exitSignalsResponse = await fetch('/api/signals/short/exit');
+                }
                 
-                // API返回的是数组，不是 {success, signals} 对象
-                cachedLongSignals = Array.isArray(longData) ? longData : (longData.signals || []);
-                cachedShortSignals = Array.isArray(shortData) ? shortData : (shortData.signals || []);
+                const entrySignalsData = await entrySignalsResponse.json();
+                const exitSignalsData = await exitSignalsResponse.json();
+                
+                // 缓存信号数据（用于买点和卖点下拉框）
+                const entrySignals = Array.isArray(entrySignalsData) ? entrySignalsData : (entrySignalsData.signals || []);
+                const exitSignals = Array.isArray(exitSignalsData) ? exitSignalsData : (exitSignalsData.signals || []);
+                
+                // 更新全局缓存（保持向后兼容）
+                if (strategyType === 'long') {
+                    cachedLongSignals = entrySignals;
+                    cachedShortSignals = exitSignals;
+                } else {
+                    cachedLongSignals = exitSignals;
+                    cachedShortSignals = entrySignals;
+                }
                 
                 console.log('📊 处理后的信号数据:', {
                     strategyType,
-                    longSignalsCount: cachedLongSignals.length,
-                    shortSignalsCount: cachedShortSignals.length
+                    entrySignalsCount: entrySignals.length,
+                    exitSignalsCount: exitSignals.length
                 });
                 
                 const entrySelect = document.getElementById('entrySignal');
@@ -1365,34 +1382,20 @@
                 // 清空现有买点选项
                 entrySelect.innerHTML = '<option value="">-- 选择买点信号 --</option>';
                 
-                // 根据策略类型决定显示哪些信号
-                if (strategyType === 'long') {
-                    // 做多策略：买点用做多信号，卖点用做空信号
-                    if (cachedLongSignals.length > 0) {
-                        cachedLongSignals.forEach(signal => {
-                            const option = document.createElement('option');
-                            option.value = signal.signal_name;
-                            option.textContent = `${signal.signal_name}${signal.description ? ' - ' + signal.description : ''}`;
-                            entrySelect.appendChild(option);
-                        });
-                    }
-                } else {
-                    // 做空策略：买点用做空信号，卖点用做多信号
-                    if (cachedShortSignals.length > 0) {
-                        cachedShortSignals.forEach(signal => {
-                            const option = document.createElement('option');
-                            option.value = signal.signal_name;
-                            option.textContent = `${signal.signal_name}${signal.description ? ' - ' + signal.description : ''}`;
-                            entrySelect.appendChild(option);
-                        });
-                    }
+                // 填充买点信号
+                if (entrySignals.length > 0) {
+                    entrySignals.forEach(signal => {
+                        const option = document.createElement('option');
+                        option.value = signal.signal_name;
+                        option.textContent = `${signal.signal_name}${signal.description ? ' - ' + signal.description : ''}`;
+                        entrySelect.appendChild(option);
+                    });
                 }
                 
                 // 更新所有卖点下拉框
                 updateAllExitSignalDropdowns(strategyType);
                 
                 const entryCount = entrySelect.options.length - 1;
-                const exitSignals = strategyType === 'long' ? cachedShortSignals : cachedLongSignals;
                 console.log(`✅ 信号加载完成！买点: ${entryCount}个, 卖点: ${exitSignals.length}个`);
                 
                 // 如果没有加载到任何信号，显示警告
