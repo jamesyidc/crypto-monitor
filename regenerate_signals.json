@@ -1,0 +1,9 @@
+{
+  "symbols": ["ADA", "APT", "BCH", "BNB", "BTC", "CFX", "CRO", "CRV", "DOGE", "DOT", "ETC", "ETH", "FIL", "HBAR", "LDO", "LINK", "LTC", "NEAR", "SOL", "STX", "SUI", "TAO", "TON", "TRX", "UNI", "XLM", "XRP"],
+  "timeframe": "5m",
+  "limit": 500,
+  "strategies": ["convergence", "peak"],
+  "leverage": 10,
+  "positionSizeFixed": 10000,
+  "stopLoss": null
+}
