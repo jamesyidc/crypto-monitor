@@ -1282,7 +1282,9 @@
                                     <i class="fas fa-chart-pie text-blue-600"></i>
                                     <span class="font-semibold text-gray-700">仓位管理</span>
                                 </div>
-                                <p class="text-xs text-gray-600">分${strategy.position_splits}次买入，间隔${strategy.split_interval_pct}%</p>
+                                <p class="text-xs text-gray-600">
+                                    分${strategy.position_splits}次买入${strategy.position_splits > 1 ? `，间隔${strategy.split_interval_pct}%` : ''}
+                                </p>
                                 <p class="text-xs text-gray-600">持仓周期: ${holdingText}</p>
                             </div>
                         </div>
