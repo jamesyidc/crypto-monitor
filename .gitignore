@@ -32,6 +32,10 @@ lerna-debug.log*
 # misc
 .DS_Store
 
+# Auto-generated status files
+public/static/health-status.json
+public/static/process-status.json
+
 # PM2
 .pm2/
 pids/

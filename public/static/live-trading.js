@@ -1033,3 +1033,296 @@ function calculatePositionAmount() {
     
     return perPartAmount;
 }
+
+// ==================== 策略触发信号买卖池功能 ====================
+
+// Note: initSignalPool() 函数定义在文件末尾（第1256行附近）
+// 该函数包含完整的历史查询功能和事件绑定
+
+// 加载信号池
+async function loadLiveTradingSignalPool() {
+  try {
+    const response = await fetch('/api/signal-pool/recent?timeframe=5m&klineCount=3');
+    const result = await response.json();
+    
+    if (result.success) {
+      const { signals, summary } = result.data;
+      renderLiveTradingSignalPool(signals, summary);
+    } else {
+      console.error('加载信号池失败:', result.error);
+      showLiveTradingSignalPoolError('加载失败: ' + result.error);
+    }
+  } catch (error) {
+    console.error('加载信号池异常:', error);
+    showLiveTradingSignalPoolError('网络错误或API异常');
+  }
+}
+
+// 渲染信号池
+function renderLiveTradingSignalPool(signals, summary) {
+  // 更新统计数据
+  document.getElementById('liveTradingBuySignalCount').textContent = summary.buy_count;
+  document.getElementById('liveTradingSellSignalCount').textContent = summary.sell_count;
+  document.getElementById('liveTradingTotalSignalCount').textContent = summary.total;
+  document.getElementById('liveTradingSignalPoolLastUpdate').textContent = 
+    '更新于 ' + new Date(summary.latest_update).toLocaleTimeString('zh-CN');
+  
+  // 渲染信号列表
+  const tbody = document.getElementById('liveTradingSignalPoolTable');
+  
+  if (signals.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="8" class="px-6 py-8 text-center text-gray-500">
+          <i class="fas fa-info-circle mr-2"></i>暂无策略触发信号
+        </td>
+      </tr>
+    `;
+    return;
+  }
+  
+  tbody.innerHTML = signals.map(signal => {
+    const signalTypeClass = signal.signal_type === 'BUY' 
+      ? 'bg-green-100 text-green-800' 
+      : 'bg-red-100 text-red-800';
+    
+    const signalTypeIcon = signal.signal_type === 'BUY'
+      ? '<i class="fas fa-arrow-up"></i>'
+      : '<i class="fas fa-arrow-down"></i>';
+    
+    const time = new Date(signal.time).toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    
+    return `
+      <tr class="hover:bg-gray-50">
+        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+          ${time}
+        </td>
+        <td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-800">
+          ${signal.symbol}
+        </td>
+        <td class="px-4 py-3 whitespace-nowrap">
+          <span class="px-3 py-1 rounded-full text-xs font-semibold ${signalTypeClass}">
+            ${signalTypeIcon} ${signal.signal_type === 'BUY' ? '做多' : '做空'}
+          </span>
+        </td>
+        <td class="px-4 py-3 text-sm text-gray-700">
+          ${signal.strategy_name}
+        </td>
+        <td class="px-4 py-3 whitespace-nowrap text-sm font-mono text-gray-800">
+          $${signal.price.toFixed(4)}
+        </td>
+        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+          第${signal.kline_index}根
+        </td>
+        <td class="px-4 py-3 text-sm text-gray-600">
+          ${signal.reason}
+        </td>
+        <td class="px-4 py-3 text-xs text-gray-500">
+          ${signal.indicators.rsi ? `RSI: ${signal.indicators.rsi.toFixed(2)}` : ''}
+          ${signal.indicators.change !== null ? `<br>涨幅: ${signal.indicators.change.toFixed(2)}%` : ''}
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// 显示信号池错误
+function showLiveTradingSignalPoolError(message) {
+  const tbody = document.getElementById('liveTradingSignalPoolTable');
+  tbody.innerHTML = `
+    <tr>
+      <td colspan="8" class="px-6 py-8 text-center text-red-500">
+        <i class="fas fa-exclamation-triangle mr-2"></i>${message}
+      </td>
+    </tr>
+  `;
+}
+
+// ==================== 历史查询功能 ====================
+
+// 查询历史信号
+async function loadLiveTradingHistorySignals() {
+  try {
+    const startDate = document.getElementById('liveTradingSignalStartDate').value;
+    const endDate = document.getElementById('liveTradingSignalEndDate').value;
+    
+    if (!startDate || !endDate) {
+      showLiveTradingSignalPoolError('请选择开始和结束日期');
+      return;
+    }
+    
+    const tbody = document.getElementById('liveTradingSignalPoolTable');
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="8" class="px-6 py-8 text-center text-gray-500">
+          <i class="fas fa-spinner fa-spin mr-2"></i>加载历史数据中...
+        </td>
+      </tr>
+    `;
+    
+    const response = await fetch(`/api/signal-pool/history?startDate=${startDate}&endDate=${endDate}&limit=1000`);
+    const result = await response.json();
+    
+    if (result.success) {
+      const { signals, summary } = result.data;
+      renderLiveTradingSignalPool(signals, {
+        ...summary,
+        latest_update: new Date().toISOString()
+      });
+      
+      // 更新模式标签
+      document.getElementById('liveTradingSignalPoolModeLabel').textContent = 
+        `(历史查询: ${startDate} ~ ${endDate})`;
+    } else {
+      showLiveTradingSignalPoolError('查询失败: ' + result.error);
+    }
+  } catch (error) {
+    console.error('查询历史信号异常:', error);
+    showLiveTradingSignalPoolError('查询失败: ' + error.message);
+  }
+}
+
+// 保存当前信号到历史记录
+async function saveLiveTradingSignalsToHistory(signals) {
+  try {
+    const response = await fetch('/api/signal-pool/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ signals })
+    });
+    const result = await response.json();
+    if (result.success) {
+      console.log('信号已保存到历史记录');
+    }
+  } catch (error) {
+    console.error('保存信号历史失败:', error);
+  }
+}
+
+// 修改加载信号池函数，添加自动保存
+async function loadLiveTradingSignalPoolWithSave() {
+  try {
+    const response = await fetch('/api/signal-pool/recent?timeframe=5m&klineCount=3');
+    const result = await response.json();
+    
+    if (result.success) {
+      const { signals, summary } = result.data;
+      renderLiveTradingSignalPool(signals, summary);
+      
+      // 自动保存到历史记录
+      if (signals.length > 0) {
+        await saveLiveTradingSignalsToHistory(signals);
+      }
+    } else {
+      console.error('加载信号池失败:', result.error);
+      showLiveTradingSignalPoolError('加载失败: ' + result.error);
+    }
+  } catch (error) {
+    console.error('加载信号池异常:', error);
+    showLiveTradingSignalPoolError('网络错误或API异常');
+  }
+}
+
+// 快捷日期设置
+function setLiveTradingQuickDate(days) {
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(endDate.getDate() - days);
+  
+  document.getElementById('liveTradingSignalEndDate').value = endDate.toISOString().split('T')[0];
+  document.getElementById('liveTradingSignalStartDate').value = startDate.toISOString().split('T')[0];
+}
+
+// 初始化日期控件（设置默认值为今天）
+function initLiveTradingDateControls() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('liveTradingSignalStartDate').value = today;
+  document.getElementById('liveTradingSignalEndDate').value = today;
+}
+
+// 更新初始化信号池函数
+function initSignalPool() {
+  loadLiveTradingSignalPoolWithSave();
+  initLiveTradingDateControls();
+  
+  // 绑定刷新按钮
+  document.getElementById('liveTradingRefreshSignalPoolBtn').addEventListener('click', () => {
+    const mode = document.getElementById('liveTradingSignalQueryMode').value;
+    if (mode === 'realtime') {
+      loadLiveTradingSignalPoolWithSave();
+    } else {
+      loadLiveTradingHistorySignals();
+    }
+  });
+  
+  // "查看历史数据"按钮 - 一键切换到历史查询模式
+  document.getElementById('liveTradingViewHistoryBtn').addEventListener('click', () => {
+    const queryModeSelect = document.getElementById('liveTradingSignalQueryMode');
+    queryModeSelect.value = 'history';
+    
+    // 触发change事件以显示日期选择器
+    const event = new Event('change');
+    queryModeSelect.dispatchEvent(event);
+    
+    // 自动设置为查询今天的数据
+    setLiveTradingQuickDate(0);
+    loadLiveTradingHistorySignals();
+    
+    // 平滑滚动到信号池区域
+    document.getElementById('liveTradingSignalQueryMode').scrollIntoView({ 
+      behavior: 'smooth', 
+      block: 'center' 
+    });
+  });
+  
+  // 查询模式切换
+  document.getElementById('liveTradingSignalQueryMode').addEventListener('change', (e) => {
+    const historyControls = document.getElementById('liveTradingHistoryDateControls');
+    const modeLabel = document.getElementById('liveTradingSignalPoolModeLabel');
+    
+    if (e.target.value === 'history') {
+      historyControls.classList.remove('hidden');
+      modeLabel.textContent = '(历史查询模式)';
+    } else {
+      historyControls.classList.add('hidden');
+      modeLabel.textContent = '(实时监控)';
+      loadLiveTradingSignalPoolWithSave(); // 切换回实时模式时自动刷新
+    }
+  });
+  
+  // 历史查询按钮
+  document.getElementById('liveTradingQueryHistoryBtn').addEventListener('click', loadLiveTradingHistorySignals);
+  
+  // 快捷日期按钮
+  document.getElementById('liveTradingQuickTodayBtn').addEventListener('click', () => {
+    setLiveTradingQuickDate(0);
+    loadLiveTradingHistorySignals();
+  });
+  
+  document.getElementById('liveTradingQuickYesterdayBtn').addEventListener('click', () => {
+    setLiveTradingQuickDate(1);
+    loadLiveTradingHistorySignals();
+  });
+  
+  document.getElementById('liveTradingQuickWeekBtn').addEventListener('click', () => {
+    setLiveTradingQuickDate(7);
+    loadLiveTradingHistorySignals();
+  });
+  
+  // 定时刷新信号池（每30秒，仅在实时模式下）
+  setInterval(() => {
+    const mode = document.getElementById('liveTradingSignalQueryMode').value;
+    if (mode === 'realtime') {
+      loadLiveTradingSignalPoolWithSave();
+    }
+  }, 30000);
+}
+
+// 调用初始化（添加到DOMContentLoaded）
+document.addEventListener('DOMContentLoaded', function() {
+  initSignalPool();
+});

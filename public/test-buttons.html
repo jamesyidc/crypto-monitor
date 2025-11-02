@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>按钮测试页面</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <h1>按钮测试页面</h1>
+    
+    <button id="viewHistoryBtn" style="padding: 10px; margin: 10px; background: purple; color: white;">
+        查看历史数据
+    </button>
+    
+    <button id="closeAllPositionsBtn" style="padding: 10px; margin: 10px; background: red; color: white;">
+        一键清仓
+    </button>
+    
+    <div id="output" style="margin: 20px; padding: 20px; border: 1px solid #ccc; min-height: 200px;">
+        <h3>控制台输出：</h3>
+        <pre id="log"></pre>
+    </div>
+    
+    <script>
+        const log = (msg) => {
+            const logEl = document.getElementById('log');
+            logEl.textContent += msg + '\n';
+            console.log(msg);
+        };
+        
+        log('页面加载完成');
+        
+        // 模拟必要的全局变量
+        let currentAccount = { id: 1, balance: 10000 };
+        let currentPositions = [
+            { symbol: 'BTC', side: 'long', quantity: 0.1, entryPrice: 50000 }
+        ];
+        
+        // 模拟函数
+        function openCloseAllModal() {
+            log('✅ openCloseAllModal 被调用');
+            alert('一键清仓模态框应该打开');
+        }
+        
+        function setQuickDate(days) {
+            log(`✅ setQuickDate(${days}) 被调用`);
+        }
+        
+        function loadHistorySignals() {
+            log('✅ loadHistorySignals 被调用');
+            alert('应该加载历史信号');
+        }
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            log('🚀 [Init] DOM加载完成');
+            
+            // 绑定查看历史数据按钮
+            const viewHistoryBtn = document.getElementById('viewHistoryBtn');
+            if (viewHistoryBtn) {
+                log('找到 viewHistoryBtn');
+                viewHistoryBtn.addEventListener('click', () => {
+                    log('📊 [History] 点击查看历史数据按钮');
+                    
+                    const queryModeSelect = document.getElementById('signalQueryMode');
+                    if (queryModeSelect) {
+                        queryModeSelect.value = 'history';
+                        const event = new Event('change');
+                        queryModeSelect.dispatchEvent(event);
+                    }
+                    
+                    setQuickDate(0);
+                    loadHistorySignals();
+                });
+                log('✅ [Init] 已绑定查看历史数据按钮');
+            } else {
+                log('❌ [Init] 找不到 viewHistoryBtn 元素');
+            }
+            
+            // 绑定一键清仓按钮
+            const closeAllBtn = document.getElementById('closeAllPositionsBtn');
+            if (closeAllBtn) {
+                log('找到 closeAllPositionsBtn');
+                closeAllBtn.addEventListener('click', () => {
+                    log('🔴 [一键清仓] 点击了一键清仓按钮');
+                    openCloseAllModal();
+                });
+                log('✅ [Init] 已绑定一键清仓按钮');
+            } else {
+                log('❌ [Init] 找不到 closeAllPositionsBtn 元素');
+            }
+            
+            log('🎉 [Init] 测试页面初始化完成');
+        });
+    </script>
+</body>
+</html>

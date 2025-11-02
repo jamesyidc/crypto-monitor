@@ -1,0 +1,112 @@
+{
+  "lastUpdate": "2025-11-02T07:17:22.341Z",
+  "lastUpdateDisplay": "2025-11-02 15:17:22",
+  "guardianUptime": 7540024,
+  "startTime": "2025-11-02T05:11:42.317Z",
+  "lastCheck": "2025-11-02 15:16:48",
+  "checkCount": 26,
+  "processes": {
+    "kline-scheduler": {
+      "status": "running",
+      "lastCheck": "2025-11-02 15:16:48",
+      "restartCount": 2,
+      "lastRestart": "2025-11-02 13:51:49",
+      "lastError": null,
+      "uptime": 1762062709233,
+      "pid": 139455,
+      "healthStatus": "healthy"
+    },
+    "analysis-scheduler": {
+      "status": "running",
+      "lastCheck": "2025-11-02 15:16:58",
+      "restartCount": 2,
+      "lastRestart": "2025-11-02 13:51:50",
+      "lastError": null,
+      "uptime": 1762062710758,
+      "pid": 139486,
+      "healthStatus": "healthy"
+    },
+    "snapshot-scheduler": {
+      "status": "running",
+      "lastCheck": "2025-11-02 15:17:18",
+      "restartCount": 0,
+      "lastRestart": null,
+      "lastError": null,
+      "uptime": 1762060302113,
+      "pid": 136716,
+      "healthStatus": "healthy"
+    },
+    "consecutive-rise-scheduler": {
+      "status": "running",
+      "lastCheck": "2025-11-02 15:17:19",
+      "restartCount": 0,
+      "lastRestart": null,
+      "lastError": null,
+      "uptime": 1762060302117,
+      "pid": 136726,
+      "healthStatus": "healthy"
+    },
+    "health-monitor": {
+      "status": "running",
+      "lastCheck": "2025-11-02 15:17:21",
+      "restartCount": 0,
+      "lastRestart": null,
+      "lastError": null,
+      "uptime": 1762060302031,
+      "pid": 136708,
+      "healthStatus": "healthy"
+    }
+  },
+  "alerts": [
+    {
+      "time": "2025-11-02 13:51:50",
+      "level": "warning",
+      "message": "进程 analysis-scheduler 已重启"
+    },
+    {
+      "time": "2025-11-02 13:51:50",
+      "level": "warning",
+      "message": "进程 analysis-scheduler 健康异常: API检查失败: fetch failed"
+    },
+    {
+      "time": "2025-11-02 13:51:49",
+      "level": "warning",
+      "message": "进程 kline-scheduler 已重启"
+    },
+    {
+      "time": "2025-11-02 13:51:48",
+      "level": "warning",
+      "message": "进程 kline-scheduler 健康异常: API检查失败: fetch failed"
+    },
+    {
+      "time": "2025-11-02 13:11:44",
+      "level": "warning",
+      "message": "进程 analysis-scheduler 已重启"
+    },
+    {
+      "time": "2025-11-02 13:11:43",
+      "level": "warning",
+      "message": "进程 analysis-scheduler 健康异常: API检查失败: fetch failed"
+    },
+    {
+      "time": "2025-11-02 13:11:42",
+      "level": "warning",
+      "message": "进程 kline-scheduler 已重启"
+    },
+    {
+      "time": "2025-11-02 13:11:42",
+      "level": "warning",
+      "message": "进程 kline-scheduler 健康异常: API检查失败: fetch failed"
+    }
+  ],
+  "statistics": {
+    "totalRestarts": 4,
+    "totalFailures": 0,
+    "totalChecks": 26
+  },
+  "config": {
+    "checkInterval": "5 分钟",
+    "webPort": 3001,
+    "processCount": 5
+  }
+}

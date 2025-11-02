@@ -91,11 +91,17 @@ function updateCountdownDisplay() {
 // 加载币种列表
 async function loadCoins() {
   try {
-    const response = await axios.get('/api/coins/with-priority');
-    allCoins = response.data;
+    const response = await API.get('/api/coins/with-priority', {
+      priority: API_PRIORITY.HIGH,
+      cache: true
+    });
+    // API wrapper返回的response.data就是实际数据（已经是数组）
+    allCoins = response.data || [];
+    console.log('✅ 成功加载币种:', allCoins.length, '个');
     renderCoinSelector();
   } catch (error) {
-    console.error('加载币种失败:', error);
+    console.error('❌ 加载币种失败:', error);
+    allCoins = []; // 确保allCoins不是undefined
     alert('加载币种列表失败: ' + error.message);
   }
 }
@@ -103,6 +109,21 @@ async function loadCoins() {
 // 渲染币种选择器（按等级分组）
 function renderCoinSelector() {
   const container = document.getElementById('coinSelector');
+  
+  // 🔥 安全检查：确保allCoins是数组
+  if (!Array.isArray(allCoins)) {
+    console.error('❌ allCoins不是数组:', allCoins);
+    container.innerHTML = '<div class="text-center text-red-500 p-4">币种数据加载失败，请刷新页面重试</div>';
+    return;
+  }
+  
+  if (allCoins.length === 0) {
+    console.warn('⚠️  allCoins为空数组');
+    container.innerHTML = '<div class="text-center text-gray-500 p-4">暂无币种数据</div>';
+    return;
+  }
+  
+  console.log('📊 开始渲染币种选择器，共', allCoins.length, '个币种');
   
   // 按等级分组
   const levelGroups = {
@@ -186,11 +207,13 @@ async function loadKlineData() {
     showLoading();
     
     // 获取带技术指标的 K线数据
-    const klineResponse = await axios.get(`/api/kline/${currentSymbol}/indicators`, {
+    const klineResponse = await API.get(`/api/kline/${currentSymbol}/indicators`, {
       params: {
         timeframe: currentTimeframe,
         limit: 300
-      }
+      },
+      priority: API_PRIORITY.HIGH,
+      cache: true
     });
 
     if (!klineResponse.data.success) {
@@ -1084,11 +1107,13 @@ async function syncKlineData() {
   btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>同步中...';
 
   try {
-    const response = await axios.post('/api/kline/sync', null, {
+    const response = await API.post('/api/kline/sync', null, {
       params: {
         timeframe: currentTimeframe,
         limit: 300
-      }
+      },
+      priority: API_PRIORITY.HIGH,
+      cache: false
     });
 
     if (response.data.success) {
@@ -1129,7 +1154,10 @@ async function sync48HoursData() {
   try {
     showStatus('正在批量同步48小时数据，请稍候...', 'info');
     
-    const response = await axios.post('/api/kline/sync48h/all');
+    const response = await API.post('/api/kline/sync48h/all', null, {
+      priority: API_PRIORITY.HIGH,
+      cache: false
+    });
 
     if (response.data.success) {
       const results = response.data.results;
@@ -1227,7 +1255,10 @@ function showError(message) {
 async function autoSyncKlineData() {
   try {
     console.log('🔄 开始自动同步K线数据...');
-    const response = await axios.post('/api/kline/sync/auto');
+    const response = await API.post('/api/kline/sync/auto', null, {
+      priority: API_PRIORITY.BACKGROUND,
+      cache: false
+    });
     
     if (response.data.success) {
       console.log('✅ 自动同步完成:', response.data);

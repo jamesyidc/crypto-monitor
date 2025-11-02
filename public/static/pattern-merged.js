@@ -1166,6 +1166,8 @@ const operationTipTemplates = [
     { keyword: '低吸', type: 'long', category: '买点', description: 'RSI低位信号，适合做多开仓' },
     { keyword: '注意启动', type: 'long', category: '买点', description: '震荡收敛后启动信号，适合做多开仓' },
     { keyword: '次日主升', type: 'long', category: '买点', description: '预期主升浪信号，适合做多开仓' },
+    { keyword: '支撑买入', type: 'long', category: '买点', description: '价格接近支撑线（0.5%范围内），适合做多开仓' },
+    { keyword: '空头陷阱', type: 'long', category: '买点', description: '涨跌幅>-3%，V1成交量，当天下跌，反弹机会，适合做多开仓' },
     
     // 做多信号 - 卖点（平多仓）
     { keyword: '顶部做空', type: 'long', category: '卖点', description: '超买见顶信号，适合做多平仓' },
@@ -1173,19 +1175,23 @@ const operationTipTemplates = [
     { keyword: '波段高点', type: 'long', category: '卖点', description: '波段顶部信号，适合做多平仓' },
     { keyword: '通用卖点', type: 'long', category: '卖点', description: 'RSI超买通用卖出信号，适合做多平仓' },
     { keyword: '止盈止损', type: 'long', category: '卖点', description: '风控信号，适合做多平仓' },
+    { keyword: '急杀诱多', type: 'long', category: '卖点', description: '涨跌幅>-2%，V1成交量，当天涨幅3%-10%，警惕回调，适合做多平仓' },
     
     // 做空信号 - 买点（开空仓）
     { keyword: '顶部做空', type: 'short', category: '买点', description: '超买见顶信号，适合做空开仓' },
     { keyword: '高抛', type: 'short', category: '买点', description: 'RSI高位信号，适合做空开仓' },
     { keyword: '波段高点', type: 'short', category: '买点', description: '波段顶部信号，适合做空开仓' },
     { keyword: '注意回落', type: 'short', category: '买点', description: '震荡发散后回落信号，适合做空开仓' },
+    { keyword: '急杀诱多', type: 'short', category: '买点', description: '涨跌幅>-2%，V1成交量，当天涨幅3%-10%，警惕回调，适合做空开仓' },
     
     // 做空信号 - 卖点（平空仓）
     { keyword: '抄底做多', type: 'short', category: '卖点', description: '超卖反弹信号，适合做空平仓' },
     { keyword: '低吸', type: 'short', category: '卖点', description: 'RSI低位信号，适合做空平仓' },
     { keyword: '波段低点', type: 'short', category: '卖点', description: '波段底部信号，适合做空平仓' },
     { keyword: '通用买点', type: 'short', category: '卖点', description: 'RSI超卖通用买入信号，适合做空平仓' },
-    { keyword: '止盈止损', type: 'short', category: '卖点', description: '风控信号，适合做空平仓' }
+    { keyword: '止盈止损', type: 'short', category: '卖点', description: '风控信号，适合做空平仓' },
+    { keyword: '支撑买入', type: 'short', category: '卖点', description: '价格接近支撑线（0.5%范围内），适合做空平仓' },
+    { keyword: '空头陷阱', type: 'short', category: '卖点', description: '涨跌幅>-3%，V1成交量，当天下跌，反弹机会，适合做空平仓' }
 ];
 
 // 切换操作提示模板面板显示/隐藏
@@ -1205,13 +1211,23 @@ function toggleTipsPanel() {
     }
 }
 
+// 全局变量：存储已导入的信号名称
+let importedSignalNames = new Set();
+
 // 渲染操作提示关键字模板列表
-function renderOperationTipTemplates() {
+async function renderOperationTipTemplates() {
     const container = document.getElementById('tipsListContainer');
+    
+    // 先获取已存在的信号列表
+    await updateImportedSignalsCache();
     
     const html = operationTipTemplates.map((template, index) => {
         const isBuyPoint = template.category === '买点';
         const isLongSignal = template.type === 'long';
+        
+        // 检查是否已导入
+        const signalName = `${template.keyword}（${template.category}）`;
+        const isImported = importedSignalNames.has(signalName);
         
         // 根据信号类型和买卖点确定颜色
         let bgClass, borderClass, textClass, iconClass, btnClass;
@@ -1234,6 +1250,42 @@ function renderOperationTipTemplates() {
         
         const signalTypeText = isLongSignal ? '做多' : '做空';
         
+        // 导入状态标签和按钮
+        let statusBadge = '';
+        let importButton = '';
+        
+        if (isImported) {
+            statusBadge = `
+                <span class="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-bold border border-gray-300">
+                    <i class="fas fa-check-circle mr-1 text-green-500"></i>已导入
+                </span>
+            `;
+            importButton = `
+                <button 
+                    disabled
+                    class="bg-gray-400 text-white px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap cursor-not-allowed opacity-60"
+                    title="该模板已导入"
+                >
+                    <i class="fas fa-check mr-1"></i>已导入
+                </button>
+            `;
+        } else {
+            statusBadge = `
+                <span class="inline-flex items-center px-3 py-1 bg-yellow-50 text-yellow-700 rounded-full text-xs font-bold border border-yellow-200">
+                    <i class="fas fa-circle mr-1 text-yellow-500" style="font-size: 6px;"></i>未导入
+                </span>
+            `;
+            importButton = `
+                <button 
+                    onclick="importSingleTemplate(${index})"
+                    class="${btnClass} text-white px-4 py-2 rounded-lg transition text-sm font-bold whitespace-nowrap"
+                    title="导入此模板到特征库"
+                >
+                    <i class="fas fa-plus mr-1"></i>导入
+                </button>
+            `;
+        }
+        
         return `
             <div class="border-2 ${borderClass} ${bgClass} rounded-lg p-4 hover:shadow-md transition">
                 <div class="flex items-center justify-between">
@@ -1244,17 +1296,12 @@ function renderOperationTipTemplates() {
                             <span class="px-3 py-1 ${bgClass} ${textClass} rounded-full text-xs font-bold border ${borderClass}">
                                 ${signalTypeText}${template.category}
                             </span>
+                            ${statusBadge}
                         </div>
                         <p class="text-sm text-gray-600 ml-8">${template.description}</p>
                     </div>
                     <div class="ml-4">
-                        <button 
-                            onclick="importSingleTemplate(${index})"
-                            class="${btnClass} text-white px-4 py-2 rounded-lg transition text-sm font-bold whitespace-nowrap"
-                            title="导入此模板到特征库"
-                        >
-                            <i class="fas fa-plus mr-1"></i>导入
-                        </button>
+                        ${importButton}
                     </div>
                 </div>
             </div>
@@ -1264,16 +1311,42 @@ function renderOperationTipTemplates() {
     container.innerHTML = html;
 }
 
+// 更新已导入信号的缓存
+async function updateImportedSignalsCache() {
+    try {
+        // 获取做多信号
+        const longResponse = await fetch('/api/signals/long');
+        const longSignals = longResponse.ok ? await longResponse.json() : [];
+        
+        // 获取做空信号
+        const shortResponse = await fetch('/api/signals/short');
+        const shortSignals = shortResponse.ok ? await shortResponse.json() : [];
+        
+        // 合并并提取信号名称
+        const allSignals = [...longSignals, ...shortSignals];
+        importedSignalNames = new Set(allSignals.map(s => s.signal_name));
+        
+        console.log('📊 已缓存已导入的信号:', importedSignalNames.size, '个');
+    } catch (error) {
+        console.error('❌ 更新导入信号缓存失败:', error);
+        importedSignalNames = new Set();
+    }
+}
+
 // 导入单个模板到特征库
 async function importSingleTemplate(index) {
     const template = operationTipTemplates[index];
     
     try {
+        // 根据分类确定入场/出场类型
+        const entryExit = template.category === '买点' ? 'entry' : 'exit';
+        
         const signalData = {
             signal_type: template.type,
             signal_name: `${template.keyword}（${template.category}）`,
             category: 'action_hint',
             description: template.description,
+            entry_exit: entryExit,
             conditions: JSON.stringify({
                 operation_tip_keyword: template.keyword,
                 signal_category: template.category,
@@ -1296,6 +1369,8 @@ async function importSingleTemplate(index) {
             await loadSignalStatistics();
             await loadLongSignals();
             await loadShortSignals();
+            // 重新渲染模板列表以更新导入状态
+            await renderOperationTipTemplates();
         } else {
             showNotification('error', `导入失败: ${result.error}`);
         }
@@ -1317,11 +1392,15 @@ async function importOperationTipTemplates() {
         
         for (const template of operationTipTemplates) {
             try {
+                // 根据分类确定入场/出场类型
+                const entryExit = template.category === '买点' ? 'entry' : 'exit';
+                
                 const signalData = {
                     signal_type: template.type,
                     signal_name: `${template.keyword}（${template.category}）`,
                     category: 'action_hint',
                     description: template.description,
+                    entry_exit: entryExit,
                     conditions: JSON.stringify({
                         operation_tip_keyword: template.keyword,
                         signal_category: template.category,
@@ -1358,6 +1437,8 @@ async function importOperationTipTemplates() {
             await loadSignalStatistics();
             await loadLongSignals();
             await loadShortSignals();
+            // 重新渲染模板列表以更新导入状态
+            await renderOperationTipTemplates();
         } else {
             showNotification('error', `导入失败，所有模板均未成功导入`);
         }

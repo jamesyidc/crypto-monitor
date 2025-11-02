@@ -1923,8 +1923,11 @@ app.get('/api/signal/:symbol', async (c) => {
     // 检测买卖点（传入币种等级）
     const detection = signalService.detectTradingSignals(result.data, coinLevel);
     
-    // 保存信号到数据库
-    const signals = detection.signals || [];
+    // 🆕 检测支撑线买入信号
+    const supportLineSignals = await signalService.detectSupportLineBuySignals(symbol, result.data, 10);
+    
+    // 合并所有信号
+    const signals = [...(detection.signals || []), ...supportLineSignals];
     const alerts = detection.alerts || [];
     await signalService.saveSignalsAndAlerts(signals, alerts);
     
@@ -2104,6 +2107,643 @@ app.get('/api/telegram/test', async (c) => {
 });
 
 // 📄 页面路由（返回HTML文件内容）
+// ========== 策略触发信号买卖池 API ==========
+// API: 获取最近3根K线内的策略触发信号（用于监控面板）
+app.get('/api/signal-pool/recent', async (c) => {
+  const timeframe = c.req.query('timeframe') || '5m';
+  const klineCount = parseInt(c.req.query('klineCount') || '3'); // 默认最近3根K线
+  
+  console.log(`📊 [Signal Pool] 开始获取信号池数据: timeframe=${timeframe}, klineCount=${klineCount}`);
+  
+  try {
+    const klineService = new KlineService(c.env.DB);
+    const signalService = new SignalService(c.env.DB);
+    
+    // 获取所有策略（包含完整配置信息）
+    console.log('📊 [Signal Pool] 获取策略配置...');
+    const strategiesResult: any = await c.env.DB.prepare(`
+      SELECT 
+        id, strategy_name, strategy_type, priority,
+        entry_signal_type, entry_signal_keyword,
+        exit_signal_type, exit_signal_keyword,
+        exit_signals_json,
+        position_splits, split_interval_pct,
+        stop_loss_pct, take_profit_pct, max_position_size,
+        max_holding_periods,
+        allowed_coin_levels,
+        daily_gain_condition_operator,
+        daily_gain_condition_value,
+        include_historical_levels,
+        entry_price_type, entry_specified_price,
+        exit_price_type, exit_specified_price,
+        description
+      FROM trading_strategies 
+      WHERE is_enabled = 1
+    `).all();
+    
+    const strategiesMap = new Map();
+    if (strategiesResult.results) {
+      strategiesResult.results.forEach((s: any) => {
+        // 策略名称规范化：去除"策略"后缀，统一匹配
+        const normalizedName = s.strategy_name.replace(/策略$/, '');
+        
+        const config = {
+          entry_signal_type: s.entry_signal_type,
+          entry_signal_keyword: s.entry_signal_keyword,
+          exit_signal_type: s.exit_signal_type,
+          exit_signal_keyword: s.exit_signal_keyword,
+          exit_signals_json: s.exit_signals_json,
+          position_splits: s.position_splits || 1,
+          split_interval_pct: s.split_interval_pct || 2.0,
+          stop_loss_pct: s.stop_loss_pct,
+          take_profit_pct: s.take_profit_pct,
+          max_position_size: s.max_position_size || 100,
+          max_holding_periods: s.max_holding_periods,
+          allowed_coin_levels: s.allowed_coin_levels,
+          daily_gain_condition_operator: s.daily_gain_condition_operator,
+          daily_gain_condition_value: s.daily_gain_condition_value,
+          include_historical_levels: s.include_historical_levels,
+          entry_price_type: s.entry_price_type,
+          entry_specified_price: s.entry_specified_price,
+          exit_price_type: s.exit_price_type,
+          exit_specified_price: s.exit_specified_price,
+          description: s.description
+        };
+        
+        // 存储时使用原始名称和规范化名称两个key
+        const strategyInfo = {
+          id: s.id,
+          priority: s.priority || 'medium',
+          config: config
+        };
+        
+        strategiesMap.set(s.strategy_name, strategyInfo); // 原始名称
+        strategiesMap.set(normalizedName, strategyInfo); // 规范化名称（无"策略"后缀）
+        // 也支持带"策略"后缀的查询
+        if (!s.strategy_name.includes('策略')) {
+          strategiesMap.set(s.strategy_name + '策略', strategyInfo);
+        }
+      });
+    }
+    console.log(`📊 [Signal Pool] 加载了 ${strategiesMap.size} 个策略配置`);
+    
+    // 获取所有币种配置
+    console.log('📊 [Signal Pool] 获取币种配置...');
+    const configs: any = await klineService.getAllOKXConfigs();
+    
+    if (!configs || configs.length === 0) {
+      console.warn('⚠️ [Signal Pool] 没有找到币种配置');
+      return c.json({
+        success: true,
+        data: {
+          signals: [],
+          summary: {
+            total: 0,
+            buy_count: 0,
+            sell_count: 0,
+            kline_count: klineCount,
+            timeframe: timeframe,
+            latest_update: new Date().toISOString()
+          }
+        }
+      });
+    }
+    
+    const symbols = configs.map((config: any) => config.symbol);
+    console.log(`📊 [Signal Pool] 找到 ${symbols.length} 个币种`);
+    
+    const allSignals: any[] = [];
+    let processedCount = 0;
+    let errorCount = 0;
+    
+    // 遍历所有币种，检测最近N根K线的信号
+    for (const symbol of symbols) {
+      try {
+        // 获取最近N+50根K线（多获取一些用于指标计算）
+        const result = await klineService.getKlineWithIndicators(symbol, timeframe, klineCount + 50);
+        
+        if (!result || !result.data || result.data.length === 0) {
+          console.log(`⚠️ [Signal Pool] ${symbol}: 无K线数据`);
+          continue;
+        }
+        
+        processedCount++;
+        
+        const klineData = result.data;
+        
+        // 只分析最近N根K线
+        const recentKlines = klineData.slice(0, klineCount);
+        
+        // 检测震荡收敛信号（买入）
+        for (let i = 0; i < recentKlines.length; i++) {
+          const currentIndex = i;
+          const realIndex = currentIndex; // 在原数组中的实际位置
+          
+          // 检查是否有震荡收敛
+          let convergenceCount = 0;
+          const checkStart = Math.max(0, realIndex - 4);
+          
+          for (let j = checkStart; j <= realIndex && j < klineData.length; j++) {
+            const channelState = klineData[j].channel_state || '';
+            if (channelState.includes('震荡收敛')) {
+              convergenceCount++;
+            }
+          }
+          
+          // 5根K线内>=2次震荡收敛 - 做多开仓信号
+          if (convergenceCount >= 2) {
+            const strategyName = '震荡收敛策略';
+            const strategyInfo = strategiesMap.get(strategyName) || { priority: 'medium', config: {} };
+            
+            allSignals.push({
+              symbol,
+              signal_type: 'BUY',
+              action: 'OPEN', // 开仓
+              strategy_name: strategyName,
+              strategy_priority: strategyInfo.priority,
+              strategy_config: strategyInfo.config, // 添加完整策略配置
+              price: recentKlines[i].close,
+              time: recentKlines[i].time,
+              timestamp: new Date(recentKlines[i].time).getTime(),
+              kline_index: i + 1, // 第几根K线
+              reason: `5根K线内${convergenceCount}次震荡收敛`,
+              indicators: {
+                rsi: recentKlines[i].rsi_5min || null,
+                change: recentKlines[i].change || null,
+                convergence_count: convergenceCount,
+                check_range: 5
+              }
+            });
+          }
+        }
+        
+        // 检测波段高点信号（做多平仓 / 做空开仓）
+        for (let i = 0; i < recentKlines.length; i++) {
+          const k = recentKlines[i];
+          const rsi = k.rsi_5min;
+          const changeStr = k.change;
+          
+          if (rsi && changeStr) {
+            const changeValue = parseFloat(changeStr);
+            
+            // 调试日志：记录RSI和涨幅数据
+            if (rsi > 60 || rsi < 40) {
+              console.log(`[波段信号检测] ${symbol} - RSI: ${rsi.toFixed(2)}, 涨幅: ${changeValue.toFixed(2)}%, 时间: ${k.time}`);
+            }
+            
+            // RSI>65 且 涨幅<=0.1% - 高位见顶信号
+            if (rsi > 65 && changeValue <= 0.1) {
+              console.log(`✅ [波段高点] ${symbol} 触发做空信号 - RSI: ${rsi.toFixed(2)} > 65, 涨幅: ${changeValue.toFixed(2)}% <= 0.1%`);
+              
+              const strategyName = '波段高点策略';
+              const strategyInfo = strategiesMap.get(strategyName) || { priority: 'medium', config: {} };
+              
+              // 做多平仓信号
+              allSignals.push({
+                symbol,
+                signal_type: 'BUY',
+                action: 'CLOSE', // 平仓
+                strategy_name: strategyName,
+                strategy_priority: strategyInfo.priority,
+                strategy_config: strategyInfo.config,
+                price: k.close,
+                time: k.time,
+                timestamp: new Date(k.time).getTime(),
+                kline_index: i + 1,
+                reason: `RSI=${rsi.toFixed(2)} > 65, 涨幅=${changeValue.toFixed(2)}% <= 0.1% (建议平仓做多)`,
+                indicators: {
+                  rsi: rsi,
+                  change: changeValue,
+                  rsi_threshold: 65,
+                  change_threshold: 0.1
+                }
+              });
+              
+              // 做空开仓信号
+              allSignals.push({
+                symbol,
+                signal_type: 'SELL',
+                action: 'OPEN', // 开仓
+                strategy_name: strategyName,
+                strategy_priority: strategyInfo.priority,
+                strategy_config: strategyInfo.config,
+                price: k.close,
+                time: k.time,
+                timestamp: new Date(k.time).getTime(),
+                kline_index: i + 1,
+                reason: `RSI=${rsi.toFixed(2)} > 65, 涨幅=${changeValue.toFixed(2)}% <= 0.1% (高位做空)`,
+                indicators: {
+                  rsi: rsi,
+                  change: changeValue,
+                  rsi_threshold: 65,
+                  change_threshold: 0.1
+                }
+              });
+            }
+          }
+        }
+        
+        // 检测波段低点信号（做空平仓 / 做多开仓）
+        for (let i = 0; i < recentKlines.length; i++) {
+          const k = recentKlines[i];
+          const rsi = k.rsi_5min;
+          const changeStr = k.change;
+          
+          if (rsi && changeStr) {
+            const changeValue = parseFloat(changeStr);
+            // RSI<35 且 跌幅<=-3% - 低位见底信号
+            if (rsi < 35 && changeValue <= -3) {
+              // 做空平仓信号
+              allSignals.push({
+                symbol,
+                signal_type: 'SELL',
+                action: 'CLOSE', // 平仓
+                strategy_name: '波段低点策略',
+                price: k.close,
+                time: k.time,
+                timestamp: new Date(k.time).getTime(),
+                kline_index: i + 1,
+                reason: `RSI=${rsi.toFixed(2)} < 35, 跌幅=${changeValue.toFixed(2)}% (建议平仓做空)`,
+                indicators: {
+                  rsi: rsi,
+                  change: changeValue
+                }
+              });
+              
+              // 做多开仓信号
+              allSignals.push({
+                symbol,
+                signal_type: 'BUY',
+                action: 'OPEN', // 开仓
+                strategy_name: '波段低点策略',
+                price: k.close,
+                time: k.time,
+                timestamp: new Date(k.time).getTime(),
+                kline_index: i + 1,
+                reason: `RSI=${rsi.toFixed(2)} < 35, 跌幅=${changeValue.toFixed(2)}% (低位做多)`,
+                indicators: {
+                  rsi: rsi,
+                  change: changeValue
+                }
+              });
+            }
+          }
+        }
+      } catch (symbolError: any) {
+        errorCount++;
+        console.error(`❌ [Signal Pool] ${symbol} 信号检测失败:`, symbolError.message);
+        continue;
+      }
+    }
+    
+    console.log(`✅ [Signal Pool] 处理完成: 成功=${processedCount}, 失败=${errorCount}, 原始信号总数=${allSignals.length}`);
+    
+    // 🆕 智能过滤：基于持仓状态过滤信号
+    console.log('🔍 [Signal Pool] 开始智能过滤信号...');
+    const positionService = new PositionService(c.env.DB);
+    const activePositions: any = await positionService.getActivePositions();
+    
+    // 获取当前持仓状态
+    const longPositions = activePositions.filter((p: any) => p.position_type === 'LONG');
+    const shortPositions = activePositions.filter((p: any) => p.position_type === 'SHORT');
+    
+    console.log(`📦 [Signal Pool] 当前持仓: 多仓=${longPositions.length}, 空仓=${shortPositions.length}`);
+    
+    // 智能过滤信号
+    const smartSignals = allSignals.filter(signal => {
+      const hasLongPosition = longPositions.some((p: any) => p.symbol === signal.symbol);
+      const hasShortPosition = shortPositions.some((p: any) => p.symbol === signal.symbol);
+      
+      // 规则1: 如果已有多仓，过滤掉新的做多开仓信号
+      if (signal.signal_type === 'BUY' && signal.action === 'OPEN' && hasLongPosition) {
+        console.log(`  ⏭️  [${signal.symbol}] 已有多仓，跳过做多开仓信号`);
+        return false;
+      }
+      
+      // 规则2: 如果没有多仓，过滤掉做多平仓信号
+      if (signal.signal_type === 'BUY' && signal.action === 'CLOSE' && !hasLongPosition) {
+        console.log(`  ⏭️  [${signal.symbol}] 无多仓，跳过做多平仓信号`);
+        return false;
+      }
+      
+      // 规则3: 如果已有空仓，过滤掉新的做空开仓信号
+      if (signal.signal_type === 'SELL' && signal.action === 'OPEN' && hasShortPosition) {
+        console.log(`  ⏭️  [${signal.symbol}] 已有空仓，跳过做空开仓信号`);
+        return false;
+      }
+      
+      // 规则4: 如果没有空仓，过滤掉做空平仓信号
+      if (signal.signal_type === 'SELL' && signal.action === 'CLOSE' && !hasShortPosition) {
+        console.log(`  ⏭️  [${signal.symbol}] 无空仓，跳过做空平仓信号`);
+        return false;
+      }
+      
+      return true; // 信号有效
+    });
+    
+    console.log(`✅ [Signal Pool] 智能过滤完成: ${allSignals.length} → ${smartSignals.length} 个有效信号`);
+    
+    // 🆕 去重：同一币种相同类型的信号，只保留最新的一个
+    const uniqueSignalsMap = new Map();
+    smartSignals.forEach(signal => {
+      const key = `${signal.symbol}-${signal.signal_type}-${signal.action}-${signal.strategy_name}`;
+      
+      // 如果已存在，比较时间戳，保留最新的
+      if (!uniqueSignalsMap.has(key) || signal.timestamp > uniqueSignalsMap.get(key).timestamp) {
+        uniqueSignalsMap.set(key, signal);
+      }
+    });
+    
+    const uniqueSignals = Array.from(uniqueSignalsMap.values());
+    console.log(`🔄 [Signal Pool] 去重完成: ${smartSignals.length} → ${uniqueSignals.length} 个唯一信号`);
+    
+    // 按时间倒序排列
+    uniqueSignals.sort((a, b) => b.timestamp - a.timestamp);
+    
+    // 🆕 为平仓信号添加持仓信息
+    const enrichedSignals = uniqueSignals.map(signal => {
+      if (signal.action === 'CLOSE') {
+        const position = signal.signal_type === 'BUY' 
+          ? longPositions.find((p: any) => p.symbol === signal.symbol)
+          : shortPositions.find((p: any) => p.symbol === signal.symbol);
+        
+        if (position) {
+          return {
+            ...signal,
+            position: {
+              entry_price: position.entry_price,
+              current_price: signal.price,
+              profit_loss: signal.price - position.entry_price,
+              profit_loss_pct: ((signal.price - position.entry_price) / position.entry_price * 100).toFixed(2)
+            }
+          };
+        }
+      }
+      return signal;
+    });
+    
+    // 统计
+    const buySignals = enrichedSignals.filter(s => s.signal_type === 'BUY');
+    const sellSignals = enrichedSignals.filter(s => s.signal_type === 'SELL');
+    const openSignals = enrichedSignals.filter(s => s.action === 'OPEN');
+    const closeSignals = enrichedSignals.filter(s => s.action === 'CLOSE');
+    const buyOpenSignals = enrichedSignals.filter(s => s.signal_type === 'BUY' && s.action === 'OPEN');
+    const buyCloseSignals = enrichedSignals.filter(s => s.signal_type === 'BUY' && s.action === 'CLOSE');
+    const sellOpenSignals = enrichedSignals.filter(s => s.signal_type === 'SELL' && s.action === 'OPEN');
+    const sellCloseSignals = enrichedSignals.filter(s => s.signal_type === 'SELL' && s.action === 'CLOSE');
+    
+    console.log(`📊 [Signal Pool] 最终统计: 做多=${buySignals.length}, 做空=${sellSignals.length}, 开仓=${openSignals.length}, 平仓=${closeSignals.length}`);
+    console.log(`📊 [Signal Pool] 当前持仓: 多仓=${longPositions.length}, 空仓=${shortPositions.length}`);
+    
+    return c.json({
+      success: true,
+      data: {
+        signals: enrichedSignals,
+        summary: {
+          total: enrichedSignals.length,
+          buy_count: buySignals.length,
+          sell_count: sellSignals.length,
+          open_count: openSignals.length,
+          close_count: closeSignals.length,
+          buy_open_count: buyOpenSignals.length,
+          buy_close_count: buyCloseSignals.length,
+          sell_open_count: sellOpenSignals.length,
+          sell_close_count: sellCloseSignals.length,
+          kline_count: klineCount,
+          timeframe: timeframe,
+          latest_update: new Date().toISOString(),
+          processed_symbols: processedCount,
+          error_count: errorCount,
+          // 🆕 新增统计字段
+          current_positions: {
+            long_count: longPositions.length,
+            short_count: shortPositions.length,
+            symbols: [...new Set([...longPositions, ...shortPositions].map((p: any) => p.symbol))]
+          },
+          filtering: {
+            raw_signals: allSignals.length,
+            after_smart_filter: smartSignals.length,
+            after_dedup: uniqueSignals.length,
+            final: enrichedSignals.length
+          }
+        }
+      }
+    });
+  } catch (error: any) {
+    console.error('❌ [Signal Pool] 获取信号池失败:', error);
+    console.error('错误堆栈:', error.stack);
+    return c.json({ 
+      success: false, 
+      error: error.message || '服务器内部错误',
+      details: error.stack
+    }, 500);
+  }
+});
+
+// API: 保存信号到历史记录表
+app.post('/api/signal-pool/save', async (c) => {
+  try {
+    const { signals } = await c.req.json();
+    
+    if (!signals || !Array.isArray(signals)) {
+      return c.json({ success: false, error: '无效的信号数据' }, 400);
+    }
+    
+    const db = c.env.DB;
+    
+    // 创建信号历史表（如果不存在）
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS signal_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        symbol TEXT NOT NULL,
+        signal_type TEXT NOT NULL,
+        strategy_name TEXT NOT NULL,
+        price REAL NOT NULL,
+        signal_time TEXT NOT NULL,
+        timestamp INTEGER NOT NULL,
+        kline_index INTEGER,
+        reason TEXT,
+        rsi REAL,
+        change_value REAL,
+        timeframe TEXT DEFAULT '5m',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(symbol, signal_type, timestamp)
+      )
+    `).run();
+    
+    // 批量插入信号
+    let savedCount = 0;
+    for (const signal of signals) {
+      try {
+        await db.prepare(`
+          INSERT OR IGNORE INTO signal_history 
+          (symbol, signal_type, strategy_name, price, signal_time, timestamp, kline_index, reason, rsi, change_value, timeframe)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+          signal.symbol,
+          signal.signal_type,
+          signal.strategy_name,
+          signal.price,
+          signal.time,
+          signal.timestamp,
+          signal.kline_index,
+          signal.reason,
+          signal.indicators?.rsi || null,
+          signal.indicators?.change || null,
+          '5m'
+        ).run();
+        savedCount++;
+      } catch (err) {
+        console.error(`保存信号失败: ${signal.symbol}`, err);
+      }
+    }
+    
+    return c.json({ 
+      success: true, 
+      saved_count: savedCount,
+      total: signals.length 
+    });
+  } catch (error: any) {
+    console.error('保存信号历史失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 查询历史信号（按日期范围）
+app.get('/api/signal-pool/history', async (c) => {
+  const startDate = c.req.query('startDate'); // YYYY-MM-DD
+  const endDate = c.req.query('endDate'); // YYYY-MM-DD
+  const symbol = c.req.query('symbol'); // 可选：筛选特定币种
+  const signalType = c.req.query('signalType'); // 可选：BUY/SELL
+  const limit = parseInt(c.req.query('limit') || '1000');
+  
+  try {
+    const db = c.env.DB;
+    
+    // 构建查询条件
+    let whereConditions = [];
+    let params: any[] = [];
+    
+    if (startDate) {
+      whereConditions.push('DATE(signal_time) >= ?');
+      params.push(startDate);
+    }
+    
+    if (endDate) {
+      whereConditions.push('DATE(signal_time) <= ?');
+      params.push(endDate);
+    }
+    
+    if (symbol) {
+      whereConditions.push('symbol = ?');
+      params.push(symbol);
+    }
+    
+    if (signalType) {
+      whereConditions.push('signal_type = ?');
+      params.push(signalType);
+    }
+    
+    const whereClause = whereConditions.length > 0 
+      ? 'WHERE ' + whereConditions.join(' AND ')
+      : '';
+    
+    // 查询历史信号
+    const query = `
+      SELECT * FROM signal_history 
+      ${whereClause}
+      ORDER BY timestamp DESC 
+      LIMIT ?
+    `;
+    
+    params.push(limit);
+    
+    const result = await db.prepare(query).bind(...params).all();
+    
+    const signals = result.results.map((row: any) => ({
+      symbol: row.symbol,
+      signal_type: row.signal_type,
+      strategy_name: row.strategy_name,
+      price: row.price,
+      time: row.signal_time,
+      timestamp: row.timestamp,
+      kline_index: row.kline_index,
+      reason: row.reason,
+      indicators: {
+        rsi: row.rsi,
+        change: row.change_value
+      },
+      timeframe: row.timeframe,
+      created_at: row.created_at
+    }));
+    
+    // 统计
+    const buySignals = signals.filter(s => s.signal_type === 'BUY');
+    const sellSignals = signals.filter(s => s.signal_type === 'SELL');
+    
+    // 按日期分组统计
+    const dateStats: any = {};
+    signals.forEach(signal => {
+      const date = signal.time.split('T')[0];
+      if (!dateStats[date]) {
+        dateStats[date] = { date, buy: 0, sell: 0, total: 0 };
+      }
+      dateStats[date].total++;
+      if (signal.signal_type === 'BUY') {
+        dateStats[date].buy++;
+      } else {
+        dateStats[date].sell++;
+      }
+    });
+    
+    return c.json({
+      success: true,
+      data: {
+        signals,
+        summary: {
+          total: signals.length,
+          buy_count: buySignals.length,
+          sell_count: sellSignals.length,
+          date_range: {
+            start: startDate || 'N/A',
+            end: endDate || 'N/A'
+          },
+          date_stats: Object.values(dateStats)
+        }
+      }
+    });
+  } catch (error: any) {
+    console.error('查询历史信号失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 获取可用的历史日期列表
+app.get('/api/signal-pool/dates', async (c) => {
+  try {
+    const db = c.env.DB;
+    
+    const result = await db.prepare(`
+      SELECT DISTINCT DATE(signal_time) as date, 
+             COUNT(*) as signal_count,
+             SUM(CASE WHEN signal_type = 'BUY' THEN 1 ELSE 0 END) as buy_count,
+             SUM(CASE WHEN signal_type = 'SELL' THEN 1 ELSE 0 END) as sell_count
+      FROM signal_history 
+      GROUP BY DATE(signal_time)
+      ORDER BY date DESC
+      LIMIT 365
+    `).all();
+    
+    return c.json({
+      success: true,
+      data: result.results
+    });
+  } catch (error: any) {
+    console.error('获取历史日期列表失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
 app.get('/history', (c) => c.html(historyHtml))
 app.get('/history-new', (c) => c.html(historyHtml))
 app.get('/correct', (c) => c.html(correctHtml))
@@ -2778,6 +3418,81 @@ app.put('/api/simulated/accounts/:id/status', async (c) => {
   }
 });
 
+// API: 更新自动交易配置
+app.put('/api/simulated/accounts/:id/auto-trade-config', async (c) => {
+  try {
+    const id = parseInt(c.req.param('id'));
+    const body = await c.req.json();
+    
+    const maxPositionValue = body.max_position_value ? parseFloat(body.max_position_value) : null;
+    const singleTradeLimit = body.single_trade_limit ? parseFloat(body.single_trade_limit) : null;
+    const positionSplits = body.position_splits ? parseInt(body.position_splits) : 1;
+    const forceProtectionBalance = body.force_protection_balance ? parseFloat(body.force_protection_balance) : null;
+    const autoTradingEnabled = body.auto_trading_enabled ? 1 : 0;
+    
+    // 验证参数
+    if (maxPositionValue && maxPositionValue < 100) {
+      return c.json({ success: false, error: '持仓最高金额不能小于100 USDT' }, 400);
+    }
+    
+    if (singleTradeLimit && singleTradeLimit < 100) {
+      return c.json({ success: false, error: '单次买入上限金额不能小于100 USDT' }, 400);
+    }
+    
+    if (singleTradeLimit && maxPositionValue && singleTradeLimit > maxPositionValue) {
+      return c.json({ success: false, error: '单次买入上限不能超过持仓最高金额' }, 400);
+    }
+    
+    if (positionSplits < 1 || positionSplits > 10) {
+      return c.json({ success: false, error: '分批数量必须在1-10之间' }, 400);
+    }
+    
+    // 更新数据库 - 先尝试更新包含single_trade_limit的版本
+    try {
+      await c.env.DB.prepare(`
+        UPDATE simulated_accounts 
+        SET 
+          max_position_value = ?,
+          single_trade_limit = ?,
+          position_splits = ?,
+          force_protection_balance = ?,
+          auto_trading_enabled = ?,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).bind(maxPositionValue, singleTradeLimit, positionSplits, forceProtectionBalance, autoTradingEnabled, id).run();
+    } catch (dbError: any) {
+      // 如果single_trade_limit列不存在，回退到旧版本
+      if (dbError.message && dbError.message.includes('no column named single_trade_limit')) {
+        await c.env.DB.prepare(`
+          UPDATE simulated_accounts 
+          SET 
+            max_position_value = ?,
+            position_splits = ?,
+            force_protection_balance = ?,
+            auto_trading_enabled = ?,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).bind(maxPositionValue, positionSplits, forceProtectionBalance, autoTradingEnabled, id).run();
+      } else {
+        throw dbError;
+      }
+    }
+    
+    return c.json({ 
+      success: true,
+      config: {
+        max_position_value: maxPositionValue,
+        single_trade_limit: singleTradeLimit,
+        position_splits: positionSplits,
+        force_protection_balance: forceProtectionBalance,
+        auto_trading_enabled: autoTradingEnabled
+      }
+    });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
 // API: 获取账户持仓
 app.get('/api/simulated/accounts/:id/positions', async (c) => {
   try {
@@ -2867,9 +3582,44 @@ app.post('/api/simulated/auto-trade-all', async (c) => {
     const body = await c.req.json();
     const tradingService = new SimulatedTradingService(c.env.DB);
     
+    // Get account to check protection and config
+    const account: any = await tradingService.getAccount(body.account_id);
+    
+    // Check if protection is triggered
+    if (account.protection_triggered === 1) {
+      return c.json({ 
+        success: false, 
+        error: '账户保护机制已触发，账户已锁定。请手动解除保护后再继续交易。',
+        protection_triggered: true
+      }, 403);
+    }
+    
+    // Check force protection balance
+    if (account.force_protection_balance && account.current_balance <= account.force_protection_balance * 1.03) {
+      // Trigger protection: close all positions and lock account
+      await tradingService.closeAllPositions(body.account_id);
+      await c.env.DB.prepare(`
+        UPDATE simulated_accounts 
+        SET protection_triggered = 1, auto_trading_enabled = 0, status = 'STOPPED', updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).bind(body.account_id).run();
+      
+      return c.json({ 
+        success: true, 
+        protection_triggered: true,
+        message: `账户余额已触达保护点（${(account.force_protection_balance * 1.03).toFixed(2)}），已自动平仓所有持仓并锁定账户`,
+        trades: []
+      });
+    }
+    
     const result = await tradingService.autoTradeAllSymbols(
       body.account_id,
-      body.strategy_id
+      body.strategy_id,
+      {
+        maxPositionValue: body.single_trade_limit || account.single_trade_limit || body.max_position_value || account.max_position_value,
+        positionSplits: body.position_splits || account.position_splits || 1,
+        forceProtectionBalance: body.force_protection_balance || account.force_protection_balance
+      }
     );
     
     return c.json(result);
@@ -5002,7 +5752,147 @@ app.post('/api/kline/backfill-operation-tips', async (c) => {
     
     console.log(`✅ 检测到 ${peakCount} 个波段高点信号`);
     
-    // 5. 批量更新数据库
+    // 🆕 5. 检测支撑买入信号（支撑线买入）
+    let supportBuyCount = 0;
+    const supportLineCheckMap: Map<number, boolean> = new Map();
+    
+    // 获取该币种的支撑线数据
+    let supportLinePrice: number | null = null;
+    try {
+      const supportResult = await c.env.DB.prepare(`
+        SELECT support_line_price 
+        FROM support_lines 
+        WHERE symbol = ? 
+        ORDER BY date DESC 
+        LIMIT 1
+      `).bind(symbol).first();
+      
+      if (supportResult && supportResult.support_line_price) {
+        supportLinePrice = parseFloat(supportResult.support_line_price.toString());
+        console.log(`📊 找到支撑线价格: ${supportLinePrice}`);
+      }
+    } catch (error: any) {
+      console.error('❌ 获取支撑线失败:', error);
+    }
+    
+    // 如果有支撑线，检测支撑买入信号（10个K线限制显示1个）
+    if (supportLinePrice) {
+      for (let i = 0; i < klines.length; i++) {
+        const k = klines[i];
+        
+        // 跳过已有信号的K线
+        if (operationTips.has(i)) {
+          continue;
+        }
+        
+        // 检查10格内是否已有支撑买入信号
+        const hasNearbySupport = Array.from(supportLineCheckMap.keys()).some(idx => Math.abs(idx - i) < 10);
+        if (hasNearbySupport) {
+          continue;
+        }
+        
+        const currentPrice = parseFloat(k.close);
+        const distance = Math.abs((currentPrice - supportLinePrice) / supportLinePrice) * 100;
+        
+        // 距离支撑线0.5%以内
+        if (distance <= 0.5) {
+          operationTips.set(i, '支撑买入');
+          supportLineCheckMap.set(i, true);
+          supportBuyCount++;
+          console.log(`🔺 支撑买入信号: 价格=${currentPrice}, 支撑线=${supportLinePrice}, 距离=${distance.toFixed(3)}%`);
+        }
+      }
+    }
+    
+    console.log(`✅ 检测到 ${supportBuyCount} 个支撑买入信号`);
+    
+    // 🆕 6. 检测急杀诱多信号
+    let bullTrapCount = 0;
+    for (let i = 0; i < klines.length; i++) {
+      const k = klines[i];
+      
+      // 跳过已有信号的K线
+      if (operationTips.has(i)) {
+        continue;
+      }
+      
+      const changePercent = k.change ? parseFloat(k.change) : 0;
+      const volumeAboveV1 = k.is_v1 || k.is_v2;
+      
+      // 计算当天涨幅
+      let todayGainPercent = 0;
+      if (k.time) {
+        const currentDate = k.time.split(' ')[0];
+        const todayKlines = klines.filter(kl => kl.time && kl.time.startsWith(currentDate));
+        
+        if (todayKlines.length > 0) {
+          const firstKline = todayKlines.reduce((earliest, kl) => {
+            return kl.time < earliest.time ? kl : earliest;
+          }, todayKlines[0]);
+          
+          const todayOpenPrice = parseFloat(firstKline.open);
+          const currentClose = parseFloat(k.close);
+          
+          if (todayOpenPrice > 0) {
+            todayGainPercent = ((currentClose - todayOpenPrice) / todayOpenPrice) * 100;
+          }
+        }
+      }
+      
+      // 急杀诱多：涨跌幅>-2%，V1成交量，当天涨幅3%-10%
+      if (changePercent > -2 && volumeAboveV1 && todayGainPercent > 3 && todayGainPercent < 10) {
+        operationTips.set(i, '急杀诱多');
+        bullTrapCount++;
+        console.log(`⚠️ 急杀诱多: 涨跌幅=${changePercent.toFixed(2)}%, 当天涨幅=${todayGainPercent.toFixed(2)}%`);
+      }
+    }
+    
+    console.log(`✅ 检测到 ${bullTrapCount} 个急杀诱多信号`);
+    
+    // 🆕 7. 检测空头陷阱信号
+    let bearTrapCount = 0;
+    for (let i = 0; i < klines.length; i++) {
+      const k = klines[i];
+      
+      // 跳过已有信号的K线
+      if (operationTips.has(i)) {
+        continue;
+      }
+      
+      const changePercent = k.change ? parseFloat(k.change) : 0;
+      const volumeAboveV1 = k.is_v1 || k.is_v2;
+      
+      // 计算当天涨幅
+      let todayGainPercent = 0;
+      if (k.time) {
+        const currentDate = k.time.split(' ')[0];
+        const todayKlines = klines.filter(kl => kl.time && kl.time.startsWith(currentDate));
+        
+        if (todayKlines.length > 0) {
+          const firstKline = todayKlines.reduce((earliest, kl) => {
+            return kl.time < earliest.time ? kl : earliest;
+          }, todayKlines[0]);
+          
+          const todayOpenPrice = parseFloat(firstKline.open);
+          const currentClose = parseFloat(k.close);
+          
+          if (todayOpenPrice > 0) {
+            todayGainPercent = ((currentClose - todayOpenPrice) / todayOpenPrice) * 100;
+          }
+        }
+      }
+      
+      // 空头陷阱：涨跌幅>-3%，V1成交量，当天下跌
+      if (changePercent > -3 && volumeAboveV1 && todayGainPercent < 0) {
+        operationTips.set(i, '空头陷阱');
+        bearTrapCount++;
+        console.log(`🔺 空头陷阱: 涨跌幅=${changePercent.toFixed(2)}%, 当天涨幅=${todayGainPercent.toFixed(2)}%`);
+      }
+    }
+    
+    console.log(`✅ 检测到 ${bearTrapCount} 个空头陷阱信号`);
+    
+    // 8. 批量更新数据库
     let updatedCount = 0;
     const errors: any[] = [];
     
@@ -5121,6 +6011,9 @@ app.post('/api/kline/backfill-operation-tips', async (c) => {
         high_sell_count: highSellCount,
         low_buy_count: lowBuyCount,
         peak_count: peakCount,
+        support_buy_count: supportBuyCount,
+        bull_trap_count: bullTrapCount,
+        bear_trap_count: bearTrapCount,
         updated: updatedCount,
         errors: errors.length,
         duration: `${duration}秒`
@@ -5972,16 +6865,18 @@ app.post('/api/signals', async (c) => {
     await c.env.DB.prepare(`
       INSERT INTO trading_signals_v2 (
         id, signal_type, signal_name, category, description,
-        conditions, priority, is_enabled, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        conditions, priority, is_enabled, entry_exit, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       signalId,
       body.signal_type,
+      body.signal_name,
       body.category,
       body.description || null,
       body.conditions || null,
       body.priority || 50,
       body.is_enabled !== undefined ? (body.is_enabled ? 1 : 0) : 1,
+      body.entry_exit || null,
       now
     ).run();
     
@@ -6088,6 +6983,52 @@ app.delete('/api/signals/:id', async (c) => {
     });
   } catch (error: any) {
     console.error('❌ 删除信号失败:', error);
+    return c.json({
+      success: false,
+      error: error.message
+    }, 500);
+  }
+});
+
+// 🆕 API: 获取所有策略配置（用于策略配置面板）
+app.get('/api/strategies/all', async (c) => {
+  try {
+    const result = await c.env.DB.prepare(`
+      SELECT 
+        id, strategy_name, strategy_type, priority,
+        entry_signal_type, entry_signal_keyword,
+        exit_signal_type, exit_signal_keyword,
+        exit_signals_json,
+        position_splits, split_interval_pct,
+        stop_loss_pct, take_profit_pct, max_position_size,
+        max_holding_periods,
+        allowed_coin_levels,
+        daily_gain_condition_operator,
+        daily_gain_condition_value,
+        include_historical_levels,
+        entry_price_type, entry_specified_price,
+        exit_price_type, exit_specified_price,
+        description,
+        is_enabled
+      FROM trading_strategies 
+      WHERE is_enabled = 1
+      ORDER BY 
+        CASE priority 
+          WHEN 'high' THEN 1 
+          WHEN 'medium' THEN 2 
+          WHEN 'low' THEN 3 
+          ELSE 4 
+        END,
+        id
+    `).all();
+    
+    return c.json({
+      success: true,
+      strategies: result.results || [],
+      count: result.results?.length || 0
+    });
+  } catch (error: any) {
+    console.error('❌ 获取策略配置失败:', error);
     return c.json({
       success: false,
       error: error.message
@@ -6443,6 +7384,10 @@ app.get('/api/signals/:id', async (c) => {
   }
 });
 
+// ⚠️ DEPRECATED: Duplicate endpoint - removed to avoid routing conflict
+// This endpoint is redundant with the one at line 6097 (now fixed)
+// Keeping this commented for reference
+/*
 // API: 新增信号
 app.post('/api/signals', async (c) => {
   try {
@@ -6479,6 +7424,7 @@ app.post('/api/signals', async (c) => {
     }, 500);
   }
 });
+*/
 
 // API: 更新信号
 app.put('/api/signals/:id', async (c) => {
@@ -6781,6 +7727,11 @@ app.get('/api/signals', async (c) => {
   }
 });
 
+// ⚠️ DEPRECATED: Duplicate endpoint - removed to avoid routing conflict
+// This endpoint is redundant with the one at line 6097 (now fixed)
+// This version had better validation, which has been merged into the primary endpoint
+// Keeping this commented for reference
+/*
 // API: 创建新信号
 app.post('/api/signals', async (c) => {
   try {
@@ -6833,6 +7784,7 @@ app.post('/api/signals', async (c) => {
     }, 500);
   }
 });
+*/
 
 // API: 更新信号
 app.put('/api/signals/:id', async (c) => {
@@ -7116,20 +8068,24 @@ app.post('/api/strategies', async (c) => {
         INSERT INTO trading_strategies (
           strategy_name, strategy_type, priority,
           entry_signal_type, entry_signal_keyword, entry_signal_category, entry_signal_template,
+          entry_price_type, entry_specified_price,
           exit_signal_type, exit_signal_keyword, exit_signal_category, exit_signal_template,
-          exit_signals_json, allowed_coin_levels,
+          exit_price_type, exit_specified_price,
+          exit_signals_json, allowed_coin_levels, include_historical_levels,
           daily_gain_condition_operator, daily_gain_condition_value,
           position_splits, split_interval_pct, max_holding_periods,
           stop_loss_pct, take_profit_pct, max_position_size,
           is_enabled, description
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .bind(
         data.strategy_name, data.strategy_type, data.priority || 'medium',
         data.entry_signal_type || null, data.entry_signal_keyword || null, data.entry_signal_category || null, data.entry_signal_template || null,
+        data.entry_price_type || 'unlimited', data.entry_specified_price || null,  // 🆕 买点价格类型
         data.exit_signal_type || null, data.exit_signal_keyword || null, data.exit_signal_category || null, data.exit_signal_template || null,
-        data.exit_signals_json || null, data.allowed_coin_levels || null,  // 新增字段
-        data.daily_gain_condition_operator || null, data.daily_gain_condition_value || null,  // 新增字段
+        data.exit_price_type || 'unlimited', data.exit_specified_price || null,  // 🆕 卖点价格类型
+        data.exit_signals_json || null, data.allowed_coin_levels || null, data.include_historical_levels || 0,
+        data.daily_gain_condition_operator || null, data.daily_gain_condition_value || null,
         data.position_splits || 1, data.split_interval_pct || 2.0, data.max_holding_periods || 0,
         data.stop_loss_pct || null, data.take_profit_pct || null, data.max_position_size || 100,
         data.is_enabled !== undefined ? data.is_enabled : 1, data.description || null
@@ -7172,6 +8128,15 @@ app.put('/api/strategies/:id', async (c) => {
       fields.push('entry_signal_keyword = ?');
       values.push(data.entry_signal_keyword);
     }
+    // 🆕 买点价格类型字段
+    if (data.entry_price_type !== undefined) {
+      fields.push('entry_price_type = ?');
+      values.push(data.entry_price_type);
+    }
+    if (data.entry_specified_price !== undefined) {
+      fields.push('entry_specified_price = ?');
+      values.push(data.entry_specified_price);
+    }
     if (data.exit_signal_type !== undefined) {
       fields.push('exit_signal_type = ?');
       values.push(data.exit_signal_type);
@@ -7180,6 +8145,15 @@ app.put('/api/strategies/:id', async (c) => {
       fields.push('exit_signal_keyword = ?');
       values.push(data.exit_signal_keyword);
     }
+    // 🆕 卖点价格类型字段
+    if (data.exit_price_type !== undefined) {
+      fields.push('exit_price_type = ?');
+      values.push(data.exit_price_type);
+    }
+    if (data.exit_specified_price !== undefined) {
+      fields.push('exit_specified_price = ?');
+      values.push(data.exit_specified_price);
+    }
     if (data.exit_signals_json !== undefined) {
       fields.push('exit_signals_json = ?');
       values.push(data.exit_signals_json);
@@ -7187,6 +8161,10 @@ app.put('/api/strategies/:id', async (c) => {
     if (data.allowed_coin_levels !== undefined) {
       fields.push('allowed_coin_levels = ?');
       values.push(data.allowed_coin_levels);
+    }
+    if (data.include_historical_levels !== undefined) {
+      fields.push('include_historical_levels = ?');
+      values.push(data.include_historical_levels);
     }
     if (data.daily_gain_condition_operator !== undefined) {
       fields.push('daily_gain_condition_operator = ?');
