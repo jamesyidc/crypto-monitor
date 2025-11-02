@@ -656,24 +656,20 @@ function renderTable(klineData, alerts = [], coinLevel = 6) {
         <td class="py-1 px-0 text-center ${hasAlert ? 'bg-yellow-50' : needHighlight ? (isRisingPattern ? 'bg-green-50' : 'bg-red-50') : 'bg-orange-50'}">
           ${operationTip !== '-' ? operationTip : (highSellIndicator || (k.operation_tip ? `<span class="inline-block px-2 py-1 bg-blue-500 text-white text-xs rounded font-bold">${k.operation_tip}</span>` : '-'))}
         </td>
-        <!-- 4. 24排名 -->
-        <td class="py-2 px-1 text-center ${hasAlert ? 'bg-yellow-50' : needHighlight ? (isRisingPattern ? 'bg-green-50' : 'bg-red-50') : 'bg-pink-50'}">
-          ${k.homepage_rank ? `<span class="inline-block px-2 py-1 bg-pink-500 text-white text-xs rounded font-bold" title="首页排名第${k.homepage_rank}位">#${k.homepage_rank}</span>` : '-'}
-        </td>
-        <!-- 5-8. 基础K线数据 (开盘/最高/最低/收盘) -->
+        <!-- 4-7. OHLC -->
         <td class="py-2 px-1 text-right font-mono">${k.open ? k.open.toFixed(4) : '-'}</td>
         <td class="py-2 px-1 text-right font-mono text-green-600">${k.high ? k.high.toFixed(4) : '-'}</td>
         <td class="py-2 px-1 text-right font-mono text-red-600">${k.low ? k.low.toFixed(4) : '-'}</td>
         <td class="py-2 px-1 text-right font-mono font-bold">${k.close ? k.close.toFixed(4) : '-'}</td>
-        <!-- 9. 本轮涨跌 -->
+        <!-- 8. 本轮涨跌 -->
         <td class="py-2 px-1 text-right font-bold ${changeClass}">${k.change || '-'}</td>
-        <!-- 10. 10格 -->
+        <!-- 9. 10格 -->
         <td class="py-2 px-1 text-center font-bold ${k.bar_10_compare === -1 ? 'text-red-600 bg-red-100' : (k.bar_10_compare === 1 ? 'text-green-600 bg-green-100' : 'text-gray-400')} bg-purple-50">
           ${k.bar_10_compare === -1 ? '↓-1' : (k.bar_10_compare === 1 ? '↑+1' : '0')}
         </td>
-        <!-- 11. 成交量 -->
+        <!-- 10. 成交量 -->
         <td class="py-2 px-1 text-right font-mono text-gray-600">${k.volume ? formatVolume(k.volume) : '-'}</td>
-        <!-- 12-13. V1/V2 -->
+        <!-- 11-12. V1/V2 -->
         <td class="py-2 px-1 text-center">${v1Badge}</td>
         <td class="py-2 px-1 text-center">${v2Badge}</td>
         <!-- 技术指标列（默认显示） -->
@@ -738,10 +734,6 @@ function renderTable(klineData, alerts = [], coinLevel = 6) {
         </td>
         <td class="py-2 px-1 text-center indicator-col">
           ${getChannelIcon(k.channel_state)}
-        </td>
-        <!-- 28. 当日涨幅 -->
-        <td class="py-2 px-1 text-right font-bold indicator-col ${k.change_today ? (k.change_today > 0 ? 'text-green-600' : 'text-red-600') : 'text-gray-400'} bg-yellow-50">
-          ${k.change_today !== null && k.change_today !== undefined ? k.change_today.toFixed(2) + '%' : '-'}
         </td>
       </tr>
     `;
