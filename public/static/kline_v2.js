@@ -648,17 +648,17 @@ function renderTable(klineData, alerts = [], coinLevel = 6) {
         <td class="py-2 px-1 text-gray-700 sticky left-0 ${hasAlert ? 'bg-yellow-50' : needHighlight ? (isRisingPattern ? 'bg-green-50' : 'bg-red-50') : 'bg-white'}">
           ${k.time || '-'}${alertBadge}
         </td>
-        <!-- 2. 24排名 -->
-        <td class="py-2 px-1 text-center ${hasAlert ? 'bg-yellow-50' : needHighlight ? (isRisingPattern ? 'bg-green-50' : 'bg-red-50') : 'bg-pink-50'}">
-          ${k.homepage_rank ? `<span class="inline-block px-2 py-1 bg-pink-500 text-white text-xs rounded font-bold" title="首页排名第${k.homepage_rank}位">#${k.homepage_rank}</span>` : '-'}
-        </td>
-        <!-- 3. 起涨/起跌点 -->
+        <!-- 2. 起涨/起跌点 -->
         <td class="py-2 px-3 text-center min-w-[80px] ${hasAlert ? 'bg-yellow-50' : needHighlight ? (isRisingPattern ? 'bg-green-50' : 'bg-red-50') : 'bg-blue-50'}">
           ${cumulativeBadge}
         </td>
-        <!-- 4. 操作提示 -->
+        <!-- 3. 操作提示 -->
         <td class="py-1 px-0 text-center ${hasAlert ? 'bg-yellow-50' : needHighlight ? (isRisingPattern ? 'bg-green-50' : 'bg-red-50') : 'bg-orange-50'}">
           ${operationTip !== '-' ? operationTip : (highSellIndicator || (k.operation_tip ? `<span class="inline-block px-2 py-1 bg-blue-500 text-white text-xs rounded font-bold">${k.operation_tip}</span>` : '-'))}
+        </td>
+        <!-- 4. 24排名 -->
+        <td class="py-2 px-1 text-center ${hasAlert ? 'bg-yellow-50' : needHighlight ? (isRisingPattern ? 'bg-green-50' : 'bg-red-50') : 'bg-pink-50'}">
+          ${k.homepage_rank ? `<span class="inline-block px-2 py-1 bg-pink-500 text-white text-xs rounded font-bold" title="首页排名第${k.homepage_rank}位">#${k.homepage_rank}</span>` : '-'}
         </td>
         <!-- 5-8. 基础K线数据 (开盘/最高/最低/收盘) -->
         <td class="py-2 px-1 text-right font-mono">${k.open ? k.open.toFixed(4) : '-'}</td>
