@@ -739,6 +739,10 @@ function renderTable(klineData, alerts = [], coinLevel = 6) {
         <td class="py-2 px-1 text-center indicator-col">
           ${getChannelIcon(k.channel_state)}
         </td>
+        <!-- 28. 当日涨幅 -->
+        <td class="py-2 px-1 text-right font-bold indicator-col ${k.change_today ? (k.change_today > 0 ? 'text-green-600' : 'text-red-600') : 'text-gray-400'} bg-yellow-50">
+          ${k.change_today !== null && k.change_today !== undefined ? k.change_today.toFixed(2) + '%' : '-'}
+        </td>
       </tr>
     `;
   }).join('');
