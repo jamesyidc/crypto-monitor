@@ -267,7 +267,13 @@
         </div>
     </div>
 
+    <!-- 依赖库 -->
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-    <script src="/static/kline_new_1761736500.js"></script>
+    
+    <!-- ✅ API管理器 - 必须在kline_v2.js之前加载 -->
+    <script src="/static/api-wrapper.js"></script>
+    
+    <!-- ✅ K线查询主逻辑 - 使用最新版本 -->
+    <script src="/static/kline_v2.js"></script>
 </body>
 </html>
