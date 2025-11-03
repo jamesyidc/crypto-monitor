@@ -1203,25 +1203,25 @@ app.post('/api/kline/sync/auto', async (c) => {
           try {
             console.log(`   处理 ${result.symbol}...`);
             
-            // 🔥 直接从数据库获取已计算好的K线数据（包含SAR, RSI, BOLL, operation_tip等所有字段）
-            const { ReadOnlyKlineService } = await import('./services/ReadOnlyKlineService');
-            const readOnlyKlineService = new ReadOnlyKlineService(c.env.DB);
-            const klineData = await readOnlyKlineService.getKlineData(result.symbol, timeframe, 3);
+            // 🔥 使用KlineService获取实时计算的技术指标数据（SAR, RSI, BOLL, MACD等）
+            const { KlineService } = await import('./services/klineService');
+            const klineService = new KlineService(c.env.DB);
+            const indicatorResult = await klineService.getKlineWithIndicators(result.symbol, timeframe, 3);
+            const klineData = indicatorResult.data;
             
-            console.log(`   ${result.symbol}: 获取到 ${klineData?.length || 0} 条数据库记录`);
+            console.log(`   ${result.symbol}: 获取到 ${klineData?.length || 0} 条带指标的K线数据`);
             
             // 🐛 DEBUG: 打印第一条数据的字段
             if (klineData && klineData.length > 0) {
               const firstRecord = klineData[0];
               console.log(`   🐛 ${result.symbol} 样例数据:`);
               console.log(`      - sar: ${firstRecord.sar}`);
-              console.log(`      - rsi_5min: ${firstRecord.rsi_5min}`);
-              console.log(`      - operation_tip: ${firstRecord.operation_tip}`);
-              console.log(`      - signal: ${firstRecord.signal}`);
-              console.log(`      - homepage_rank: ${firstRecord.homepage_rank}`);
+              console.log(`      - rsi_5min: ${firstRecord.rsi_5}`);
+              console.log(`      - rsi_1h: ${firstRecord.rsi_14}`);
               console.log(`      - boll_mb: ${firstRecord.boll_mb}`);
-              console.log(`      - volume_v1: ${firstRecord.volume_v1}`);
+              console.log(`      - macd_histogram: ${firstRecord.macd_histogram}`);
               console.log(`      - channel_state: ${firstRecord.channel_state}`);
+              console.log(`      - volume: ${firstRecord.volume}`);
             }
             
             if (klineData && klineData.length > 0) {
