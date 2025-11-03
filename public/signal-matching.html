@@ -219,17 +219,14 @@
             </div>
         </div>
 
-        <!-- 详情展示区域 -->
-        <div id="details-panel" class="bg-white rounded-lg shadow-lg p-6 mb-6" style="display: none;">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-gray-800" id="details-title">
+        <!-- 详情展示区域 - 完整展开 -->
+        <div id="details-panel" class="bg-white rounded-lg shadow-lg p-8 mb-6" style="display: none; min-height: 400px;">
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-gray-800" id="details-title">
                     <i id="details-icon" class="fas fa-database text-indigo-600"></i> <span id="details-title-text">详情</span>
                 </h2>
-                <button onclick="closeDetails()" class="text-gray-500 hover:text-gray-700 transition">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
             </div>
-            <div id="details-content" class="space-y-4">
+            <div id="details-content">
                 <!-- 动态内容将在这里显示 -->
             </div>
         </div>
@@ -437,50 +434,50 @@
                 
                 // 构建HTML内容
                 let content = `
-                    <div class="bg-indigo-50 rounded-lg p-4 mb-4">
-                        <div class="grid grid-cols-3 gap-4 text-center">
+                    <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 mb-6 border-2 border-indigo-200">
+                        <div class="grid grid-cols-3 gap-8 text-center">
                             <div>
-                                <div class="text-2xl font-bold text-indigo-600">${totalCount}</div>
-                                <div class="text-sm text-gray-600">总快照数</div>
+                                <div class="text-4xl font-bold text-indigo-600">${totalCount}</div>
+                                <div class="text-base text-gray-600 mt-2">总快照数</div>
                             </div>
                             <div>
-                                <div class="text-2xl font-bold text-green-600">${symbolsData.length}</div>
-                                <div class="text-sm text-gray-600">有数据币种</div>
+                                <div class="text-4xl font-bold text-green-600">${symbolsData.length}</div>
+                                <div class="text-base text-gray-600 mt-2">有数据币种</div>
                             </div>
                             <div>
-                                <div class="text-2xl font-bold text-gray-600">${27 - symbolsData.length}</div>
-                                <div class="text-sm text-gray-600">无数据币种</div>
+                                <div class="text-4xl font-bold text-gray-600">${27 - symbolsData.length}</div>
+                                <div class="text-base text-gray-600 mt-2">无数据币种</div>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                 `;
                 
                 // 显示所有有数据的币种
                 symbolsData.forEach(item => {
                     const latest = item.latest;
                     content += `
-                        <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
-                            <div class="flex justify-between items-start mb-2">
-                                <div class="font-bold text-lg text-gray-800">${item.symbol}</div>
-                                <div class="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">${item.count}根K线</div>
+                        <div class="border-2 border-gray-300 rounded-xl p-5 hover:shadow-xl hover:border-indigo-400 transition-all bg-white">
+                            <div class="flex justify-between items-start mb-3">
+                                <div class="font-bold text-xl text-gray-800">${item.symbol}</div>
+                                <div class="text-xs bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full font-semibold">${item.count}根</div>
                             </div>
-                            <div class="space-y-1 text-sm">
-                                <div class="flex justify-between">
-                                    <span class="text-gray-600">价格:</span>
-                                    <span class="font-semibold">${latest.close_price ? latest.close_price.toFixed(2) : '-'}</span>
+                            <div class="space-y-2 text-base">
+                                <div class="flex justify-between items-center py-1">
+                                    <span class="text-gray-600">💰 价格:</span>
+                                    <span class="font-bold text-gray-800">${latest.close_price ? latest.close_price.toFixed(2) : '-'}</span>
                                 </div>
-                                <div class="flex justify-between">
-                                    <span class="text-gray-600">RSI5:</span>
-                                    <span class="font-semibold ${latest.rsi_5 < 30 ? 'text-green-600' : latest.rsi_5 > 70 ? 'text-red-600' : ''}">${latest.rsi_5 ? latest.rsi_5.toFixed(2) : '-'}</span>
+                                <div class="flex justify-between items-center py-1">
+                                    <span class="text-gray-600">📊 RSI5:</span>
+                                    <span class="font-bold ${latest.rsi_5 < 30 ? 'text-green-600' : latest.rsi_5 > 70 ? 'text-red-600' : 'text-gray-800'}">${latest.rsi_5 ? latest.rsi_5.toFixed(2) : '-'}</span>
                                 </div>
-                                <div class="flex justify-between">
-                                    <span class="text-gray-600">操作提示:</span>
-                                    <span class="font-semibold ${latest.operation_tip ? 'text-blue-600' : 'text-gray-400'}">${latest.operation_tip || '无'}</span>
+                                <div class="flex justify-between items-center py-1">
+                                    <span class="text-gray-600">💡 提示:</span>
+                                    <span class="font-bold ${latest.operation_tip ? 'text-blue-600' : 'text-gray-400'}">${latest.operation_tip || '无'}</span>
                                 </div>
-                                <div class="text-xs text-gray-400 mt-2">
-                                    ${new Date(latest.created_at * 1000).toLocaleString('zh-CN')}
+                                <div class="text-xs text-gray-400 mt-3 pt-2 border-t border-gray-200">
+                                    🕒 ${new Date(latest.created_at * 1000).toLocaleString('zh-CN')}
                                 </div>
                             </div>
                         </div>
@@ -541,115 +538,115 @@
                     
                     // 构建HTML内容
                     let content = `
-                        <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 mb-6 border-2 border-blue-200">
                             <div class="text-center">
-                                <div class="text-3xl font-bold text-gray-800">${data.length}</div>
-                                <div class="text-sm text-gray-600">条记录</div>
+                                <div class="text-5xl font-bold text-gray-800">${data.length}</div>
+                                <div class="text-lg text-gray-600 mt-2">条记录</div>
                             </div>
                         </div>
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
+                        <div class="overflow-x-auto shadow-lg rounded-xl border border-gray-200">
+                            <table class="min-w-full divide-y divide-gray-300">
+                                <thead class="bg-gradient-to-r from-gray-100 to-gray-200">
                                     <tr>
                     `;
                     
                     // 根据不同池类型显示不同的表头和内容
                     if (poolType === 'pending') {
                         content += `
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">币种</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作提示</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">RSI5</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">价格</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">K线时间</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">币种</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">操作提示</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">RSI5</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">价格</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">K线时间</th>
                         </tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
                         
                         data.forEach((item, index) => {
                             content += `
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-3 font-bold">${item.symbol || '-'}</td>
-                                    <td class="px-4 py-3"><span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">${item.operation_tip || '-'}</span></td>
-                                    <td class="px-4 py-3">${item.rsi_5 ? item.rsi_5.toFixed(2) : '-'}</td>
-                                    <td class="px-4 py-3">${item.close_price ? item.close_price.toFixed(2) : '-'}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-600">${new Date(item.kline_time).toLocaleString('zh-CN')}</td>
+                                <tr class="hover:bg-blue-50 transition">
+                                    <td class="px-6 py-4 font-bold text-lg text-gray-800">${item.symbol || '-'}</td>
+                                    <td class="px-6 py-4"><span class="px-3 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm font-semibold">${item.operation_tip || '-'}</span></td>
+                                    <td class="px-6 py-4 text-base font-semibold">${item.rsi_5 ? item.rsi_5.toFixed(2) : '-'}</td>
+                                    <td class="px-6 py-4 text-base font-semibold">${item.close_price ? item.close_price.toFixed(2) : '-'}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-600">${new Date(item.kline_time).toLocaleString('zh-CN')}</td>
                                 </tr>
                             `;
                         });
                     } else if (poolType === 'matched') {
                         content += `
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">币种</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">信号类型</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">信号名称</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">价格</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">创建时间</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">币种</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">信号类型</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">信号名称</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">价格</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">创建时间</th>
                         </tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
                         
                         data.forEach((item, index) => {
                             content += `
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-3 font-bold">${item.symbol || '-'}</td>
-                                    <td class="px-4 py-3">
-                                        <span class="px-2 py-1 rounded text-xs ${item.signal_type === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                <tr class="hover:bg-green-50 transition">
+                                    <td class="px-6 py-4 font-bold text-lg text-gray-800">${item.symbol || '-'}</td>
+                                    <td class="px-6 py-4">
+                                        <span class="px-3 py-2 rounded-lg text-sm font-bold ${item.signal_type === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
                                             ${item.signal_type === 'buy' ? '做多' : '做空'}
                                         </span>
                                     </td>
-                                    <td class="px-4 py-3">${item.signal_name || '-'}</td>
-                                    <td class="px-4 py-3">${item.close_price ? item.close_price.toFixed(2) : '-'}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-600">${new Date(item.created_at * 1000).toLocaleString('zh-CN')}</td>
+                                    <td class="px-6 py-4 text-base">${item.signal_name || '-'}</td>
+                                    <td class="px-6 py-4 text-base font-semibold">${item.close_price ? item.close_price.toFixed(2) : '-'}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-600">${new Date(item.created_at * 1000).toLocaleString('zh-CN')}</td>
                                 </tr>
                             `;
                         });
                     } else if (poolType === 'today') {
                         content += `
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">币种</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">策略</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">信号</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">创建时间</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">币种</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">策略</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">信号</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">状态</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">创建时间</th>
                         </tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
                         
                         data.forEach((item, index) => {
                             content += `
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-3 font-bold">${item.symbol || '-'}</td>
-                                    <td class="px-4 py-3">${item.strategy_name || '-'}</td>
-                                    <td class="px-4 py-3">
-                                        <span class="px-2 py-1 rounded text-xs ${item.signal_type === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                <tr class="hover:bg-purple-50 transition">
+                                    <td class="px-6 py-4 font-bold text-lg text-gray-800">${item.symbol || '-'}</td>
+                                    <td class="px-6 py-4 text-base">${item.strategy_name || '-'}</td>
+                                    <td class="px-6 py-4">
+                                        <span class="px-3 py-2 rounded-lg text-sm font-bold ${item.signal_type === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
                                             ${item.signal_type === 'buy' ? '做多' : '做空'}
                                         </span>
                                     </td>
-                                    <td class="px-4 py-3">
-                                        <span class="px-2 py-1 rounded text-xs ${item.status === 'in_production' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}">
+                                    <td class="px-6 py-4">
+                                        <span class="px-3 py-2 rounded-lg text-sm font-bold ${item.status === 'in_production' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}">
                                             ${item.status === 'in_production' ? '生产池' : '待执行'}
                                         </span>
                                     </td>
-                                    <td class="px-4 py-3 text-sm text-gray-600">${new Date(item.created_at * 1000).toLocaleString('zh-CN')}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-600">${new Date(item.created_at * 1000).toLocaleString('zh-CN')}</td>
                                 </tr>
                             `;
                         });
                     } else if (poolType === 'production') {
                         content += `
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">币种</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">策略</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">信号</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">入场价</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">杠杆</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">优先级</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">币种</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">策略</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">信号</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">入场价</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">杠杆</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">优先级</th>
                         </tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
                         
                         data.forEach((item, index) => {
                             content += `
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-3 font-bold">${item.symbol || '-'}</td>
-                                    <td class="px-4 py-3">${item.strategy_name || '-'}</td>
-                                    <td class="px-4 py-3">
-                                        <span class="px-2 py-1 rounded text-xs ${item.signal_type === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                <tr class="hover:bg-red-50 transition">
+                                    <td class="px-6 py-4 font-bold text-lg text-gray-800">${item.symbol || '-'}</td>
+                                    <td class="px-6 py-4 text-base">${item.strategy_name || '-'}</td>
+                                    <td class="px-6 py-4">
+                                        <span class="px-3 py-2 rounded-lg text-sm font-bold ${item.signal_type === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
                                             ${item.signal_type === 'buy' ? '做多' : '做空'}
                                         </span>
                                     </td>
-                                    <td class="px-4 py-3">${item.entry_price ? item.entry_price.toFixed(4) : '-'}</td>
-                                    <td class="px-4 py-3">${item.leverage}x</td>
-                                    <td class="px-4 py-3">
-                                        <span class="px-2 py-1 rounded text-xs ${item.priority === 'high' ? 'bg-red-100 text-red-800' : item.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}">
+                                    <td class="px-6 py-4 text-base font-semibold">${item.entry_price ? item.entry_price.toFixed(4) : '-'}</td>
+                                    <td class="px-6 py-4 text-base font-bold text-indigo-600">${item.leverage}x</td>
+                                    <td class="px-6 py-4">
+                                        <span class="px-3 py-2 rounded-lg text-sm font-bold ${item.priority === 'high' ? 'bg-red-100 text-red-800' : item.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}">
                                             ${item.priority || 'normal'}
                                         </span>
                                     </td>
