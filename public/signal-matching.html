@@ -609,7 +609,7 @@
                     content += `
                         <tr class="hover:bg-yellow-50 transition">
                             <td class="px-3 py-2 text-center font-bold border-r">${index + 1}</td>
-                            <td class="px-3 py-2 text-center whitespace-nowrap border-r">${new Date(snap.kline_time * 1000).toLocaleString('zh-CN', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'})}</td>
+                            <td class="px-3 py-2 text-center whitespace-nowrap border-r">${new Date(snap.kline_time).toLocaleString('zh-CN', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'})}</td>
                             <td class="px-3 py-2 text-center border-r">${snap.homepage_rank || '-'}</td>
                             <td class="px-3 py-2 text-center border-r">${snap.surge_start_point || '-'}</td>
                             <td class="px-3 py-2 text-center border-r">${snap.crash_start_point || '-'}</td>
