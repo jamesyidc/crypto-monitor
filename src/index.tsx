@@ -1165,61 +1165,27 @@ app.post('/api/kline/sync/auto', async (c) => {
       const signalMatchingService = new SignalMatchingService(c.env.DB);
       console.log('🔄 开始自动信号匹配流程...');
       
-      // 步骤1: 为每个币种保存最新K线快照（带技术指标）
+      // 步骤1: 为每个币种保存最新K线快照（直接使用数据库中已计算好的数据）
       let snapshotsSaved = 0;
       console.log(`📸 开始保存K线快照，共 ${results.length} 个币种...`);
-      
-      // 🆕 获取首页数据（包含统计信息）
-      let dashboardData: any = {};
-      try {
-        const { AnalysisService } = await import('./services/analysisService');
-        const { CoinService } = await import('./services/coinService');
-        const coinService = new CoinService(c.env.DB);
-        const analysisService = new AnalysisService(coinService);
-        const dashboardResult = await analysisService.getDashboardData();
-        
-        // 构建symbol到统计数据的映射
-        if (dashboardResult && dashboardResult.coinDetails) {
-          dashboardResult.coinDetails.forEach((coin: any) => {
-            dashboardData[coin.symbol] = {
-              homepage_rank: coin.rank,
-              today_surge_count: coin.today_surge_count || 0,
-              today_crash_count: coin.today_crash_count || 0,
-              extreme_up_count: coin.extreme_up_count || 0,
-              extreme_down_count: coin.extreme_down_count || 0,
-              today_v1_count: coin.today_v1_count || 0,
-              change_today: coin.change_today || 0
-            };
-          });
-        }
-        console.log(`   ✅ 已获取首页数据，包含 ${Object.keys(dashboardData).length} 个币种`);
-      } catch (error: any) {
-        console.warn(`   ⚠️  获取首页数据失败: ${error.message}`);
-      }
       
       for (const result of results) {
         if (result.success) {
           try {
             console.log(`   处理 ${result.symbol}...`);
-            // 获取该币种带技术指标的K线数据
+            
+            // 🔥 直接从数据库获取已计算好的K线数据（包含SAR, RSI, BOLL, operation_tip等所有字段）
             const { ReadOnlyKlineService } = await import('./services/ReadOnlyKlineService');
             const readOnlyKlineService = new ReadOnlyKlineService(c.env.DB);
-            const klineData = await readOnlyKlineService.getKlineWithIndicators(result.symbol, timeframe, 3);
+            const klineData = await readOnlyKlineService.getKlineData(result.symbol, timeframe, 3);
             
-            console.log(`   ${result.symbol}: 获取到 ${klineData.data?.length || 0} 根K线`);
+            console.log(`   ${result.symbol}: 获取到 ${klineData?.length || 0} 条数据库记录`);
             
-            if (klineData.data && klineData.data.length > 0) {
-              // 🆕 合并首页统计数据
-              const additionalData = dashboardData[result.symbol] || {};
-              
-              // 保存最新3根K线快照（带统计数据）
-              await signalMatchingService.saveLatestKlineSnapshots(
-                result.symbol, 
-                klineData.data,
-                additionalData
-              );
+            if (klineData && klineData.length > 0) {
+              // 保存最新3条K线快照（直接使用数据库中已计算好的数据）
+              await signalMatchingService.saveLatestKlineSnapshots(result.symbol, klineData);
               snapshotsSaved++;
-              console.log(`   ✅ ${result.symbol}: 快照已保存`);
+              console.log(`   ✅ ${result.symbol}: 快照已保存（使用数据库已计算数据）`);
             } else {
               console.log(`   ⚠️  ${result.symbol}: 无K线数据`);
             }

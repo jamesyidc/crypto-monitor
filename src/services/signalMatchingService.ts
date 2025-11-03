@@ -235,7 +235,7 @@ export class SignalMatchingService {
         
         // 技术指标 - SAR
         sar_value: kline.sar || kline.sar_value || null,
-        sar_position: kline.sar_position || null,
+        sar_position: kline.sar_position || (kline.close && kline.sar ? (kline.close > kline.sar ? 'above' : 'below') : null),
         sar_distance_percent: kline.sar_distance_percent || kline.sarChangePercent || kline.sar_change_percent || null,
         
         // 技术指标 - MACD
