@@ -79,53 +79,90 @@
             </div>
         </div>
 
+        <!-- 运行状态 -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="flex items-center space-x-4">
+                    <div class="bg-blue-100 p-4 rounded-lg">
+                        <i class="fas fa-clock text-3xl text-blue-600"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm text-gray-500">系统运行时间</div>
+                        <div class="text-2xl font-bold text-gray-800" id="system-uptime">-</div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="bg-green-100 p-4 rounded-lg">
+                        <i class="fas fa-sync-alt text-3xl text-green-600"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm text-gray-500">下次自动刷新</div>
+                        <div class="text-2xl font-bold text-gray-800" id="next-refresh">-</div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="bg-purple-100 p-4 rounded-lg">
+                        <i class="fas fa-history text-3xl text-purple-600"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm text-gray-500">上次更新时间</div>
+                        <div class="text-lg font-bold text-gray-800" id="last-update-full">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- 系统概览 -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-            <div class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg shadow-lg p-6">
+            <div onclick="showPoolDetails('pending')" class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg shadow-lg p-6 cursor-pointer transform transition-all hover:scale-105 hover:shadow-xl">
                 <div class="flex justify-between items-start">
                     <div>
                         <div class="text-sm opacity-90">待匹配信号</div>
-                        <div class="text-3xl font-bold mt-2" id="pending-count">-</div>
+                        <div class="text-3xl font-bold mt-2" id="pending-count">0</div>
                     </div>
                     <i class="fas fa-hourglass-half text-3xl opacity-50"></i>
                 </div>
+                <div class="mt-3 text-xs opacity-75">点击查看详情 →</div>
             </div>
             
-            <div class="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-lg shadow-lg p-6">
+            <div onclick="showPoolDetails('matched')" class="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-lg shadow-lg p-6 cursor-pointer transform transition-all hover:scale-105 hover:shadow-xl">
                 <div class="flex justify-between items-start">
                     <div>
                         <div class="text-sm opacity-90">已匹配信号</div>
-                        <div class="text-3xl font-bold mt-2" id="matched-count">-</div>
+                        <div class="text-3xl font-bold mt-2" id="matched-count">0</div>
                     </div>
                     <i class="fas fa-check-circle text-3xl opacity-50"></i>
                 </div>
+                <div class="mt-3 text-xs opacity-75">点击查看详情 →</div>
             </div>
             
-            <div class="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-lg shadow-lg p-6">
+            <div onclick="showPoolDetails('today')" class="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-lg shadow-lg p-6 cursor-pointer transform transition-all hover:scale-105 hover:shadow-xl">
                 <div class="flex justify-between items-start">
                     <div>
                         <div class="text-sm opacity-90">今日已匹配</div>
-                        <div class="text-3xl font-bold mt-2" id="today-count">-</div>
+                        <div class="text-3xl font-bold mt-2" id="today-count">0</div>
                     </div>
                     <i class="fas fa-calendar-check text-3xl opacity-50"></i>
                 </div>
+                <div class="mt-3 text-xs opacity-75">点击查看详情 →</div>
             </div>
             
-            <div class="bg-gradient-to-br from-red-500 to-red-600 text-white rounded-lg shadow-lg p-6">
+            <div onclick="showPoolDetails('production')" class="bg-gradient-to-br from-red-500 to-red-600 text-white rounded-lg shadow-lg p-6 cursor-pointer transform transition-all hover:scale-105 hover:shadow-xl">
                 <div class="flex justify-between items-start">
                     <div>
                         <div class="text-sm opacity-90">生产池待执行</div>
-                        <div class="text-3xl font-bold mt-2" id="production-count">-</div>
+                        <div class="text-3xl font-bold mt-2" id="production-count">0</div>
                     </div>
                     <i class="fas fa-rocket text-3xl opacity-50"></i>
                 </div>
+                <div class="mt-3 text-xs opacity-75">点击查看详情 →</div>
             </div>
             
             <div class="bg-gradient-to-br from-gray-500 to-gray-600 text-white rounded-lg shadow-lg p-6">
                 <div class="flex justify-between items-start">
                     <div>
                         <div class="text-sm opacity-90">上次更新</div>
-                        <div class="text-sm font-bold mt-2" id="last-update">-</div>
+                        <div class="text-sm font-bold mt-2" id="last-update">19:16:31</div>
                     </div>
                     <i class="fas fa-clock text-3xl opacity-50"></i>
                 </div>
@@ -228,6 +265,34 @@
     </div>
 
     <script>
+        // 系统启动时间
+        const systemStartTime = Date.now();
+        
+        // 自动刷新相关
+        const AUTO_REFRESH_INTERVAL = 30; // 30秒
+        let refreshCountdown = AUTO_REFRESH_INTERVAL;
+        
+        // 更新系统运行时间
+        function updateSystemUptime() {
+            const uptime = Math.floor((Date.now() - systemStartTime) / 1000);
+            const hours = Math.floor(uptime / 3600);
+            const minutes = Math.floor((uptime % 3600) / 60);
+            const seconds = uptime % 60;
+            document.getElementById('system-uptime').textContent = 
+                `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+        
+        // 更新下次刷新倒计时
+        function updateRefreshCountdown() {
+            document.getElementById('next-refresh').textContent = `${refreshCountdown}秒`;
+            refreshCountdown--;
+            
+            if (refreshCountdown < 0) {
+                refreshCountdown = AUTO_REFRESH_INTERVAL;
+                loadData();
+            }
+        }
+        
         // 加载系统概览
         async function loadOverview() {
             try {
@@ -245,10 +310,72 @@
                             document.getElementById('production-count').textContent = item.count;
                         }
                     });
-                    document.getElementById('last-update').textContent = new Date().toLocaleTimeString('zh-CN');
+                    const now = new Date();
+                    document.getElementById('last-update').textContent = now.toLocaleTimeString('zh-CN');
+                    document.getElementById('last-update-full').textContent = now.toLocaleString('zh-CN');
+                    refreshCountdown = AUTO_REFRESH_INTERVAL; // 重置倒计时
                 }
             } catch (error) {
                 console.error('加载系统概览失败:', error);
+            }
+        }
+        
+        // 显示池详情
+        async function showPoolDetails(poolType) {
+            const apiMap = {
+                'pending': '/api/signal-matching/pending?limit=100',
+                'matched': '/api/signal-matching/matched?limit=100',
+                'today': '/api/signal-matching/today?limit=100',
+                'production': '/api/signal-matching/production?limit=100'
+            };
+            
+            const titleMap = {
+                'pending': '待匹配信号池',
+                'matched': '已匹配信号池',
+                'today': '今日已匹配记录',
+                'production': '生产池待执行'
+            };
+            
+            try {
+                const response = await axios.get(apiMap[poolType]);
+                if (response.data.success) {
+                    const data = response.data.data;
+                    if (data.length === 0) {
+                        alert(`${titleMap[poolType]}\n\n暂无数据`);
+                        return;
+                    }
+                    
+                    // 构建详情信息
+                    let details = `${titleMap[poolType]}（共 ${data.length} 条）\n\n`;
+                    data.slice(0, 10).forEach((item, index) => {
+                        details += `${index + 1}. ${item.symbol || '-'}\n`;
+                        if (poolType === 'pending') {
+                            details += `   操作提示: ${item.operation_tip || '-'}\n`;
+                            details += `   K线时间: ${new Date(item.kline_time).toLocaleString('zh-CN')}\n`;
+                        } else if (poolType === 'matched') {
+                            details += `   信号类型: ${item.signal_type === 'buy' ? '做多' : '做空'}\n`;
+                            details += `   信号名称: ${item.signal_name || '-'}\n`;
+                        } else if (poolType === 'today') {
+                            details += `   策略: ${item.strategy_name || '-'}\n`;
+                            details += `   信号: ${item.signal_type === 'buy' ? '做多' : '做空'}\n`;
+                            details += `   状态: ${item.status === 'in_production' ? '生产池' : '待执行'}\n`;
+                        } else if (poolType === 'production') {
+                            details += `   策略: ${item.strategy_name || '-'}\n`;
+                            details += `   入场: ${item.entry_price ? item.entry_price.toFixed(4) : '-'}\n`;
+                            details += `   杠杆: ${item.leverage}x, 优先级: ${item.priority}\n`;
+                        }
+                        details += `\n`;
+                    });
+                    
+                    if (data.length > 10) {
+                        details += `... 还有 ${data.length - 10} 条记录`;
+                    }
+                    
+                    alert(details);
+                }
+            } catch (error) {
+                console.error(`加载${titleMap[poolType]}失败:`, error);
+                alert(`加载失败: ${error.message}`);
             }
         }
 
@@ -429,8 +556,12 @@
         // 页面加载时执行
         window.addEventListener('DOMContentLoaded', () => {
             loadData();
-            // 每30秒自动刷新
-            setInterval(loadData, 30000);
+            
+            // 每秒更新运行时间和倒计时
+            setInterval(() => {
+                updateSystemUptime();
+                updateRefreshCountdown();
+            }, 1000);
         });
     </script>
 </body>
