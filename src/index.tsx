@@ -16,6 +16,7 @@ import { SupportLineService } from './services/supportLineService'
 import { ConsecutiveRiseService } from './services/ConsecutiveRiseService'
 import { OKXService } from './services/okxService'
 import { RiskControlService } from './services/riskControlService'
+import { SignalMatchingService } from './services/signalMatchingService'
 
 // 导入HTML文件作为原始文本
 import historyHtml from '../public/history-new.html?raw'
@@ -39,6 +40,7 @@ import healthMonitorHtml from '../public/health-monitor.html?raw'
 import liveTradingHtml from '../public/live-trading.html?raw'
 import coinPriorityHtml from '../public/coin-priority.html?raw'
 import strategyLibraryHtml from '../public/strategy-library.html?raw'
+import signalMatchingHtml from '../public/signal-matching.html?raw'
 
 /**
  * 🔒 数据库访问控制说明
@@ -1157,13 +1159,39 @@ app.post('/api/kline/sync/auto', async (c) => {
     
     console.log(`✅ K线数据同步完成: ${syncSummary.success}/${syncSummary.total} 成功, 耗时 ${syncSummary.duration}秒`);
     
+    // 🆕 自动触发信号匹配流程
+    let matchingStatus = { enabled: false, success: false, message: '', counts: {} };
+    try {
+      const signalMatchingService = new SignalMatchingService(c.env.DB);
+      console.log('🔄 开始自动信号匹配流程...');
+      
+      const matchingResult = await signalMatchingService.runCompleteFlow();
+      matchingStatus = {
+        enabled: true,
+        success: true,
+        message: '信号匹配流程执行完成',
+        counts: matchingResult
+      };
+      
+      console.log(`✅ 信号匹配完成: ${JSON.stringify(matchingResult)}`);
+    } catch (error: any) {
+      console.error('❌ 信号匹配失败:', error.message);
+      matchingStatus = {
+        enabled: true,
+        success: false,
+        message: error.message,
+        counts: {}
+      };
+    }
+    
     const totalDuration = ((Date.now() - startTime) / 1000).toFixed(2);
     
-    // ✅ 返回轻量级同步结果（无技术指标回填）
+    // ✅ 返回轻量级同步结果（无技术指标回填）+ 信号匹配状态
     return c.json({ 
       success: true, 
       message: 'K线数据自动同步完成（轻量级，技术指标按需计算）',
       sync_summary: syncSummary,
+      signal_matching: matchingStatus,
       total_duration: totalDuration,
       sync_results: results,
       note: '技术指标在用户查看时动态计算，无需后台回填'
@@ -2130,6 +2158,8 @@ app.get('/coin-priority', (c) => c.html(coinPriorityHtml))
 app.get('/coin-priority.html', (c) => c.html(coinPriorityHtml))
 app.get('/strategy-library', (c) => c.html(strategyLibraryHtml))
 app.get('/strategy-library.html', (c) => c.html(strategyLibraryHtml))
+app.get('/signal-matching', (c) => c.html(signalMatchingHtml))
+app.get('/signal-matching.html', (c) => c.html(signalMatchingHtml))
 
 // 🆕 风险事件历史查看页面
 app.get('/risk-events', (c) => {
