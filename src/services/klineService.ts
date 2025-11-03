@@ -38,7 +38,7 @@ export class KlineService {
   }
 
   // 保存 K线数据 (优化：使用批量插入)
-  async saveKlineData(symbol: string, timeframe: string, klineArray: any[]) {
+  async saveKlineData(symbol: string, timeframe: string, klineArray: any[], homepageRank?: number) {
     if (klineArray.length === 0) return;
     
     // 使用 D1 batch API 批量插入
@@ -53,8 +53,8 @@ export class KlineService {
       return this.db.prepare(`
         INSERT INTO kline_data (
           symbol, timeframe, open_time, open, high, low, close, volume,
-          quote_volume, trades_count, volume_v1, volume_v2
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          quote_volume, trades_count, volume_v1, volume_v2, homepage_rank
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(symbol, timeframe, open_time) 
         DO UPDATE SET
           open = excluded.open,
@@ -64,7 +64,8 @@ export class KlineService {
           volume = excluded.volume,
           quote_volume = excluded.quote_volume,
           volume_v1 = excluded.volume_v1,
-          volume_v2 = excluded.volume_v2
+          volume_v2 = excluded.volume_v2,
+          homepage_rank = excluded.homepage_rank
       `).bind(
         symbol,
         timeframe,
@@ -77,7 +78,8 @@ export class KlineService {
         parseFloat(volCcyQuote || '0'),
         0, // OKX 不提供交易次数
         v1,
-        v2
+        v2,
+        homepageRank || null // 🆕 保存首页排名
       );
     });
     
@@ -138,6 +140,20 @@ export class KlineService {
     const configs: any = await this.getAllOKXConfigs();
     const results = [];
 
+    // 🆕 获取所有币种的排名（从coins表的rank_order）
+    const rankResult: any = await this.db.prepare(`
+      SELECT symbol, rank_order 
+      FROM coins 
+      ORDER BY rank_order
+    `).all();
+    
+    const rankMap = new Map();
+    if (rankResult.results) {
+      rankResult.results.forEach((row: any) => {
+        rankMap.set(row.symbol, row.rank_order);
+      });
+    }
+
     for (let i = 0; i < configs.length; i++) {
       const config = configs[i];
       try {
@@ -146,8 +162,11 @@ export class KlineService {
         // 🔥 过滤掉 confirm=0 的未完成K线（OKX格式第9个字段）
         const confirmedKlines = klineData.filter((k: any) => k[8] === '1');
         
-        // 🔥 只保存已确认的K线
-        await this.saveKlineData(config.symbol, timeframe, confirmedKlines);
+        // 🆕 获取该币种的首页排名
+        const homepageRank = rankMap.get(config.symbol) || null;
+        
+        // 🔥 只保存已确认的K线，并传入排名
+        await this.saveKlineData(config.symbol, timeframe, confirmedKlines, homepageRank);
         
         // 🆕 清理60天以前的旧数据（保留60天 = 17280条5分钟K线）
         await this.cleanOldKlineDataByDays(config.symbol, timeframe, 60);
@@ -157,7 +176,8 @@ export class KlineService {
           success: true,
           count: confirmedKlines.length,
           total: klineData.length,
-          filtered: klineData.length - confirmedKlines.length
+          filtered: klineData.length - confirmedKlines.length,
+          homepage_rank: homepageRank // 🆕 返回排名信息
         });
         
         // 避免OKX API速率限制：每请求后延迟100ms
@@ -548,18 +568,25 @@ export class KlineService {
 
     console.log(`开始同步 ${symbol} 的48小时数据...`);
 
+    // 🆕 获取该币种的首页排名
+    const rankResult: any = await this.db.prepare(`
+      SELECT rank_order FROM coins WHERE symbol = ?
+    `).bind(symbol).first();
+    const homepageRank = rankResult?.rank_order || null;
+
     // 获取576根5分钟K线（48小时）
     const klineData = await this.fetchHistoricalKline(config.okx_symbol, '5m', 576);
     
-    // 保存到数据库
-    await this.saveKlineData(symbol, '5m', klineData);
+    // 保存到数据库（包含排名）
+    await this.saveKlineData(symbol, '5m', klineData, homepageRank);
 
     console.log(`${symbol} 同步完成，共 ${klineData.length} 根K线`);
 
     return {
       symbol,
       success: true,
-      count: klineData.length
+      count: klineData.length,
+      homepage_rank: homepageRank
     };
   }
 

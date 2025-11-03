@@ -521,6 +521,15 @@ function renderCoinTable(coinDetails, extremes, priorities) {
       const changeToday = coin.change_today;
       const changeTodayClass = changeToday >= 0 ? 'text-green-600' : 'text-red-600';
       changeTodayDisplay = `<span class="${changeTodayClass} font-bold">${changeToday >= 0 ? '+' : ''}${changeToday.toFixed(2)}%</span>`;
+    } else {
+      // 🐛 调试：记录第一个币种的change_today值
+      if (index === 0) {
+        console.warn('⚠️ change_today 数据缺失:', {
+          symbol: coin.symbol,
+          change_today: coin.change_today,
+          has_value: coin.change_today !== null && coin.change_today !== undefined
+        });
+      }
     }
     
     // 更新时间

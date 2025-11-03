@@ -91,11 +91,17 @@ function updateCountdownDisplay() {
 // 加载币种列表
 async function loadCoins() {
   try {
-    const response = await axios.get('/api/coins/with-priority');
-    allCoins = response.data;
+    const response = await API.get('/api/coins/with-priority', {
+      priority: API_PRIORITY.HIGH,
+      cache: true
+    });
+    // API wrapper返回的response.data就是实际数据（已经是数组）
+    allCoins = response.data || [];
+    console.log('✅ 成功加载币种:', allCoins.length, '个');
     renderCoinSelector();
   } catch (error) {
-    console.error('加载币种失败:', error);
+    console.error('❌ 加载币种失败:', error);
+    allCoins = []; // 确保allCoins不是undefined
     alert('加载币种列表失败: ' + error.message);
   }
 }
@@ -103,6 +109,21 @@ async function loadCoins() {
 // 渲染币种选择器（按等级分组）
 function renderCoinSelector() {
   const container = document.getElementById('coinSelector');
+  
+  // 🔥 安全检查：确保allCoins是数组
+  if (!Array.isArray(allCoins)) {
+    console.error('❌ allCoins不是数组:', allCoins);
+    container.innerHTML = '<div class="text-center text-red-500 p-4">币种数据加载失败，请刷新页面重试</div>';
+    return;
+  }
+  
+  if (allCoins.length === 0) {
+    console.warn('⚠️  allCoins为空数组');
+    container.innerHTML = '<div class="text-center text-gray-500 p-4">暂无币种数据</div>';
+    return;
+  }
+  
+  console.log('📊 开始渲染币种选择器，共', allCoins.length, '个币种');
   
   // 按等级分组
   const levelGroups = {
@@ -186,11 +207,13 @@ async function loadKlineData() {
     showLoading();
     
     // 获取带技术指标的 K线数据
-    const klineResponse = await axios.get(`/api/kline/${currentSymbol}/indicators`, {
+    const klineResponse = await API.get(`/api/kline/${currentSymbol}/indicators`, {
       params: {
         timeframe: currentTimeframe,
         limit: 300
-      }
+      },
+      priority: API_PRIORITY.HIGH,
+      cache: true
     });
 
     if (!klineResponse.data.success) {
@@ -621,44 +644,32 @@ function renderTable(klineData, alerts = [], coinLevel = 6) {
 
     return `
       <tr class="border-b border-gray-100 hover:bg-gray-50 text-xs ${rowClass}">
+        <!-- 1. 时间 -->
         <td class="py-2 px-1 text-gray-700 sticky left-0 ${hasAlert ? 'bg-yellow-50' : needHighlight ? (isRisingPattern ? 'bg-green-50' : 'bg-red-50') : 'bg-white'}">
           ${k.time || '-'}${alertBadge}
         </td>
-        <td class="py-2 px-1 text-center ${hasAlert ? 'bg-yellow-50' : needHighlight ? (isRisingPattern ? 'bg-green-50' : 'bg-red-50') : 'bg-pink-50'}">
-          ${k.homepage_rank ? `<span class="inline-block px-2 py-1 bg-pink-500 text-white text-xs rounded font-bold" title="首页排名第${k.homepage_rank}位">#${k.homepage_rank}</span>` : '-'}
-        </td>
+        <!-- 2. 起涨/起跌点 -->
         <td class="py-2 px-3 text-center min-w-[80px] ${hasAlert ? 'bg-yellow-50' : needHighlight ? (isRisingPattern ? 'bg-green-50' : 'bg-red-50') : 'bg-blue-50'}">
           ${cumulativeBadge}
         </td>
+        <!-- 3. 操作提示 -->
         <td class="py-1 px-0 text-center ${hasAlert ? 'bg-yellow-50' : needHighlight ? (isRisingPattern ? 'bg-green-50' : 'bg-red-50') : 'bg-orange-50'}">
           ${operationTip !== '-' ? operationTip : (highSellIndicator || (k.operation_tip ? `<span class="inline-block px-2 py-1 bg-blue-500 text-white text-xs rounded font-bold">${k.operation_tip}</span>` : '-'))}
         </td>
-        <!-- 🆕 新字段按要求顺序 -->
-        <td class="py-2 px-1 text-right font-bold ${k.change_today ? (k.change_today > 0 ? 'text-green-600' : 'text-red-600') : 'text-gray-400'} bg-yellow-50">
-          ${k.change_today !== null && k.change_today !== undefined ? k.change_today.toFixed(2) + '%' : '-'}
-        </td>
-        <td class="py-2 px-1 text-center font-bold ${k.bar_10_compare === -1 ? 'text-red-600 bg-red-100' : (k.bar_10_compare === 1 ? 'text-green-600 bg-green-100' : 'text-gray-400')} bg-purple-50">
-          ${k.bar_10_compare === -1 ? '↓-1' : (k.bar_10_compare === 1 ? '↑+1' : '0')}
-        </td>
-        <td class="py-2 px-1 text-right font-mono text-blue-600 bg-blue-100">
-          ${k.high_48h !== null && k.high_48h !== undefined ? k.high_48h.toFixed(4) : '-'}
-        </td>
-        <td class="py-2 px-1 text-right font-bold text-red-600 bg-red-50">
-          ${k.drop_from_48h_high !== null && k.drop_from_48h_high !== undefined ? k.drop_from_48h_high.toFixed(2) + '%' : '-'}
-        </td>
-        <td class="py-2 px-1 text-right font-mono text-blue-600 bg-blue-100">
-          ${k.low_48h !== null && k.low_48h !== undefined ? k.low_48h.toFixed(4) : '-'}
-        </td>
-        <td class="py-2 px-1 text-right font-bold text-green-600 bg-green-50">
-          ${k.rise_from_48h_low !== null && k.rise_from_48h_low !== undefined ? k.rise_from_48h_low.toFixed(2) + '%' : '-'}
-        </td>
-        <!-- 基础K线数据 -->
+        <!-- 4-7. OHLC -->
         <td class="py-2 px-1 text-right font-mono">${k.open ? k.open.toFixed(4) : '-'}</td>
         <td class="py-2 px-1 text-right font-mono text-green-600">${k.high ? k.high.toFixed(4) : '-'}</td>
         <td class="py-2 px-1 text-right font-mono text-red-600">${k.low ? k.low.toFixed(4) : '-'}</td>
         <td class="py-2 px-1 text-right font-mono font-bold">${k.close ? k.close.toFixed(4) : '-'}</td>
+        <!-- 8. 本轮涨跌 -->
         <td class="py-2 px-1 text-right font-bold ${changeClass}">${k.change || '-'}</td>
+        <!-- 9. 10格 -->
+        <td class="py-2 px-1 text-center font-bold ${k.bar_10_compare === -1 ? 'text-red-600 bg-red-100' : (k.bar_10_compare === 1 ? 'text-green-600 bg-green-100' : 'text-gray-400')} bg-purple-50">
+          ${k.bar_10_compare === -1 ? '↓-1' : (k.bar_10_compare === 1 ? '↑+1' : '0')}
+        </td>
+        <!-- 10. 成交量 -->
         <td class="py-2 px-1 text-right font-mono text-gray-600">${k.volume ? formatVolume(k.volume) : '-'}</td>
+        <!-- 11-12. V1/V2 -->
         <td class="py-2 px-1 text-center">${v1Badge}</td>
         <td class="py-2 px-1 text-center">${v2Badge}</td>
         <!-- 技术指标列（默认显示） -->
@@ -1084,11 +1095,13 @@ async function syncKlineData() {
   btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>同步中...';
 
   try {
-    const response = await axios.post('/api/kline/sync', null, {
+    const response = await API.post('/api/kline/sync', null, {
       params: {
         timeframe: currentTimeframe,
         limit: 300
-      }
+      },
+      priority: API_PRIORITY.HIGH,
+      cache: false
     });
 
     if (response.data.success) {
@@ -1129,7 +1142,10 @@ async function sync48HoursData() {
   try {
     showStatus('正在批量同步48小时数据，请稍候...', 'info');
     
-    const response = await axios.post('/api/kline/sync48h/all');
+    const response = await API.post('/api/kline/sync48h/all', null, {
+      priority: API_PRIORITY.HIGH,
+      cache: false
+    });
 
     if (response.data.success) {
       const results = response.data.results;
@@ -1227,7 +1243,10 @@ function showError(message) {
 async function autoSyncKlineData() {
   try {
     console.log('🔄 开始自动同步K线数据...');
-    const response = await axios.post('/api/kline/sync/auto');
+    const response = await API.post('/api/kline/sync/auto', null, {
+      priority: API_PRIORITY.BACKGROUND,
+      cache: false
+    });
     
     if (response.data.success) {
       console.log('✅ 自动同步完成:', response.data);

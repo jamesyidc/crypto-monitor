@@ -527,8 +527,8 @@ export class CoinService {
         INSERT INTO coin_round_details (
           symbol, round_time, price, prev_price, change_amount, change_percent,
           is_green, is_extreme_up, is_extreme_down, is_surge, is_crash, rank_in_round, change_24h,
-          previous_round_time, change_vs_prev_round, is_surge_vs_prev, is_crash_vs_prev
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          previous_round_time, change_vs_prev_round, is_surge_vs_prev, is_crash_vs_prev, change_today
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .bind(
         symbol,
@@ -547,7 +547,8 @@ export class CoinService {
         detail.previous_round_time || null,
         detail.change_vs_prev_round || 0,
         detail.is_surge_vs_prev || 0,
-        detail.is_crash_vs_prev || 0
+        detail.is_crash_vs_prev || 0,
+        detail.change_today || null // 保存OKEx API的24小时涨跌幅
       )
       .run();
   }
@@ -920,6 +921,119 @@ export class CoinService {
     return v1Counts;
   }
 
+  // 🆕 从OKEx API获取永续合约的24小时涨跌幅和当天涨跌幅数据
+  async fetchOKExDailyChanges(): Promise<{ 
+    change24h: { [symbol: string]: number },
+    changeToday: { [symbol: string]: number }
+  }> {
+    try {
+      const coins = await this.getAllCoins();
+      const changes24h: { [symbol: string]: number } = {};
+      const changesToday: { [symbol: string]: number } = {};
+      
+      // OKEx API基础URL
+      const baseUrl = 'https://www.okx.com/api/v5/market/ticker';
+      
+      // 批量获取ticker数据
+      for (const coin of coins as any[]) {
+        const symbol = coin.symbol;
+        // OKEx永续合约格式：BTC-USDT-SWAP
+        const instId = `${symbol}-USDT-SWAP`;
+        
+        try {
+          const response = await fetch(`${baseUrl}?instId=${instId}`, {
+            headers: {
+              'Accept': 'application/json',
+            }
+          });
+          
+          if (!response.ok) {
+            console.warn(`获取 ${symbol} OKEx数据失败: ${response.status}`);
+            continue;
+          }
+          
+          const data = await response.json();
+          
+          // OKEx API响应格式：
+          // {
+          //   "code": "0",
+          //   "msg": "",
+          //   "data": [{
+          //     "instId": "BTC-USDT-SWAP",
+          //     "last": "95000",
+          //     "lastSz": "0.1",
+          //     "askPx": "95001",
+          //     "askSz": "1.5",
+          //     "bidPx": "94999",
+          //     "bidSz": "2.0",
+          //     "open24h": "94000",  // 24小时开盘价
+          //     "high24h": "96000",
+          //     "low24h": "93000",
+          //     "volCcy24h": "1234567890", // 24小时成交量（计价货币）
+          //     "vol24h": "13000",         // 24小时成交量（交易货币）
+          //     "ts": "1730545800000",
+          //     "sodUtc0": "94500",        // UTC 0点开盘价
+          //     "sodUtc8": "94300"         // UTC+8点开盘价（北京时间0点）- 用于计算当天涨跌幅
+          //   }]
+          // }
+          
+          if (data.code === '0' && data.data && data.data.length > 0) {
+            const ticker = data.data[0];
+            const currentPrice = parseFloat(ticker.last);
+            const open24h = parseFloat(ticker.open24h);
+            const sodUtc8 = parseFloat(ticker.sodUtc8);
+            
+            // 计算24小时涨跌幅（使用open24h）
+            if (currentPrice && open24h && open24h > 0) {
+              const change24h = ((currentPrice - open24h) / open24h) * 100;
+              changes24h[symbol] = change24h;
+            }
+            
+            // 🔥 计算当天涨跌幅（使用sodUtc8 - 北京时间0点价格）
+            if (currentPrice && sodUtc8 && sodUtc8 > 0) {
+              const changeToday = ((currentPrice - sodUtc8) / sodUtc8) * 100;
+              changesToday[symbol] = changeToday;
+              
+              // 🔴 特别标记涨跌幅超过5%的币种
+              if (Math.abs(changeToday) > 5) {
+                console.log(`🔥 ${symbol}: 当前价=${currentPrice}, 北京0点价=${sodUtc8}, 当天涨幅=${changeToday.toFixed(2)}%, 24h涨幅=${changes24h[symbol]?.toFixed(2) || 'N/A'}% [大幅波动]`);
+              } else {
+                console.log(`✅ ${symbol}: 当前价=${currentPrice}, 北京0点价=${sodUtc8}, 当天涨幅=${changeToday.toFixed(2)}%, 24h涨幅=${changes24h[symbol]?.toFixed(2) || 'N/A'}%`);
+              }
+            } else {
+              console.warn(`⚠️ ${symbol}: 数据不完整 - 当前价=${currentPrice}, 24h开盘=${open24h}, 北京0点价=${sodUtc8}`);
+            }
+          } else {
+            console.warn(`⚠️ ${symbol}: OKEx API返回格式错误 - code=${data.code}, data length=${data.data?.length || 0}`);
+          }
+          
+          // 避免请求过快，添加小延迟
+          await new Promise(resolve => setTimeout(resolve, 50));
+          
+        } catch (error: any) {
+          console.error(`获取 ${symbol} OKEx数据异常:`, error.message);
+        }
+      }
+      
+      console.log(`📊 从OKEx获取数据完成:`, {
+        change24hCount: Object.keys(changes24h).length,
+        changeTodayCount: Object.keys(changesToday).length
+      });
+      
+      return {
+        change24h: changes24h,
+        changeToday: changesToday
+      };
+      
+    } catch (error: any) {
+      console.error('批量获取OKEx数据失败:', error);
+      return {
+        change24h: {},
+        changeToday: {}
+      };
+    }
+  }
+
   // 🆕 获取今天（北京时间）每个币种的起始价格（使用OKX K线数据）
   async getTodayStartPrices(date: string): Promise<{ [symbol: string]: number }> {
     const result = await this.db
@@ -930,6 +1044,34 @@ export class CoinService {
             open as price,
             open_time,
             ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY open_time ASC) as rn
+          FROM kline_data
+          WHERE timeframe = '5m'
+          AND date(datetime(open_time/1000, 'unixepoch'), '+8 hours') = ?
+        )
+        SELECT symbol, price
+        FROM RankedKlines
+        WHERE rn = 1
+      `)
+      .bind(date)
+      .all();
+    
+    const prices: { [symbol: string]: number } = {};
+    for (const row of result.results as any[]) {
+      prices[row.symbol] = row.price;
+    }
+    return prices;
+  }
+
+  // 🆕 获取昨天每个币种的收盘价（最后一根K线的close价格）
+  async getYesterdayClosePrices(date: string): Promise<{ [symbol: string]: number }> {
+    const result = await this.db
+      .prepare(`
+        WITH RankedKlines AS (
+          SELECT 
+            symbol,
+            close as price,
+            open_time,
+            ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY open_time DESC) as rn
           FROM kline_data
           WHERE timeframe = '5m'
           AND date(datetime(open_time/1000, 'unixepoch'), '+8 hours') = ?

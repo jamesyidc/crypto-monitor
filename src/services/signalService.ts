@@ -264,6 +264,120 @@ export class SignalService {
           keepBars: 15 // 保留15根K线观察
         });
       }
+      
+      // 🆕 === 陷阱信号检测 ===
+      // 计算当天涨幅：需要找到当天的第一根K线作为开盘价
+      let todayGainPercent = 0;
+      if (current.time) {
+        // 获取当前K线的日期（格式：2025/10/27 17:25:00）
+        const currentDate = current.time.split(' ')[0]; // "2025/10/27"
+        
+        // 从klineData中找到当天第一根K线（时间最早的）
+        const todayKlines = klineData.filter(k => k.time && k.time.startsWith(currentDate));
+        if (todayKlines.length > 0) {
+          // 找到当天第一根K线（最早的时间）
+          const firstKline = todayKlines.reduce((earliest, k) => {
+            return k.time < earliest.time ? k : earliest;
+          }, todayKlines[0]);
+          
+          const todayOpenPrice = parseFloat(firstKline.open);
+          if (todayOpenPrice > 0) {
+            todayGainPercent = ((currentClose - todayOpenPrice) / todayOpenPrice) * 100;
+          }
+        }
+      }
+      
+      // 信号1: 急杀诱多（Long Exit / Short Entry）
+      // 条件：涨跌幅 > -2%, V1=true, 当天涨幅 3%-10%
+      if (changePercent > -2 && volumeAboveV1 && todayGainPercent > 3 && todayGainPercent < 10) {
+        // Long Exit - 做多卖点
+        signals.push({
+          symbol: current.symbol,
+          time: current.time,
+          type: 'SELL',
+          price: currentClose,
+          reason: '急杀诱多',
+          details: {
+            changePercent: changePercent.toFixed(2) + '%',
+            todayGainPercent: todayGainPercent.toFixed(2) + '%',
+            currentVolume: currentVolume.toFixed(2),
+            volumeLevel: 'V1+',
+            rsi5min: rsi5min.toFixed(2),
+            signal: current.signal || ''
+          },
+          strength: this.calculateTrapSignalStrength(changePercent, todayGainPercent, volumeAboveV1),
+          keepBars: 15,
+          category: 'trap_signal',
+          signalClass: 'long_exit'
+        });
+        
+        // Short Entry - 做空买点
+        signals.push({
+          symbol: current.symbol,
+          time: current.time,
+          type: 'SHORT_ENTRY',
+          price: currentClose,
+          reason: '急杀诱多',
+          details: {
+            changePercent: changePercent.toFixed(2) + '%',
+            todayGainPercent: todayGainPercent.toFixed(2) + '%',
+            currentVolume: currentVolume.toFixed(2),
+            volumeLevel: 'V1+',
+            rsi5min: rsi5min.toFixed(2),
+            signal: current.signal || ''
+          },
+          strength: this.calculateTrapSignalStrength(changePercent, todayGainPercent, volumeAboveV1),
+          keepBars: 15,
+          category: 'trap_signal',
+          signalClass: 'short_entry'
+        });
+      }
+      
+      // 信号2: 空头陷阱（Long Entry / Short Exit）
+      // 条件：涨跌幅 > -3%, V1=true, 当天涨幅 < 0%
+      if (changePercent > -3 && volumeAboveV1 && todayGainPercent < 0) {
+        // Long Entry - 做多买点
+        signals.push({
+          symbol: current.symbol,
+          time: current.time,
+          type: 'BUY',
+          price: currentClose,
+          reason: '空头陷阱',
+          details: {
+            changePercent: changePercent.toFixed(2) + '%',
+            todayGainPercent: todayGainPercent.toFixed(2) + '%',
+            currentVolume: currentVolume.toFixed(2),
+            volumeLevel: 'V1+',
+            rsi5min: rsi5min.toFixed(2),
+            signal: current.signal || ''
+          },
+          strength: this.calculateTrapSignalStrength(changePercent, todayGainPercent, volumeAboveV1),
+          keepBars: 20,
+          category: 'trap_signal',
+          signalClass: 'long_entry'
+        });
+        
+        // Short Exit - 做空卖点
+        signals.push({
+          symbol: current.symbol,
+          time: current.time,
+          type: 'SHORT_EXIT',
+          price: currentClose,
+          reason: '空头陷阱',
+          details: {
+            changePercent: changePercent.toFixed(2) + '%',
+            todayGainPercent: todayGainPercent.toFixed(2) + '%',
+            currentVolume: currentVolume.toFixed(2),
+            volumeLevel: 'V1+',
+            rsi5min: rsi5min.toFixed(2),
+            signal: current.signal || ''
+          },
+          strength: this.calculateTrapSignalStrength(changePercent, todayGainPercent, volumeAboveV1),
+          keepBars: 20,
+          category: 'trap_signal',
+          signalClass: 'short_exit'
+        });
+      }
     }
 
     // 🆕 === 主升信号检测 ===
@@ -501,9 +615,17 @@ export class SignalService {
         const coinLevel = priorityLevels.get(symbol);
         const detection = this.detectTradingSignals(klineData, coinLevel);
         
+        // 🆕 检测支撑线买入信号
+        const supportLineSignals = await this.detectSupportLineBuySignals(symbol, klineData, 10);
+        
+        // 合并信号
+        const allSignals = [...(detection.signals || []), ...supportLineSignals];
+        
         results[symbol] = {
           success: true,
-          ...detection
+          signals: allSignals,
+          alerts: detection.alerts || [],
+          stats: detection.stats
         };
       } catch (error: any) {
         results[symbol] = {
@@ -1063,5 +1185,126 @@ export class SignalService {
       console.error('获取待发送信号失败:', error);
       return [];
     }
+  }
+
+  /**
+   * 检测支撑线买入信号
+   * @param symbol 币种符号
+   * @param klineData K线数据数组
+   * @param displayLimitBars 显示限制：每N根K线最多显示1个信号 (默认10)
+   * @returns 支撑线买入信号数组
+   */
+  async detectSupportLineBuySignals(symbol: string, klineData: any[], displayLimitBars: number = 10): Promise<any[]> {
+    if (!this.db) {
+      return [];
+    }
+
+    try {
+      // 1. 获取今天的支撑线价格
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const supportLineResult = await this.db.prepare(`
+        SELECT support_price 
+        FROM support_lines 
+        WHERE symbol = ? AND date = ?
+        ORDER BY created_at DESC 
+        LIMIT 1
+      `).bind(symbol, today).first();
+
+      if (!supportLineResult || !supportLineResult.support_price) {
+        return []; // 该币种今天没有设置支撑线
+      }
+
+      const supportPrice = parseFloat(supportLineResult.support_price as string);
+      const signals: any[] = [];
+      let lastSignalIndex = -displayLimitBars; // 上一个信号的索引
+
+      // 2. 遍历K线数据，检测是否接近支撑线（±0.5%）
+      for (let i = 0; i < klineData.length; i++) {
+        const k = klineData[i];
+        const currentPrice = parseFloat(k.close);
+        const priceDiff = Math.abs(currentPrice - supportPrice);
+        const priceDiffPercent = (priceDiff / supportPrice) * 100;
+
+        // 3. 检查是否在0.5%范围内
+        if (priceDiffPercent <= 0.5) {
+          // 4. 检查显示限制：与上一个信号间隔至少displayLimitBars根K线
+          if (i - lastSignalIndex >= displayLimitBars) {
+            signals.push({
+              symbol: k.symbol,
+              time: k.time,
+              type: 'BUY', // 做多信号
+              price: currentPrice,
+              reason: '支撑买入',
+              details: {
+                supportPrice: supportPrice.toFixed(8),
+                currentPrice: currentPrice.toFixed(8),
+                distance: priceDiffPercent.toFixed(2) + '%',
+                distanceDirection: currentPrice >= supportPrice ? '接近支撑线上方' : '接近支撑线下方',
+                rsi5min: parseFloat(k.rsi_5min || '50').toFixed(2),
+                changePercent: parseFloat(k.change?.replace('%', '') || '0').toFixed(2) + '%',
+                volume: parseFloat(k.volume || '0').toFixed(2)
+              },
+              strength: this.calculateSupportLineSignalStrength(priceDiffPercent),
+              keepBars: 20, // 保留20根K线观察
+              category: 'support_line'
+            });
+            lastSignalIndex = i; // 更新上一个信号索引
+          }
+        }
+      }
+
+      return signals;
+    } catch (error) {
+      console.error(`检测${symbol}支撑线买入信号失败:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * 计算支撑线信号强度
+   * @param distancePercent 价格与支撑线的距离百分比
+   * @returns 信号强度 (0-100)
+   */
+  private calculateSupportLineSignalStrength(distancePercent: number): number {
+    // 距离越近，信号强度越高
+    // 0% -> 100, 0.5% -> 50
+    const strength = Math.max(0, 100 - (distancePercent / 0.5) * 50);
+    return Math.round(strength);
+  }
+
+  /**
+   * 计算陷阱信号强度
+   * @param changePercent 当前K线涨跌幅
+   * @param todayGainPercent 当天涨幅
+   * @param hasV1Volume 是否有V1成交量
+   * @returns 信号强度 (0-100)
+   */
+  private calculateTrapSignalStrength(changePercent: number, todayGainPercent: number, hasV1Volume: boolean): number {
+    let strength = 50; // 基础强度
+    
+    // V1成交量加分
+    if (hasV1Volume) {
+      strength += 20;
+    }
+    
+    // 根据当前涨跌幅调整（越接近0越强）
+    const changeScore = Math.max(0, 15 - Math.abs(changePercent) * 5);
+    strength += changeScore;
+    
+    // 根据当天涨幅位置调整
+    if (todayGainPercent > 3 && todayGainPercent < 10) {
+      // 急杀诱多：在3%-10%范围内，越接近中间越强
+      const optimal = 6.5; // 最优点
+      const distance = Math.abs(todayGainPercent - optimal);
+      const gainScore = Math.max(0, 15 - distance * 2);
+      strength += gainScore;
+    } else if (todayGainPercent < 0) {
+      // 空头陷阱：跌幅越大越强（但不超过-5%）
+      const absGain = Math.abs(todayGainPercent);
+      const gainScore = Math.min(15, absGain * 3);
+      strength += gainScore;
+    }
+    
+    return Math.min(100, Math.round(strength));
   }
 }
