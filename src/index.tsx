@@ -1165,7 +1165,40 @@ app.post('/api/kline/sync/auto', async (c) => {
       const signalMatchingService = new SignalMatchingService(c.env.DB);
       console.log('🔄 开始自动信号匹配流程...');
       
+      // 步骤1: 为每个币种保存最新K线快照（带技术指标）
+      let snapshotsSaved = 0;
+      console.log(`📸 开始保存K线快照，共 ${results.length} 个币种...`);
+      
+      for (const result of results) {
+        if (result.success) {
+          try {
+            console.log(`   处理 ${result.symbol}...`);
+            // 获取该币种带技术指标的K线数据
+            const { ReadOnlyKlineService } = await import('./services/ReadOnlyKlineService');
+            const readOnlyKlineService = new ReadOnlyKlineService(c.env.DB);
+            const klineData = await readOnlyKlineService.getKlineWithIndicators(result.symbol, timeframe, 3);
+            
+            console.log(`   ${result.symbol}: 获取到 ${klineData.data?.length || 0} 根K线`);
+            
+            if (klineData.data && klineData.data.length > 0) {
+              // 保存最新3根K线快照
+              await signalMatchingService.saveLatestKlineSnapshots(result.symbol, klineData.data);
+              snapshotsSaved++;
+              console.log(`   ✅ ${result.symbol}: 快照已保存`);
+            } else {
+              console.log(`   ⚠️  ${result.symbol}: 无K线数据`);
+            }
+          } catch (error: any) {
+            console.error(`❌ 保存 ${result.symbol} K线快照失败:`, error.message, error.stack);
+          }
+        }
+      }
+      console.log(`✅ K线快照保存完成: ${snapshotsSaved}/${results.length}`);
+      
+      // 步骤2-5: 执行信号匹配流程
       const matchingResult = await signalMatchingService.runCompleteFlow();
+      matchingResult.snapshotsSaved = snapshotsSaved;
+      
       matchingStatus = {
         enabled: true,
         success: true,

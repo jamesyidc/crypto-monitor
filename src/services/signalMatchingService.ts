@@ -168,17 +168,23 @@ export class SignalMatchingService {
     const now = Math.floor(Date.now() / 1000);
     const timeframe = '5m';
     
-    // 只保存最新3根K线
-    const latestThree = klines.slice(-3);
+    // 只保存最新3根K线（从数组末尾获取，因为是按时间倒序）
+    const latestThree = klines.slice(0, 3);
     
     for (let i = 0; i < latestThree.length; i++) {
       const kline = latestThree[i];
-      const klineIndex = latestThree.length - i; // 1=最新, 2=前1根, 3=前2根
+      const klineIndex = i + 1; // 1=最新, 2=前1根, 3=前2根
+      
+      // 转换time字段为时间戳（如果是字符串格式）
+      let klineTime = kline.open_time;
+      if (kline.time && typeof kline.time === 'string') {
+        klineTime = new Date(kline.time.replace(/\//g, '-')).getTime();
+      }
       
       const snapshot: KlineSnapshot = {
         symbol,
         timeframe,
-        kline_time: kline.time,
+        kline_time: klineTime,
         kline_index: klineIndex,
         open_price: kline.open,
         high_price: kline.high,
@@ -186,6 +192,24 @@ export class SignalMatchingService {
         close_price: kline.close,
         volume: kline.volume,
         change_percent: kline.change_percent || 0,
+        
+        // 技术指标
+        rsi_5: kline.rsi_5min,
+        rsi_14: kline.rsi_14,
+        sar_value: kline.sar,
+        sar_position: kline.sar_position,
+        bollinger_middle: kline.boll_middle,
+        bollinger_upper: kline.boll_upper,
+        bollinger_lower: kline.boll_lower,
+        bollinger_position: kline.boll_position,
+        
+        // 操作提示
+        operation_tip: kline.operation_tip || null,
+        
+        // 成交量标记
+        v1_flag: kline.v1_flag ? 1 : 0,
+        v2_flag: kline.v2_flag ? 1 : 0,
+        
         created_at: now,
         ...additionalData
       };
@@ -205,9 +229,11 @@ export class SignalMatchingService {
    * 插入或更新快照
    */
   private async insertOrUpdateSnapshot(snapshot: KlineSnapshot): Promise<void> {
-    const fields = Object.keys(snapshot).join(', ');
-    const placeholders = Object.keys(snapshot).map(() => '?').join(', ');
-    const values = Object.values(snapshot);
+    // 过滤掉undefined值，D1不支持undefined
+    const definedEntries = Object.entries(snapshot).filter(([_, value]) => value !== undefined);
+    const fields = definedEntries.map(([key]) => key).join(', ');
+    const placeholders = definedEntries.map(() => '?').join(', ');
+    const values = definedEntries.map(([_, value]) => value);
     
     await this.db.prepare(`
       INSERT OR REPLACE INTO kline_snapshot_latest 
