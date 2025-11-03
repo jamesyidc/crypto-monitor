@@ -201,14 +201,38 @@ export class SignalMatchingService {
       }
       
       // 🔥 计算48h极值数据
-      const extremeData = this.calculate48HourExtremes(kline, historicalData);
+      let extremeData = { rounds_since_high: 0, decline_from_high: 0, rounds_since_low: 0, rise_from_low: 0 };
+      try {
+        extremeData = this.calculate48HourExtremes(kline, historicalData);
+      } catch (e: any) {
+        console.warn(`计算48h极值失败: ${e.message}`);
+      }
       
       // 🔥 计算起涨/起跌点
-      const surgePoint = this.detectSurgePoint(kline, latestThree, i);
-      const crashPoint = this.detectCrashPoint(kline, latestThree, i);
+      let surgePoint: string | null = null;
+      let crashPoint: string | null = null;
+      try {
+        surgePoint = this.detectSurgePoint(kline, latestThree, i);
+        crashPoint = this.detectCrashPoint(kline, latestThree, i);
+      } catch (e: any) {
+        console.warn(`检测起涨起跌点失败: ${e.message}`);
+      }
       
       // 🔥 生成买卖信号
-      const signals = this.generateBuySellSignals(kline);
+      let signals = { buy_signal: null, sell_signal: null };
+      try {
+        signals = this.generateBuySellSignals(kline);
+      } catch (e: any) {
+        console.warn(`生成买卖信号失败: ${e.message}`);
+      }
+      
+      // 🐛 DEBUG 输出
+      if (i === 0) {
+        console.log(`🐛 ${symbol} 计算结果:`);
+        console.log(`   48h极值: rounds_high=${extremeData.rounds_since_high}, decline=${extremeData.decline_from_high}%`);
+        console.log(`   起涨/起跌: surge=${surgePoint}, crash=${crashPoint}`);
+        console.log(`   信号: buy=${signals.buy_signal}, sell=${signals.sell_signal}`);
+      }
       
       const snapshot: KlineSnapshot = {
         symbol,
@@ -226,9 +250,9 @@ export class SignalMatchingService {
         
         // 首页数据 (🆕 优先使用additionalData中的值)
         homepage_rank: additionalData?.homepage_rank || kline.homepage_rank || null,
-        surge_start_point: surgePoint,
-        crash_start_point: crashPoint,
-        operation_tip: kline.operation_tip || this.generateOperationTip(kline, signals),
+        surge_start_point: surgePoint || null,
+        crash_start_point: crashPoint || null,
+        operation_tip: kline.operation_tip || this.generateOperationTip(kline, signals) || '观望',
         
         // 统计数据 (🆕 优先使用additionalData中的首页统计数据)
         today_surge_count: additionalData?.today_surge_count || kline.today_surge_count || 0,
