@@ -1169,6 +1169,34 @@ app.post('/api/kline/sync/auto', async (c) => {
       let snapshotsSaved = 0;
       console.log(`📸 开始保存K线快照，共 ${results.length} 个币种...`);
       
+      // 🆕 获取首页数据（包含统计信息）
+      let dashboardDataMap: Record<string, any> = {};
+      try {
+        console.log(`📡 正在获取首页统计数据...`);
+        const { AnalysisService } = await import('./services/analysisService');
+        const { CoinService } = await import('./services/coinService');
+        const coinService = new CoinService(c.env.DB);
+        const analysisService = new AnalysisService(coinService);
+        const dashboardResult = await analysisService.getDashboardData();
+        
+        // 构建symbol到统计数据的映射
+        if (dashboardResult && dashboardResult.coinDetails) {
+          dashboardResult.coinDetails.forEach((coin: any, index: number) => {
+            dashboardDataMap[coin.symbol] = {
+              homepage_rank: index + 1, // 使用数组索引+1作为排名
+              today_surge_count: coin.today_surge_count || 0,
+              today_crash_count: coin.today_crash_count || 0,
+              extreme_up_count: coin.extreme_up_count || 0,
+              extreme_down_count: coin.extreme_down_count || 0,
+              today_v1_count: coin.today_v1_count || 0
+            };
+          });
+          console.log(`   ✅ 已获取首页数据，包含 ${Object.keys(dashboardDataMap).length} 个币种的统计信息`);
+        }
+      } catch (error: any) {
+        console.warn(`   ⚠️  获取首页数据失败: ${error.message}，将只使用K线数据`);
+      }
+      
       for (const result of results) {
         if (result.success) {
           try {
@@ -1196,10 +1224,16 @@ app.post('/api/kline/sync/auto', async (c) => {
             }
             
             if (klineData && klineData.length > 0) {
-              // 保存最新3条K线快照（直接使用数据库中已计算好的数据）
-              await signalMatchingService.saveLatestKlineSnapshots(result.symbol, klineData);
+              // 🆕 合并首页统计数据
+              const additionalData = dashboardDataMap[result.symbol] || {};
+              if (additionalData.homepage_rank) {
+                console.log(`   🆕 ${result.symbol}: 首页排名=${additionalData.homepage_rank}, 起涨=${additionalData.today_surge_count}, 起跌=${additionalData.today_crash_count}`);
+              }
+              
+              // 保存最新3条K线快照（合并数据库数据 + 首页统计）
+              await signalMatchingService.saveLatestKlineSnapshots(result.symbol, klineData, additionalData);
               snapshotsSaved++;
-              console.log(`   ✅ ${result.symbol}: 快照已保存（使用数据库已计算数据）`);
+              console.log(`   ✅ ${result.symbol}: 快照已保存`);
             } else {
               console.log(`   ⚠️  ${result.symbol}: 无K线数据`);
             }
