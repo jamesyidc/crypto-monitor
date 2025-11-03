@@ -393,16 +393,38 @@
         
         // 显示详情面板
         function showDetailsPanel(title, icon, content) {
-            document.getElementById('details-title-text').textContent = title;
-            document.getElementById('details-icon').className = `fas ${icon}`;
-            document.getElementById('details-content').innerHTML = content;
-            document.getElementById('details-panel').style.display = 'block';
+            console.log('showDetailsPanel 被调用', title);
+            const panel = document.getElementById('details-panel');
+            const titleText = document.getElementById('details-title-text');
+            const iconElem = document.getElementById('details-icon');
+            const contentElem = document.getElementById('details-content');
+            
+            console.log('panel:', panel);
+            console.log('titleText:', titleText);
+            console.log('iconElem:', iconElem);
+            console.log('contentElem:', contentElem);
+            
+            if (!panel || !titleText || !iconElem || !contentElem) {
+                console.error('找不到必要的DOM元素');
+                alert('错误：找不到详情面板元素');
+                return;
+            }
+            
+            titleText.textContent = title;
+            iconElem.className = `fas ${icon}`;
+            contentElem.innerHTML = content;
+            panel.style.display = 'block';
+            console.log('详情面板已显示');
+            
             // 滚动到详情面板
-            document.getElementById('details-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            setTimeout(() => {
+                panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 100);
         }
         
         async function showSnapshotDetails() {
             try {
+                console.log('showSnapshotDetails 被调用');
                 // 显示加载状态
                 showDetailsPanel('K线快照池', 'fa-database text-indigo-600', '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-3xl text-indigo-600"></i><p class="mt-2 text-gray-600">加载中...</p></div>');
                 
