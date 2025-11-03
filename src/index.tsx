@@ -7594,5 +7594,48 @@ app.get('/api/signal-matching/snapshots/:symbol', async (c) => {
   }
 });
 
+// 🐛 DEBUG API: 直接查看kline_data表的数据
+app.get('/api/debug/kline-data/:symbol', async (c) => {
+  try {
+    const symbol = c.req.param('symbol');
+    
+    const { results } = await c.env.DB.prepare(`
+      SELECT 
+        symbol, timeframe, open_time, open, high, low, close, volume,
+        sar, sar_change, sar_change_percent,
+        rsi_5min, rsi_1h,
+        boll_mb, boll_ub, boll_lb, boll_angle_mb, boll_width_change,
+        up_channel_exhaustion_ratio, down_channel_exhaustion_ratio,
+        volume_v1, volume_v2, volume_level,
+        signal, operation_tip, channel_state, homepage_rank,
+        change_percent, change_diff
+      FROM kline_data 
+      WHERE symbol = ? AND timeframe = '5m'
+      ORDER BY open_time DESC
+      LIMIT 3
+    `).bind(symbol).all();
+    
+    return c.json({
+      success: true,
+      symbol,
+      source: 'kline_data table (raw database)',
+      data: results,
+      count: results.length,
+      fields_check: results.length > 0 ? {
+        has_sar: results[0].sar !== null,
+        has_rsi: results[0].rsi_5min !== null,
+        has_boll: results[0].boll_mb !== null,
+        has_signal: results[0].signal !== null,
+        has_operation_tip: results[0].operation_tip !== null,
+        has_homepage_rank: results[0].homepage_rank !== null,
+        has_volume_flags: results[0].volume_v1 !== null
+      } : {}
+    });
+  } catch (error: any) {
+    console.error('获取K线原始数据失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
 
 export default app
