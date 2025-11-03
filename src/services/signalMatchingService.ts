@@ -171,6 +171,9 @@ export class SignalMatchingService {
     // 只保存最新3根K线（从数组末尾获取，因为是按时间倒序）
     const latestThree = klines.slice(0, 3);
     
+    // 🔥 获取48小时数据用于计算极值
+    const historicalData = await this.get48HoursKlineData(symbol, timeframe);
+    
     for (let i = 0; i < latestThree.length; i++) {
       const kline = latestThree[i];
       const klineIndex = i + 1; // 1=最新, 2=前1根, 3=前2根
@@ -197,17 +200,15 @@ export class SignalMatchingService {
         }
       }
       
-      // 🐛 DEBUG: 打印源数据
-      if (i === 0) {
-        console.log(`🐛 saveLatestKlineSnapshots - ${symbol} 源数据:`);
-        console.log(`   sar: ${kline.sar}`);
-        console.log(`   rsi_5min: ${kline.rsi_5min}`);
-        console.log(`   operation_tip: ${kline.operation_tip}`);
-        console.log(`   signal: ${kline.signal}`);
-        console.log(`   homepage_rank: ${kline.homepage_rank}`);
-        console.log(`   boll_mb: ${kline.boll_mb}`);
-        console.log(`   volume_v1: ${kline.volume_v1}`);
-      }
+      // 🔥 计算48h极值数据
+      const extremeData = this.calculate48HourExtremes(kline, historicalData);
+      
+      // 🔥 计算起涨/起跌点
+      const surgePoint = this.detectSurgePoint(kline, latestThree, i);
+      const crashPoint = this.detectCrashPoint(kline, latestThree, i);
+      
+      // 🔥 生成买卖信号
+      const signals = this.generateBuySellSignals(kline);
       
       const snapshot: KlineSnapshot = {
         symbol,
@@ -225,17 +226,17 @@ export class SignalMatchingService {
         
         // 首页数据 (🆕 优先使用additionalData中的值)
         homepage_rank: additionalData?.homepage_rank || kline.homepage_rank || null,
-        surge_start_point: kline.surge_start_point || null,
-        crash_start_point: kline.crash_start_point || null,
-        operation_tip: kline.operation_tip || null,
+        surge_start_point: surgePoint,
+        crash_start_point: crashPoint,
+        operation_tip: kline.operation_tip || this.generateOperationTip(kline, signals),
         
         // 统计数据 (🆕 优先使用additionalData中的首页统计数据)
         today_surge_count: additionalData?.today_surge_count || kline.today_surge_count || 0,
         today_crash_count: additionalData?.today_crash_count || kline.today_crash_count || 0,
-        rounds_since_48h_high: kline.rounds_since_48h_high || 0,
-        decline_from_48h_high: kline.decline_from_48h_high || 0,
-        rounds_since_48h_low: kline.rounds_since_48h_low || 0,
-        rise_from_48h_low: kline.rise_from_48h_low || 0,
+        rounds_since_48h_high: extremeData.rounds_since_high,
+        decline_from_48h_high: extremeData.decline_from_high,
+        rounds_since_48h_low: extremeData.rounds_since_low,
+        rise_from_48h_low: extremeData.rise_from_low,
         
         // 成交量标记 (支持多种字段名)
         v1_flag: kline.v1_flag || kline.volume_v1 || (kline.is_v1 ? 1 : 0) || 0,
@@ -266,9 +267,9 @@ export class SignalMatchingService {
         channel_decline_ratio: kline.channel_decline_ratio || kline.down_channel_exhaustion_ratio || null,
         channel_rise_ratio: kline.channel_rise_ratio || kline.up_channel_exhaustion_ratio || null,
         
-        // 信号 (当前没有数据源)
-        buy_signal: kline.buy_signal || null,
-        sell_signal: kline.sell_signal || null,
+        // 信号 (🔥 自动生成)
+        buy_signal: signals.buy_signal,
+        sell_signal: signals.sell_signal,
         
         created_at: now,
         ...additionalData
@@ -920,5 +921,195 @@ export class SignalMatchingService {
     `).bind(now, expiryTime).run();
     
     return result.meta.changes;
+  }
+
+  /**
+   * 获取48小时内的K线数据
+   */
+  private async get48HoursKlineData(symbol: string, timeframe: string): Promise<any[]> {
+    const { results } = await this.db.prepare(`
+      SELECT open_time, open, high, low, close, volume
+      FROM kline_data
+      WHERE symbol = ? AND timeframe = ?
+      ORDER BY open_time DESC
+      LIMIT 576
+    `).bind(symbol, timeframe).all();
+    
+    return results || [];
+  }
+
+  /**
+   * 计算48小时极值数据
+   */
+  private calculate48HourExtremes(currentKline: any, historicalData: any[]): {
+    rounds_since_high: number;
+    decline_from_high: number;
+    rounds_since_low: number;
+    rise_from_low: number;
+  } {
+    if (!historicalData || historicalData.length === 0) {
+      return {
+        rounds_since_high: 0,
+        decline_from_high: 0,
+        rounds_since_low: 0,
+        rise_from_low: 0
+      };
+    }
+
+    const currentPrice = currentKline.close;
+    const currentTime = currentKline.open_time;
+    
+    // 找出48小时内的最高价和最低价
+    let highest = currentPrice;
+    let highestTime = currentTime;
+    let lowest = currentPrice;
+    let lowestTime = currentTime;
+    
+    for (const bar of historicalData) {
+      if (bar.high > highest) {
+        highest = bar.high;
+        highestTime = bar.open_time;
+      }
+      if (bar.low < lowest) {
+        lowest = bar.low;
+        lowestTime = bar.open_time;
+      }
+    }
+    
+    // 计算距离极值的轮次数 (5分钟一轮)
+    const rounds_since_high = Math.floor((currentTime - highestTime) / (5 * 60 * 1000));
+    const rounds_since_low = Math.floor((currentTime - lowestTime) / (5 * 60 * 1000));
+    
+    // 计算跌幅和涨幅百分比
+    const decline_from_high = highest > 0 ? ((highest - currentPrice) / highest) * 100 : 0;
+    const rise_from_low = lowest > 0 ? ((currentPrice - lowest) / lowest) * 100 : 0;
+    
+    return {
+      rounds_since_high,
+      decline_from_high: Math.max(0, decline_from_high),
+      rounds_since_low,
+      rise_from_low: Math.max(0, rise_from_low)
+    };
+  }
+
+  /**
+   * 检测起涨点
+   */
+  private detectSurgePoint(currentKline: any, allKlines: any[], currentIndex: number): string | null {
+    // 如果成交量激增(V1或V2) + 价格上涨 = 起涨点
+    const hasVolumeSpike = currentKline.volume_v1 === 1 || currentKline.volume_v2 === 1;
+    
+    // 计算涨幅
+    let changePercent = 0;
+    if (currentKline.change_percent !== undefined) {
+      if (typeof currentKline.change_percent === 'string') {
+        changePercent = parseFloat(currentKline.change_percent.replace('%', ''));
+      } else {
+        changePercent = currentKline.change_percent;
+      }
+    }
+    
+    // 条件: 成交量激增 + 涨幅 > 1%
+    if (hasVolumeSpike && changePercent > 1) {
+      return '起涨点';
+    }
+    
+    // RSI超卖反弹
+    const rsi = currentKline.rsi_5min || currentKline.rsi_5;
+    if (rsi && rsi < 30 && changePercent > 0.5) {
+      return 'RSI超卖反弹';
+    }
+    
+    return null;
+  }
+
+  /**
+   * 检测起跌点
+   */
+  private detectCrashPoint(currentKline: any, allKlines: any[], currentIndex: number): string | null {
+    // 如果成交量激增 + 价格下跌 = 起跌点
+    const hasVolumeSpike = currentKline.volume_v1 === 1 || currentKline.volume_v2 === 1;
+    
+    // 计算跌幅
+    let changePercent = 0;
+    if (currentKline.change_percent !== undefined) {
+      if (typeof currentKline.change_percent === 'string') {
+        changePercent = parseFloat(currentKline.change_percent.replace('%', ''));
+      } else {
+        changePercent = currentKline.change_percent;
+      }
+    }
+    
+    // 条件: 成交量激增 + 跌幅 < -1%
+    if (hasVolumeSpike && changePercent < -1) {
+      return '起跌点';
+    }
+    
+    // RSI超买回落
+    const rsi = currentKline.rsi_5min || currentKline.rsi_5;
+    if (rsi && rsi > 70 && changePercent < -0.5) {
+      return 'RSI超买回落';
+    }
+    
+    return null;
+  }
+
+  /**
+   * 生成买卖信号
+   */
+  private generateBuySellSignals(kline: any): {
+    buy_signal: string | null;
+    sell_signal: string | null;
+  } {
+    const rsi = kline.rsi_5min || kline.rsi_5;
+    const sar = kline.sar;
+    const close = kline.close;
+    const macd_histogram = kline.macd_histogram;
+    
+    let buy_signal: string | null = null;
+    let sell_signal: string | null = null;
+    
+    // 买入信号逻辑
+    if (rsi && rsi < 30) {
+      buy_signal = 'RSI超卖';
+    } else if (sar && close && close > sar && kline.sar_position === 'above') {
+      buy_signal = 'SAR上穿';
+    } else if (macd_histogram && macd_histogram > 0) {
+      buy_signal = 'MACD金叉';
+    }
+    
+    // 卖出信号逻辑
+    if (rsi && rsi > 70) {
+      sell_signal = 'RSI超买';
+    } else if (sar && close && close < sar && kline.sar_position === 'below') {
+      sell_signal = 'SAR下穿';
+    } else if (macd_histogram && macd_histogram < 0) {
+      sell_signal = 'MACD死叉';
+    }
+    
+    return { buy_signal, sell_signal };
+  }
+
+  /**
+   * 生成操作提示
+   */
+  private generateOperationTip(kline: any, signals: { buy_signal: string | null; sell_signal: string | null }): string | null {
+    if (signals.buy_signal) {
+      return '做多';
+    }
+    if (signals.sell_signal) {
+      return '做空';
+    }
+    
+    // 基于趋势判断
+    const channel_state = kline.channel_state;
+    if (channel_state && channel_state.includes('上升')) {
+      return '观望做多';
+    }
+    if (channel_state && channel_state.includes('下降')) {
+      return '观望做空';
+    }
+    
+    return '观望';
   }
 }
