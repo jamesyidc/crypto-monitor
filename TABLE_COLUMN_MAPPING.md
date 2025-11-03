@@ -64,6 +64,46 @@ kline_snapshot_latest 表 (快照表)
 
 ---
 
+## 🔧 最新修复 (2025-11-03)
+
+### ✅ 已修复：技术指标实时计算
+**问题**: 之前 `kline_snapshot_latest` 的技术指标字段都是 null，因为从 `kline_data` 表读取的数据不包含指标。
+
+**原因**: `kline_data` 表在K线同步时只保存原始OHLCV数据，技术指标字段都是null。
+
+**解决方案**: 修改 `src/index.tsx` Line 1206-1209，改用 `KlineService.getKlineWithIndicators()` 替代 `ReadOnlyKlineService.getKlineData()`
+- `getKlineWithIndicators()` 会实时计算所有技术指标（RSI, SAR, MACD, Bollinger Bands）
+- 计算好的数据直接传入 `signalMatchingService.saveLatestKlineSnapshots()`
+- 保存到 `kline_snapshot_latest` 表时包含完整的技术指标数据
+
+**受影响字段** (现在应该有值):
+- ✅ rsi_5 (5分钟RSI)
+- ✅ rsi_14 (1小时RSI)
+- ✅ sar_value (SAR指标值)
+- ✅ sar_position (above/below)
+- ✅ sar_distance_percent (SAR距离百分比)
+- ✅ macd_value/macd_signal/macd_histogram (MACD指标)
+- ✅ bollinger_middle/upper/lower (布林带)
+- ✅ bollinger_width (带宽)
+- ✅ bollinger_position (通道位置)
+- ✅ channel_decline_ratio (下跌占比)
+- ✅ channel_rise_ratio (上涨占比)
+
+**测试方法**:
+```bash
+# 1. 重启服务器以加载新代码
+pkill -9 workerd
+npx wrangler pages dev --port 3000 --d1 DB=placeholder
+
+# 2. 触发K线同步和快照保存
+curl -X POST http://localhost:3000/api/kline/sync/auto
+
+# 3. 查看快照数据
+curl http://localhost:3000/api/signal-matching/snapshots/BTC | jq '.data[0]'
+```
+
+---
+
 ## 🔍 详细字段说明
 
 ### 1️⃣ 基础K线数据 (✅ 全部正常 - 8字段)
