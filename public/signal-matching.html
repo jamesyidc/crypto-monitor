@@ -543,62 +543,111 @@
                 
                 const snapshots = response.data.data;
                 
-                // 构建完整数据表格
+                // 构建完整数据表格（包含所有字段）
                 let content = `
                     <div class="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-6 mb-6 border-2 border-yellow-200">
                         <div class="flex justify-between items-center">
                             <div>
-                                <h3 class="text-3xl font-bold text-gray-800">${symbol}</h3>
+                                <h3 class="text-3xl font-bold text-gray-800">${symbol} 完整数据</h3>
                                 <p class="text-gray-600 mt-2">共 ${snapshots.length} 根K线数据</p>
                             </div>
                             <div class="text-right">
                                 <div class="text-4xl font-bold text-yellow-600">${snapshots[0].close_price ? snapshots[0].close_price.toFixed(2) : '-'}</div>
-                                <div class="text-sm text-gray-600 mt-1">最新价格</div>
+                                <div class="text-sm text-gray-600 mt-1">最新收盘价</div>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="overflow-x-auto shadow-lg rounded-xl border border-gray-200">
-                        <table class="min-w-full divide-y divide-gray-300">
-                            <thead class="bg-gradient-to-r from-gray-100 to-gray-200">
+                    <div class="overflow-x-auto shadow-lg rounded-xl border-2 border-gray-300">
+                        <table class="min-w-full divide-y divide-gray-400 text-sm">
+                            <thead class="bg-gradient-to-r from-indigo-100 to-purple-100">
                                 <tr>
-                                    <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">序号</th>
-                                    <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">开盘价</th>
-                                    <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">最高价</th>
-                                    <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">最低价</th>
-                                    <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">收盘价</th>
-                                    <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">成交量</th>
-                                    <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">RSI5</th>
-                                    <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">RSI14</th>
-                                    <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">操作提示</th>
-                                    <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">空间比</th>
-                                    <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">时间</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">序号</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">时间</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">首页排名</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">起涨点</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">起跌点</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">操作提示</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">当天起涨</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">当天起跌</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">10轮高</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">48h高跌幅</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">10轮低</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">48h低涨幅</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">开</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">高</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">低</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">收</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">涨跌幅</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">量</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">V1</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">V2</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">信号</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">SAR</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">SAR变化</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">SAR%</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">涨差</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">RSI5</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">RSI14</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">MB</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">UB</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">LB</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">下跌%</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">上涨%</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">带宽</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800">通道位置</th>
                                 </tr>
                             </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
+                            <tbody class="bg-white divide-y divide-gray-300">
                 `;
                 
                 snapshots.forEach((snap, index) => {
-                    const rsi5Color = snap.rsi_5 < 30 ? 'text-green-600' : snap.rsi_5 > 70 ? 'text-red-600' : 'text-gray-800';
-                    const rsi14Color = snap.rsi_14 < 30 ? 'text-green-600' : snap.rsi_14 > 70 ? 'text-red-600' : 'text-gray-800';
+                    const rsi5Color = snap.rsi_5 < 30 ? 'text-green-600 font-bold' : snap.rsi_5 > 70 ? 'text-red-600 font-bold' : '';
+                    const rsi14Color = snap.rsi_14 < 30 ? 'text-green-600 font-bold' : snap.rsi_14 > 70 ? 'text-red-600 font-bold' : '';
+                    const changeColor = snap.change_percent > 0 ? 'text-green-600' : snap.change_percent < 0 ? 'text-red-600' : '';
                     
                     content += `
                         <tr class="hover:bg-yellow-50 transition">
-                            <td class="px-6 py-4 font-bold text-lg text-gray-800">${index + 1}</td>
-                            <td class="px-6 py-4 text-base">${snap.open_price ? snap.open_price.toFixed(2) : '-'}</td>
-                            <td class="px-6 py-4 text-base text-green-600 font-semibold">${snap.high_price ? snap.high_price.toFixed(2) : '-'}</td>
-                            <td class="px-6 py-4 text-base text-red-600 font-semibold">${snap.low_price ? snap.low_price.toFixed(2) : '-'}</td>
-                            <td class="px-6 py-4 text-base font-bold">${snap.close_price ? snap.close_price.toFixed(2) : '-'}</td>
-                            <td class="px-6 py-4 text-base">${snap.volume ? snap.volume.toFixed(2) : '-'}</td>
-                            <td class="px-6 py-4 text-base font-bold ${rsi5Color}">${snap.rsi_5 ? snap.rsi_5.toFixed(2) : '-'}</td>
-                            <td class="px-6 py-4 text-base font-bold ${rsi14Color}">${snap.rsi_14 ? snap.rsi_14.toFixed(2) : '-'}</td>
-                            <td class="px-6 py-4">
-                                <span class="px-3 py-2 rounded-lg text-sm font-bold ${snap.operation_tip ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-400'}">
-                                    ${snap.operation_tip || '无'}
-                                </span>
+                            <td class="px-3 py-2 text-center font-bold border-r">${index + 1}</td>
+                            <td class="px-3 py-2 text-center whitespace-nowrap border-r">${new Date(snap.kline_time * 1000).toLocaleString('zh-CN', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'})}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.homepage_rank || '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.surge_start_point || '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.crash_start_point || '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">
+                                <span class="px-2 py-1 rounded text-xs font-bold ${snap.operation_tip ? 'bg-blue-100 text-blue-800' : 'text-gray-400'}">${snap.operation_tip || '无'}</span>
                             </td>
-                            <td class="px-6 py-4 text-base">${snap.price_space_ratio ? snap.price_space_ratio.toFixed(4) : '-'}</td>
-                            <td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">${new Date(snap.created_at * 1000).toLocaleString('zh-CN')}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.today_surge_count || 0}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.today_crash_count || 0}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.rounds_since_48h_high || 0}</td>
+                            <td class="px-3 py-2 text-center text-red-600 border-r">${snap.decline_from_48h_high ? snap.decline_from_48h_high.toFixed(2) + '%' : '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.rounds_since_48h_low || 0}</td>
+                            <td class="px-3 py-2 text-center text-green-600 border-r">${snap.rise_from_48h_low ? snap.rise_from_48h_low.toFixed(2) + '%' : '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.open_price ? snap.open_price.toFixed(2) : '-'}</td>
+                            <td class="px-3 py-2 text-center text-green-600 font-semibold border-r">${snap.high_price ? snap.high_price.toFixed(2) : '-'}</td>
+                            <td class="px-3 py-2 text-center text-red-600 font-semibold border-r">${snap.low_price ? snap.low_price.toFixed(2) : '-'}</td>
+                            <td class="px-3 py-2 text-center font-bold border-r">${snap.close_price ? snap.close_price.toFixed(2) : '-'}</td>
+                            <td class="px-3 py-2 text-center ${changeColor} border-r">${snap.change_percent ? snap.change_percent.toFixed(2) + '%' : '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.volume ? snap.volume.toFixed(0) : '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.v1_flag ? '✓' : ''}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.v2_flag ? '✓' : ''}</td>
+                            <td class="px-3 py-2 text-center border-r">
+                                ${snap.buy_signal ? '<span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">买:' + snap.buy_signal + '</span>' : ''}
+                                ${snap.sell_signal ? '<span class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">卖:' + snap.sell_signal + '</span>' : ''}
+                                ${!snap.buy_signal && !snap.sell_signal ? '-' : ''}
+                            </td>
+                            <td class="px-3 py-2 text-center border-r">${snap.sar_value ? snap.sar_value.toFixed(2) : '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.sar_position || '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.sar_distance_percent ? snap.sar_distance_percent.toFixed(2) + '%' : '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">-</td>
+                            <td class="px-3 py-2 text-center ${rsi5Color} border-r">${snap.rsi_5 ? snap.rsi_5.toFixed(2) : '-'}</td>
+                            <td class="px-3 py-2 text-center ${rsi14Color} border-r">${snap.rsi_14 ? snap.rsi_14.toFixed(2) : '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.bollinger_middle ? snap.bollinger_middle.toFixed(2) : '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.bollinger_upper ? snap.bollinger_upper.toFixed(2) : '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.bollinger_lower ? snap.bollinger_lower.toFixed(2) : '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.channel_decline_ratio ? snap.channel_decline_ratio.toFixed(2) + '%' : '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.channel_rise_ratio ? snap.channel_rise_ratio.toFixed(2) + '%' : '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.bollinger_width ? snap.bollinger_width.toFixed(4) : '-'}</td>
+                            <td class="px-3 py-2 text-center">${snap.bollinger_position || '-'}</td>
                         </tr>
                     `;
                 });
