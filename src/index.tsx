@@ -41,6 +41,7 @@ import liveTradingHtml from '../public/live-trading.html?raw'
 import coinPriorityHtml from '../public/coin-priority.html?raw'
 import strategyLibraryHtml from '../public/strategy-library.html?raw'
 import signalMatchingHtml from '../public/signal-matching.html?raw'
+import testSnapshotHtml from '../public/test-snapshot.html?raw'
 
 /**
  * 🔒 数据库访问控制说明
@@ -2242,6 +2243,7 @@ app.get('/strategy-library', (c) => c.html(strategyLibraryHtml))
 app.get('/strategy-library.html', (c) => c.html(strategyLibraryHtml))
 app.get('/signal-matching', (c) => c.html(signalMatchingHtml))
 app.get('/signal-matching.html', (c) => c.html(signalMatchingHtml))
+app.get('/test-snapshot.html', (c) => c.html(testSnapshotHtml))
 
 // 🆕 风险事件历史查看页面
 app.get('/risk-events', (c) => {
