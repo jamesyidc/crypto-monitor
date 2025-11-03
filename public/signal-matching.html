@@ -219,6 +219,21 @@
             </div>
         </div>
 
+        <!-- 详情展示区域 -->
+        <div id="details-panel" class="bg-white rounded-lg shadow-lg p-6 mb-6" style="display: none;">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800" id="details-title">
+                    <i id="details-icon" class="fas fa-database text-indigo-600"></i> <span id="details-title-text">详情</span>
+                </h2>
+                <button onclick="closeDetails()" class="text-gray-500 hover:text-gray-700 transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="details-content" class="space-y-4">
+                <!-- 动态内容将在这里显示 -->
+            </div>
+        </div>
+
         <!-- 生产池待执行 -->
         <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
             <h2 class="text-xl font-bold mb-4 text-gray-800">
@@ -374,72 +389,115 @@
         }
         
         // 显示K线快照详情
+        // 关闭详情面板
+        function closeDetails() {
+            document.getElementById('details-panel').style.display = 'none';
+        }
+        
+        // 显示详情面板
+        function showDetailsPanel(title, icon, content) {
+            document.getElementById('details-title-text').textContent = title;
+            document.getElementById('details-icon').className = `fas ${icon}`;
+            document.getElementById('details-content').innerHTML = content;
+            document.getElementById('details-panel').style.display = 'block';
+            // 滚动到详情面板
+            document.getElementById('details-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+        
         async function showSnapshotDetails() {
             try {
+                // 显示加载状态
+                showDetailsPanel('K线快照池', 'fa-database text-indigo-600', '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-3xl text-indigo-600"></i><p class="mt-2 text-gray-600">加载中...</p></div>');
+                
                 // 获取27个币种的列表
                 const symbols = ['BTC', 'ETH', 'XRP', 'SOL', 'BNB', 'LTC', 'DOGE', 'SUI', 'TRX', 'TON', 
                                 'ETC', 'BCH', 'HBAR', 'XLM', 'FIL', 'ADA', 'LINK', 'CRO', 'DOT', 'UNI', 
                                 'NEAR', 'APT', 'CFX', 'CRV', 'STX', 'LDO', 'TAO'];
                 
-                let details = 'K线快照池（最新3根K线）\n\n';
                 let totalCount = 0;
-                let symbolsWithData = [];
-                let symbolsWithoutData = [];
+                let symbolsData = [];
                 
                 // 检查所有币种
                 for (const symbol of symbols) {
                     try {
                         const response = await axios.get(`/api/signal-matching/snapshots/${symbol}`);
                         if (response.data.success && response.data.data && response.data.data.length > 0) {
-                            totalCount += response.data.data.length;
-                            symbolsWithData.push(symbol);
-                            
-                            // 只显示前5个币种的详细信息
-                            if (symbolsWithData.length <= 5) {
-                                const snapshots = response.data.data;
-                                details += `📊 ${symbol}（${snapshots.length}根）\n`;
-                                
-                                // 显示最新的K线
-                                const latest = snapshots[0];
-                                details += `   价格: ${latest.close_price ? latest.close_price.toFixed(2) : '-'}\n`;
-                                details += `   RSI5: ${latest.rsi_5 ? latest.rsi_5.toFixed(2) : '-'}\n`;
-                                details += `   操作提示: ${latest.operation_tip || '无'}\n`;
-                                details += `   时间: ${new Date(latest.created_at * 1000).toLocaleTimeString('zh-CN')}\n\n`;
-                            }
-                        } else {
-                            symbolsWithoutData.push(symbol);
+                            const snapshots = response.data.data;
+                            totalCount += snapshots.length;
+                            symbolsData.push({
+                                symbol,
+                                count: snapshots.length,
+                                latest: snapshots[0]
+                            });
                         }
                     } catch (e) {
-                        symbolsWithoutData.push(symbol);
+                        // 忽略错误
                     }
                 }
                 
-                details += `\n━━━━━━━━━━━━━━━━━━━━\n`;
-                details += `📈 统计信息:\n`;
-                details += `   总快照数: ${totalCount}\n`;
-                details += `   有数据币种: ${symbolsWithData.length}/27\n`;
-                details += `   无数据币种: ${symbolsWithoutData.length}/27\n\n`;
+                // 构建HTML内容
+                let content = `
+                    <div class="bg-indigo-50 rounded-lg p-4 mb-4">
+                        <div class="grid grid-cols-3 gap-4 text-center">
+                            <div>
+                                <div class="text-2xl font-bold text-indigo-600">${totalCount}</div>
+                                <div class="text-sm text-gray-600">总快照数</div>
+                            </div>
+                            <div>
+                                <div class="text-2xl font-bold text-green-600">${symbolsData.length}</div>
+                                <div class="text-sm text-gray-600">有数据币种</div>
+                            </div>
+                            <div>
+                                <div class="text-2xl font-bold text-gray-600">${27 - symbolsData.length}</div>
+                                <div class="text-sm text-gray-600">无数据币种</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                `;
                 
-                if (symbolsWithData.length > 5) {
-                    details += `✅ 有数据: ${symbolsWithData.slice(0, 10).join(', ')}`;
-                    if (symbolsWithData.length > 10) {
-                        details += `... (+${symbolsWithData.length - 10}个)\n`;
-                    } else {
-                        details += `\n`;
-                    }
-                }
+                // 显示所有有数据的币种
+                symbolsData.forEach(item => {
+                    const latest = item.latest;
+                    content += `
+                        <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="font-bold text-lg text-gray-800">${item.symbol}</div>
+                                <div class="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">${item.count}根K线</div>
+                            </div>
+                            <div class="space-y-1 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">价格:</span>
+                                    <span class="font-semibold">${latest.close_price ? latest.close_price.toFixed(2) : '-'}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">RSI5:</span>
+                                    <span class="font-semibold ${latest.rsi_5 < 30 ? 'text-green-600' : latest.rsi_5 > 70 ? 'text-red-600' : ''}">${latest.rsi_5 ? latest.rsi_5.toFixed(2) : '-'}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">操作提示:</span>
+                                    <span class="font-semibold ${latest.operation_tip ? 'text-blue-600' : 'text-gray-400'}">${latest.operation_tip || '无'}</span>
+                                </div>
+                                <div class="text-xs text-gray-400 mt-2">
+                                    ${new Date(latest.created_at * 1000).toLocaleString('zh-CN')}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
                 
-                if (symbolsWithoutData.length > 0) {
-                    details += `\n⚠️ 无数据: ${symbolsWithoutData.slice(0, 10).join(', ')}`;
-                    if (symbolsWithoutData.length > 10) {
-                        details += `... (+${symbolsWithoutData.length - 10}个)`;
-                    }
-                }
+                content += '</div>';
                 
-                alert(details);
+                showDetailsPanel('K线快照池', 'fa-database text-indigo-600', content);
             } catch (error) {
                 console.error('加载K线快照详情失败:', error);
-                alert(`加载失败: ${error.message}`);
+                showDetailsPanel('K线快照池', 'fa-database text-indigo-600', 
+                    `<div class="text-center py-8 text-red-600">
+                        <i class="fas fa-exclamation-circle text-3xl"></i>
+                        <p class="mt-2">加载失败: ${error.message}</p>
+                    </div>`
+                );
             }
         }
         
@@ -459,46 +517,159 @@
                 'production': '生产池待执行'
             };
             
+            const iconMap = {
+                'pending': 'fa-hourglass-half text-blue-600',
+                'matched': 'fa-check-circle text-green-600',
+                'today': 'fa-calendar-check text-purple-600',
+                'production': 'fa-rocket text-red-600'
+            };
+            
             try {
+                // 显示加载状态
+                showDetailsPanel(titleMap[poolType], iconMap[poolType], 
+                    '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-3xl"></i><p class="mt-2 text-gray-600">加载中...</p></div>');
+                
                 const response = await axios.get(apiMap[poolType]);
                 if (response.data.success) {
                     const data = response.data.data;
+                    
                     if (data.length === 0) {
-                        alert(`${titleMap[poolType]}\n\n暂无数据`);
+                        showDetailsPanel(titleMap[poolType], iconMap[poolType],
+                            '<div class="text-center py-8 text-gray-400"><i class="fas fa-inbox text-5xl"></i><p class="mt-4 text-lg">暂无数据</p></div>');
                         return;
                     }
                     
-                    // 构建详情信息
-                    let details = `${titleMap[poolType]}（共 ${data.length} 条）\n\n`;
-                    data.slice(0, 10).forEach((item, index) => {
-                        details += `${index + 1}. ${item.symbol || '-'}\n`;
-                        if (poolType === 'pending') {
-                            details += `   操作提示: ${item.operation_tip || '-'}\n`;
-                            details += `   K线时间: ${new Date(item.kline_time).toLocaleString('zh-CN')}\n`;
-                        } else if (poolType === 'matched') {
-                            details += `   信号类型: ${item.signal_type === 'buy' ? '做多' : '做空'}\n`;
-                            details += `   信号名称: ${item.signal_name || '-'}\n`;
-                        } else if (poolType === 'today') {
-                            details += `   策略: ${item.strategy_name || '-'}\n`;
-                            details += `   信号: ${item.signal_type === 'buy' ? '做多' : '做空'}\n`;
-                            details += `   状态: ${item.status === 'in_production' ? '生产池' : '待执行'}\n`;
-                        } else if (poolType === 'production') {
-                            details += `   策略: ${item.strategy_name || '-'}\n`;
-                            details += `   入场: ${item.entry_price ? item.entry_price.toFixed(4) : '-'}\n`;
-                            details += `   杠杆: ${item.leverage}x, 优先级: ${item.priority}\n`;
-                        }
-                        details += `\n`;
-                    });
+                    // 构建HTML内容
+                    let content = `
+                        <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                            <div class="text-center">
+                                <div class="text-3xl font-bold text-gray-800">${data.length}</div>
+                                <div class="text-sm text-gray-600">条记录</div>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                    `;
                     
-                    if (data.length > 10) {
-                        details += `... 还有 ${data.length - 10} 条记录`;
+                    // 根据不同池类型显示不同的表头和内容
+                    if (poolType === 'pending') {
+                        content += `
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">币种</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作提示</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">RSI5</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">价格</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">K线时间</th>
+                        </tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
+                        
+                        data.forEach((item, index) => {
+                            content += `
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 font-bold">${item.symbol || '-'}</td>
+                                    <td class="px-4 py-3"><span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">${item.operation_tip || '-'}</span></td>
+                                    <td class="px-4 py-3">${item.rsi_5 ? item.rsi_5.toFixed(2) : '-'}</td>
+                                    <td class="px-4 py-3">${item.close_price ? item.close_price.toFixed(2) : '-'}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-600">${new Date(item.kline_time).toLocaleString('zh-CN')}</td>
+                                </tr>
+                            `;
+                        });
+                    } else if (poolType === 'matched') {
+                        content += `
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">币种</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">信号类型</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">信号名称</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">价格</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">创建时间</th>
+                        </tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
+                        
+                        data.forEach((item, index) => {
+                            content += `
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 font-bold">${item.symbol || '-'}</td>
+                                    <td class="px-4 py-3">
+                                        <span class="px-2 py-1 rounded text-xs ${item.signal_type === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                            ${item.signal_type === 'buy' ? '做多' : '做空'}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3">${item.signal_name || '-'}</td>
+                                    <td class="px-4 py-3">${item.close_price ? item.close_price.toFixed(2) : '-'}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-600">${new Date(item.created_at * 1000).toLocaleString('zh-CN')}</td>
+                                </tr>
+                            `;
+                        });
+                    } else if (poolType === 'today') {
+                        content += `
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">币种</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">策略</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">信号</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">创建时间</th>
+                        </tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
+                        
+                        data.forEach((item, index) => {
+                            content += `
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 font-bold">${item.symbol || '-'}</td>
+                                    <td class="px-4 py-3">${item.strategy_name || '-'}</td>
+                                    <td class="px-4 py-3">
+                                        <span class="px-2 py-1 rounded text-xs ${item.signal_type === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                            ${item.signal_type === 'buy' ? '做多' : '做空'}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <span class="px-2 py-1 rounded text-xs ${item.status === 'in_production' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}">
+                                            ${item.status === 'in_production' ? '生产池' : '待执行'}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 text-sm text-gray-600">${new Date(item.created_at * 1000).toLocaleString('zh-CN')}</td>
+                                </tr>
+                            `;
+                        });
+                    } else if (poolType === 'production') {
+                        content += `
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">币种</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">策略</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">信号</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">入场价</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">杠杆</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">优先级</th>
+                        </tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
+                        
+                        data.forEach((item, index) => {
+                            content += `
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 font-bold">${item.symbol || '-'}</td>
+                                    <td class="px-4 py-3">${item.strategy_name || '-'}</td>
+                                    <td class="px-4 py-3">
+                                        <span class="px-2 py-1 rounded text-xs ${item.signal_type === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                            ${item.signal_type === 'buy' ? '做多' : '做空'}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3">${item.entry_price ? item.entry_price.toFixed(4) : '-'}</td>
+                                    <td class="px-4 py-3">${item.leverage}x</td>
+                                    <td class="px-4 py-3">
+                                        <span class="px-2 py-1 rounded text-xs ${item.priority === 'high' ? 'bg-red-100 text-red-800' : item.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}">
+                                            ${item.priority || 'normal'}
+                                        </span>
+                                    </td>
+                                </tr>
+                            `;
+                        });
                     }
                     
-                    alert(details);
+                    content += '</tbody></table></div>';
+                    
+                    showDetailsPanel(titleMap[poolType], iconMap[poolType], content);
                 }
             } catch (error) {
                 console.error(`加载${titleMap[poolType]}失败:`, error);
-                alert(`加载失败: ${error.message}`);
+                showDetailsPanel(titleMap[poolType], iconMap[poolType],
+                    `<div class="text-center py-8 text-red-600">
+                        <i class="fas fa-exclamation-circle text-3xl"></i>
+                        <p class="mt-2">加载失败: ${error.message}</p>
+                    </div>`
+                );
             }
         }
 
