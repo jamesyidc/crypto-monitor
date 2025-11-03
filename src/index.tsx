@@ -1169,6 +1169,34 @@ app.post('/api/kline/sync/auto', async (c) => {
       let snapshotsSaved = 0;
       console.log(`📸 开始保存K线快照，共 ${results.length} 个币种...`);
       
+      // 🆕 获取首页数据（包含统计信息）
+      let dashboardData: any = {};
+      try {
+        const { AnalysisService } = await import('./services/analysisService');
+        const { CoinService } = await import('./services/coinService');
+        const coinService = new CoinService(c.env.DB);
+        const analysisService = new AnalysisService(coinService);
+        const dashboardResult = await analysisService.getDashboardData();
+        
+        // 构建symbol到统计数据的映射
+        if (dashboardResult && dashboardResult.coinDetails) {
+          dashboardResult.coinDetails.forEach((coin: any) => {
+            dashboardData[coin.symbol] = {
+              homepage_rank: coin.rank,
+              today_surge_count: coin.today_surge_count || 0,
+              today_crash_count: coin.today_crash_count || 0,
+              extreme_up_count: coin.extreme_up_count || 0,
+              extreme_down_count: coin.extreme_down_count || 0,
+              today_v1_count: coin.today_v1_count || 0,
+              change_today: coin.change_today || 0
+            };
+          });
+        }
+        console.log(`   ✅ 已获取首页数据，包含 ${Object.keys(dashboardData).length} 个币种`);
+      } catch (error: any) {
+        console.warn(`   ⚠️  获取首页数据失败: ${error.message}`);
+      }
+      
       for (const result of results) {
         if (result.success) {
           try {
@@ -1181,8 +1209,15 @@ app.post('/api/kline/sync/auto', async (c) => {
             console.log(`   ${result.symbol}: 获取到 ${klineData.data?.length || 0} 根K线`);
             
             if (klineData.data && klineData.data.length > 0) {
-              // 保存最新3根K线快照
-              await signalMatchingService.saveLatestKlineSnapshots(result.symbol, klineData.data);
+              // 🆕 合并首页统计数据
+              const additionalData = dashboardData[result.symbol] || {};
+              
+              // 保存最新3根K线快照（带统计数据）
+              await signalMatchingService.saveLatestKlineSnapshots(
+                result.symbol, 
+                klineData.data,
+                additionalData
+              );
               snapshotsSaved++;
               console.log(`   ✅ ${result.symbol}: 快照已保存`);
             } else {

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试详情面板</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 p-8">
+    <h1 class="text-3xl font-bold mb-6">测试详情面板功能</h1>
+    
+    <!-- 测试卡片 -->
+    <div class="grid grid-cols-2 gap-4 mb-6">
+        <div onclick="showTestDetails()" class="bg-indigo-600 text-white rounded-lg shadow-lg p-6 cursor-pointer hover:bg-indigo-700">
+            <h3 class="text-xl font-bold">点击测试</h3>
+            <p class="mt-2">点击这里显示详情面板</p>
+        </div>
+    </div>
+    
+    <!-- 详情展示区域 -->
+    <div id="details-panel" class="bg-white rounded-lg shadow-lg p-8 mb-6" style="display: none; min-height: 400px;">
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-gray-800" id="details-title">
+                <i id="details-icon" class="fas fa-database text-indigo-600"></i> <span id="details-title-text">详情</span>
+            </h2>
+        </div>
+        <div id="details-content">
+            <!-- 动态内容将在这里显示 -->
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow-lg p-6">
+        <h2 class="text-xl font-bold mb-4">下方是其他内容</h2>
+        <p>详情面板应该显示在这个区域的上方。</p>
+    </div>
+    
+    <script>
+        function showDetailsPanel(title, icon, content) {
+            console.log('showDetailsPanel called:', title);
+            const panel = document.getElementById('details-panel');
+            const titleText = document.getElementById('details-title-text');
+            const iconElem = document.getElementById('details-icon');
+            const contentElem = document.getElementById('details-content');
+            
+            titleText.textContent = title;
+            iconElem.className = `fas ${icon}`;
+            contentElem.innerHTML = content;
+            panel.style.display = 'block';
+            
+            console.log('Panel displayed');
+        }
+        
+        function showTestDetails() {
+            console.log('showTestDetails called');
+            alert('按钮被点击了！');
+            
+            const content = `
+                <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 mb-6">
+                    <h3 class="text-2xl font-bold text-indigo-600">测试内容</h3>
+                    <p class="mt-4">这是详情面板的测试内容。如果你能看到这个，说明功能正常工作！</p>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="border-2 border-gray-300 rounded-xl p-5 bg-white">
+                        <h4 class="font-bold text-xl mb-2">测试卡片 1</h4>
+                        <p>这是第一个测试卡片</p>
+                    </div>
+                    <div class="border-2 border-gray-300 rounded-xl p-5 bg-white">
+                        <h4 class="font-bold text-xl mb-2">测试卡片 2</h4>
+                        <p>这是第二个测试卡片</p>
+                    </div>
+                    <div class="border-2 border-gray-300 rounded-xl p-5 bg-white">
+                        <h4 class="font-bold text-xl mb-2">测试卡片 3</h4>
+                        <p>这是第三个测试卡片</p>
+                    </div>
+                </div>
+            `;
+            
+            showDetailsPanel('测试详情', 'fa-database text-indigo-600', content);
+        }
+    </script>
+</body>
+</html>

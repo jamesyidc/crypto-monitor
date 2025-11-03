@@ -211,15 +211,15 @@ export class SignalMatchingService {
         volume: kline.volume,
         change_percent: changePercent,
         
-        // 首页数据
-        homepage_rank: kline.homepage_rank || null,
+        // 首页数据 (🆕 优先使用additionalData中的值)
+        homepage_rank: additionalData?.homepage_rank || kline.homepage_rank || null,
         surge_start_point: kline.surge_start_point || null,
         crash_start_point: kline.crash_start_point || null,
         operation_tip: kline.operation_tip || null,
         
-        // 统计数据 (这些字段当前没有数据源，设为默认值)
-        today_surge_count: kline.today_surge_count || 0,
-        today_crash_count: kline.today_crash_count || 0,
+        // 统计数据 (🆕 优先使用additionalData中的首页统计数据)
+        today_surge_count: additionalData?.today_surge_count || kline.today_surge_count || 0,
+        today_crash_count: additionalData?.today_crash_count || kline.today_crash_count || 0,
         rounds_since_48h_high: kline.rounds_since_48h_high || 0,
         decline_from_48h_high: kline.decline_from_48h_high || 0,
         rounds_since_48h_low: kline.rounds_since_48h_low || 0,
