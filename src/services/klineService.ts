@@ -289,28 +289,44 @@ export class KlineService {
     
     // 优先使用数据库数据（只要有数据就用，不要求数量）
     if (dbData && dbData.length > 50) {
-      // 保存数据库中的所有技术指标（按open_time索引）
+      // 保存数据库中的所有字段（按open_time索引）
       dbData.forEach((k: any) => {
         dbIndicators.set(k.open_time, {
+          // 基本字段
           signal: k.signal,
           operation_tip: k.operation_tip,
           channel_state: k.channel_state,
+          homepage_rank: k.homepage_rank,
+          
+          // SAR指标
           sar: k.sar,
           sar_change: k.sar_change,
           sar_change_percent: k.sar_change_percent,
+          
+          // RSI指标
           rsi_5min: k.rsi_5min,
           rsi_1h: k.rsi_1h,
+          
+          // 涨跌幅
           change_percent: k.change_percent,
           change_diff: k.change_diff,
+          
+          // BOLL指标
           boll_mb: k.boll_mb,
           boll_ub: k.boll_ub,
           boll_lb: k.boll_lb,
           boll_sar_diff: k.boll_sar_diff,
           boll_angle_mb: k.boll_angle_mb,
           boll_width_change: k.boll_width_change,
+          
+          // 通道比率
           up_channel_exhaustion_ratio: k.up_channel_exhaustion_ratio,
           down_channel_exhaustion_ratio: k.down_channel_exhaustion_ratio,
-          volume_level: k.volume_level
+          
+          // 成交量
+          volume_level: k.volume_level,
+          volume_v1: k.volume_v1,
+          volume_v2: k.volume_v2
         });
       });
       
@@ -380,28 +396,62 @@ export class KlineService {
         signal: getDbValue(dbData?.signal, item.signal),
         operation_tip: getDbValue(dbData?.operation_tip, null),
         channel_state: getDbValue(dbData?.channel_state, item.channel_state),
+        homepage_rank: getDbValue(dbData?.homepage_rank, null),
+        
         // SAR 指标
         sar: getDbValue(dbData?.sar, item.sar),
         sarChange: getDbValue(dbData?.sar_change, item.sarChange),
         sarChangePercent: getDbValue(dbData?.sar_change_percent, item.sarChangePercent),
+        sar_distance_percent: getDbValue(dbData?.sar_change_percent, item.sarChangePercent), // 别名
+        
         // RSI 指标
         rsi_5min: getDbValue(dbData?.rsi_5min, item.rsi_5min),
+        rsi_5: getDbValue(dbData?.rsi_5min, item.rsi_5min), // 别名
+        rsi_14: getDbValue(dbData?.rsi_1h, item.rsi_14 || item.rsi_1h), // 别名
         rsi_1h: getDbValue(dbData?.rsi_1h, item.rsi_1h),
+        
         // 涨跌幅
         change: getDbValue(dbData?.change_percent, item.change),
+        change_percent: parseFloat(getDbValue(dbData?.change_percent, item.change)?.toString().replace('%', '') || '0'),
         'change-diff': getDbValue(dbData?.change_diff, item['change-diff']),
+        
         // BOLL 指标
         boll_mb: getDbValue(dbData?.boll_mb, item.boll_mb),
+        boll_middle: getDbValue(dbData?.boll_mb, item.boll_mb), // 别名
+        bollinger_middle: getDbValue(dbData?.boll_mb, item.boll_mb || item.bollinger_middle), // 别名
         boll_ub: getDbValue(dbData?.boll_ub, item.boll_ub),
+        boll_upper: getDbValue(dbData?.boll_ub, item.boll_ub), // 别名
+        bollinger_upper: getDbValue(dbData?.boll_ub, item.boll_ub || item.bollinger_upper), // 别名
         boll_lb: getDbValue(dbData?.boll_lb, item.boll_lb),
+        boll_lower: getDbValue(dbData?.boll_lb, item.boll_lb), // 别名
+        bollinger_lower: getDbValue(dbData?.boll_lb, item.boll_lb || item.bollinger_lower), // 别名
         boll_sar_diff: getDbValue(dbData?.boll_sar_diff, item.boll_sar_diff),
         boll_angle_mb: getDbValue(dbData?.boll_angle_mb, item.boll_angle_mb),
         boll_width_change: getDbValue(dbData?.boll_width_change, item.boll_width_change),
-        // 通道衰竭比率
+        bollinger_width: getDbValue(dbData?.boll_width_change, item.bollinger_width || item.boll_width_change), // 别名
+        boll_position: getDbValue(dbData?.channel_state, item.boll_position || item.channel_state), // 别名
+        bollinger_position: getDbValue(dbData?.channel_state, item.bollinger_position || item.channel_state), // 别名
+        
+        // MACD指标 (从新计算的值获取)
+        macd_value: item.macd_value || null,
+        macd_signal: item.macd_signal || null,
+        macd_histogram: item.macd_histogram || null,
+        
+        // 通道比率
         up_channel_exhaustion_ratio: getDbValue(dbData?.up_channel_exhaustion_ratio, item.up_channel_exhaustion_ratio),
         down_channel_exhaustion_ratio: getDbValue(dbData?.down_channel_exhaustion_ratio, item.down_channel_exhaustion_ratio),
-        // 成交量等级
-        volume_level: getDbValue(dbData?.volume_level, item.volume_level)
+        channel_rise_ratio: getDbValue(dbData?.up_channel_exhaustion_ratio, item.channel_rise_ratio || item.up_channel_exhaustion_ratio), // 别名
+        channel_decline_ratio: getDbValue(dbData?.down_channel_exhaustion_ratio, item.channel_decline_ratio || item.down_channel_exhaustion_ratio), // 别名
+        
+        // 成交量标记
+        volume_level: getDbValue(dbData?.volume_level, item.volume_level),
+        volume_v1: getDbValue(dbData?.volume_v1, item.volume_v1 || 0),
+        volume_v2: getDbValue(dbData?.volume_v2, item.volume_v2 || 0),
+        v1_flag: getDbValue(dbData?.volume_v1, item.volume_v1 || item.v1_flag || 0),
+        v2_flag: getDbValue(dbData?.volume_v2, item.volume_v2 || item.v2_flag || 0),
+        
+        // SAR位置 (基于价格和SAR值计算)
+        sar_position: item.close > item.sar ? 'above' : 'below'
       };
     });
 

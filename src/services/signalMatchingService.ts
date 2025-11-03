@@ -181,6 +181,22 @@ export class SignalMatchingService {
         klineTime = new Date(kline.time.replace(/\//g, '-')).getTime();
       }
       
+      // 解析change_percent (可能是字符串如"3.5%"或数字3.5)
+      let changePercent = 0;
+      if (kline.change_percent !== undefined && kline.change_percent !== null) {
+        if (typeof kline.change_percent === 'string') {
+          changePercent = parseFloat(kline.change_percent.replace('%', ''));
+        } else {
+          changePercent = kline.change_percent;
+        }
+      } else if (kline.change !== undefined && kline.change !== null) {
+        if (typeof kline.change === 'string') {
+          changePercent = parseFloat(kline.change.replace('%', ''));
+        } else {
+          changePercent = kline.change;
+        }
+      }
+      
       const snapshot: KlineSnapshot = {
         symbol,
         timeframe,
@@ -193,7 +209,7 @@ export class SignalMatchingService {
         low_price: kline.low,
         close_price: kline.close,
         volume: kline.volume,
-        change_percent: kline.change_percent || 0,
+        change_percent: changePercent,
         
         // 首页数据
         homepage_rank: kline.homepage_rank || null,
@@ -201,7 +217,7 @@ export class SignalMatchingService {
         crash_start_point: kline.crash_start_point || null,
         operation_tip: kline.operation_tip || null,
         
-        // 统计数据
+        // 统计数据 (这些字段当前没有数据源，设为默认值)
         today_surge_count: kline.today_surge_count || 0,
         today_crash_count: kline.today_crash_count || 0,
         rounds_since_48h_high: kline.rounds_since_48h_high || 0,
@@ -209,32 +225,36 @@ export class SignalMatchingService {
         rounds_since_48h_low: kline.rounds_since_48h_low || 0,
         rise_from_48h_low: kline.rise_from_48h_low || 0,
         
-        // 成交量标记
-        v1_flag: kline.v1_flag ? 1 : 0,
-        v2_flag: kline.v2_flag ? 1 : 0,
+        // 成交量标记 (支持多种字段名)
+        v1_flag: kline.v1_flag || kline.volume_v1 || (kline.is_v1 ? 1 : 0) || 0,
+        v2_flag: kline.v2_flag || kline.volume_v2 || (kline.is_v2 ? 1 : 0) || 0,
         
-        // 技术指标
-        rsi_5: kline.rsi_5min || kline.rsi_5 || null,
-        rsi_14: kline.rsi_14 || null,
-        sar_value: kline.sar || null,
+        // 技术指标 - RSI
+        rsi_5: kline.rsi_5 || kline.rsi_5min || null,
+        rsi_14: kline.rsi_14 || kline.rsi_1h || null,
+        
+        // 技术指标 - SAR
+        sar_value: kline.sar || kline.sar_value || null,
         sar_position: kline.sar_position || null,
-        sar_distance_percent: kline.sar_distance_percent || null,
+        sar_distance_percent: kline.sar_distance_percent || kline.sarChangePercent || kline.sar_change_percent || null,
+        
+        // 技术指标 - MACD
         macd_value: kline.macd_value || null,
         macd_signal: kline.macd_signal || null,
         macd_histogram: kline.macd_histogram || null,
         
-        // 布林带
-        bollinger_middle: kline.boll_middle || kline.bollinger_middle || null,
-        bollinger_upper: kline.boll_upper || kline.bollinger_upper || null,
-        bollinger_lower: kline.boll_lower || kline.bollinger_lower || null,
-        bollinger_width: kline.bollinger_width || null,
-        bollinger_position: kline.boll_position || kline.bollinger_position || null,
+        // 布林带 (支持多种字段名)
+        bollinger_middle: kline.bollinger_middle || kline.boll_middle || kline.boll_mb || null,
+        bollinger_upper: kline.bollinger_upper || kline.boll_upper || kline.boll_ub || null,
+        bollinger_lower: kline.bollinger_lower || kline.boll_lower || kline.boll_lb || null,
+        bollinger_width: kline.bollinger_width || kline.boll_width_change || null,
+        bollinger_position: kline.bollinger_position || kline.boll_position || kline.channel_state || null,
         
-        // 通道占比
-        channel_decline_ratio: kline.channel_decline_ratio || null,
-        channel_rise_ratio: kline.channel_rise_ratio || null,
+        // 通道占比 (支持多种字段名)
+        channel_decline_ratio: kline.channel_decline_ratio || kline.down_channel_exhaustion_ratio || null,
+        channel_rise_ratio: kline.channel_rise_ratio || kline.up_channel_exhaustion_ratio || null,
         
-        // 信号
+        // 信号 (当前没有数据源)
         buy_signal: kline.buy_signal || null,
         sell_signal: kline.sell_signal || null,
         

@@ -52,11 +52,11 @@ export class IndicatorService {
 
   // ===================== 布林带计算 =====================
   calculateBollingerBands(closes: number[], period: number = this.BOLL_PERIOD, k: number = this.BOLL_K) {
-    const bands: Array<{ MB: number | null; UB: number | null; LB: number | null }> = [];
+    const bands: Array<{ MB: number | null; UB: number | null; LB: number | null; width: number | null }> = [];
 
     for (let i = 0; i < closes.length; i++) {
       if (i < period - 1) {
-        bands.push({ MB: null, UB: null, LB: null });
+        bands.push({ MB: null, UB: null, LB: null, width: null });
         continue;
       }
 
@@ -64,15 +64,80 @@ export class IndicatorService {
       const MB = window.reduce((a, b) => a + b, 0) / period;
       const variance = window.reduce((a, b) => a + Math.pow(b - MB, 2), 0) / period;
       const stdDev = Math.sqrt(variance);
+      const UB = MB + k * stdDev;
+      const LB = MB - k * stdDev;
+      const width = ((UB - LB) / MB) * 100; // 带宽占比
 
       bands.push({
         MB: MB,
-        UB: MB + k * stdDev,
-        LB: MB - k * stdDev
+        UB: UB,
+        LB: LB,
+        width: width
       });
     }
 
     return bands;
+  }
+
+  // ===================== MACD 计算 =====================
+  calculateMACD(closes: number[], fastPeriod: number = 12, slowPeriod: number = 26, signalPeriod: number = 9) {
+    const result: Array<{ macd: number | null; signal: number | null; histogram: number | null }> = [];
+    
+    // 计算EMA
+    const calculateEMA = (data: number[], period: number): number[] => {
+      const ema: number[] = [];
+      const multiplier = 2 / (period + 1);
+      
+      // 第一个EMA值使用SMA
+      let sum = 0;
+      for (let i = 0; i < period && i < data.length; i++) {
+        sum += data[i];
+      }
+      ema[period - 1] = sum / period;
+      
+      // 计算后续EMA
+      for (let i = period; i < data.length; i++) {
+        ema[i] = (data[i] - ema[i - 1]) * multiplier + ema[i - 1];
+      }
+      
+      return ema;
+    };
+    
+    // 计算快线和慢线EMA
+    const fastEMA = calculateEMA(closes, fastPeriod);
+    const slowEMA = calculateEMA(closes, slowPeriod);
+    
+    // 计算MACD线（DIF）
+    const macdLine: number[] = [];
+    for (let i = 0; i < closes.length; i++) {
+      if (fastEMA[i] !== undefined && slowEMA[i] !== undefined) {
+        macdLine[i] = fastEMA[i] - slowEMA[i];
+      }
+    }
+    
+    // 计算信号线（DEA）- MACD的EMA
+    const signalLine = calculateEMA(macdLine.filter(v => v !== undefined), signalPeriod);
+    
+    // 填充结果数组
+    let signalIndex = 0;
+    for (let i = 0; i < closes.length; i++) {
+      if (macdLine[i] !== undefined) {
+        const macdValue = macdLine[i];
+        const signalValue = signalLine[signalIndex];
+        const histogram = signalValue !== undefined ? macdValue - signalValue : null;
+        
+        result.push({
+          macd: macdValue,
+          signal: signalValue !== undefined ? signalValue : null,
+          histogram: histogram
+        });
+        signalIndex++;
+      } else {
+        result.push({ macd: null, signal: null, histogram: null });
+      }
+    }
+    
+    return result;
   }
 
   // ===================== 通道状态识别 =====================
@@ -128,6 +193,9 @@ export class IndicatorService {
 
     // 计算布林带
     const bb = this.calculateBollingerBands(closes);
+    
+    // 计算MACD
+    const macd = this.calculateMACD(closes);
 
     // ===== RSI_1h 计算（使用滑动窗口，每根K线都计算） =====
     // 1小时 = 12根5分钟K线
@@ -195,8 +263,11 @@ export class IndicatorService {
       currentTrend = newTrend;
 
       // 获取当前和前一根K线的布林带数据
-      const bbItem = bb[i] || { MB: null, UB: null, LB: null };
+      const bbItem = bb[i] || { MB: null, UB: null, LB: null, width: null };
       const bbPrev = bb[i - 1] || bbItem;
+      
+      // 获取MACD数据
+      const macdItem = macd[i] || { macd: null, signal: null, histogram: null };
 
       // 计算 SAR 变化
       let sarChange: number | null = null;
@@ -235,6 +306,7 @@ export class IndicatorService {
         low,
         close,
         volume: data[i][5],
+        open_time: parseInt(data[i][0]), // 添加时间戳用于匹配
         sar,
         sarChange: sarChange ? parseFloat(sarChange.toFixed(4)) : null,
         sarChangePercent: sarChangePercent ? parseFloat(sarChangePercent.toFixed(2)) : null,
@@ -249,7 +321,12 @@ export class IndicatorService {
         boll_sar_diff: bollSarDiff ? parseFloat(bollSarDiff.toFixed(4)) : null,
         boll_angle_mb: chState.angle_MB,
         boll_width_change: chState.width_change,
+        bollinger_width: bbItem.width ? parseFloat(bbItem.width.toFixed(4)) : null,
         channel_state: chState.state,
+        // MACD指标
+        macd_value: macdItem.macd ? parseFloat(macdItem.macd.toFixed(4)) : null,
+        macd_signal: macdItem.signal ? parseFloat(macdItem.signal.toFixed(4)) : null,
+        macd_histogram: macdItem.histogram ? parseFloat(macdItem.histogram.toFixed(4)) : null,
         // 占比字段将在后处理中计算
         down_channel_exhaustion_ratio: null,
         up_channel_exhaustion_ratio: null
