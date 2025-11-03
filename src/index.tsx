@@ -1203,11 +1203,11 @@ app.post('/api/kline/sync/auto', async (c) => {
           try {
             console.log(`   处理 ${result.symbol}...`);
             
-            // 🔥 使用KlineService获取实时计算的技术指标数据（SAR, RSI, BOLL, MACD等）
-            const { KlineService } = await import('./services/klineService');
-            const klineService = new KlineService(c.env.DB);
-            const indicatorResult = await klineService.getKlineWithIndicators(result.symbol, timeframe, 3);
-            const klineData = indicatorResult.data;
+            // 🔥 获取300根K线用于计算30天统计（与前端kline_v2.js相同的逻辑）
+            const { ReadOnlyKlineService } = await import('./services/ReadOnlyKlineService');
+            const klineService = new ReadOnlyKlineService(c.env.DB);
+            const fullData = await klineService.getKlineWithIndicators(result.symbol, timeframe, 300);
+            const klineData = fullData.data || [];
             
             console.log(`   ${result.symbol}: 获取到 ${klineData?.length || 0} 条带指标的K线数据`);
             

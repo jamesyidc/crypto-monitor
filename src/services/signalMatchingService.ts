@@ -162,27 +162,75 @@ export class SignalMatchingService {
    */
   async saveLatestKlineSnapshots(
     symbol: string,
-    klines: any[], // 从K线服务获取的数据
+    klines: any[], // 从K线服务获取的数据（已经包含所有计算好的字段）
     additionalData?: Partial<KlineSnapshot>
   ): Promise<void> {
     const now = Math.floor(Date.now() / 1000);
     const timeframe = '5m';
     
-    // 只保存最新3根K线（从数组末尾获取，因为是按时间倒序）
+    // 🔥 计算 operation_tip（与前端 kline_v2.js 相同的逻辑）
+    // 1. 找出30天内最大跌幅和涨幅
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    let maxDrop = 0;
+    let maxRise = 0;
+    
+    for (const k of klines) {
+      if (k.open_time && k.open_time >= thirtyDaysAgo) {
+        const drop = Math.abs(k.drop_from_48h_high || 0);
+        const rise = Math.abs(k.rise_from_48h_low || 0);
+        if (drop > maxDrop) maxDrop = drop;
+        if (rise > maxRise) maxRise = rise;
+      }
+    }
+    
+    console.log(`📊 ${symbol} 30天统计: 最大跌幅=${maxDrop.toFixed(2)}%, 最大涨幅=${maxRise.toFixed(2)}%`);
+    
+    // 2. 为最新3根K线计算 operation_tip
     const latestThree = klines.slice(0, 3);
+    const coinLevel = 6; // 默认等级6（可以根据symbol调整）
+    
+    for (const k of latestThree) {
+      const currentDrop = Math.abs(k.drop_from_48h_high || 0);
+      const currentRise = Math.abs(k.rise_from_48h_low || 0);
+      
+      const dropSpaceAbs = Math.abs(maxDrop - currentDrop);
+      const riseSpaceAbs = Math.abs(maxRise - currentRise);
+      
+      // 计算操作提示
+      if (dropSpaceAbs > 0 && riseSpaceAbs > 0 && maxDrop > 0 && maxRise > 0) {
+        let requiredRatio = 0;
+        
+        // 情况1：距离历史最大跌幅 > 距离历史最大涨幅 → 可能做空
+        if (dropSpaceAbs > riseSpaceAbs) {
+          if (coinLevel !== 1 && coinLevel !== 2) {
+            if (maxDrop < 5) requiredRatio = 3;
+            else if (maxDrop < 10) requiredRatio = 4;
+            else if (maxDrop < 15) requiredRatio = 6;
+            else requiredRatio = 9;
+            
+            const ratio = dropSpaceAbs / riseSpaceAbs;
+            if (ratio >= requiredRatio) {
+              k.operation_tip = '顶部做空';
+            }
+          }
+        }
+        // 情况2：距离历史最大跌幅 < 距离历史最大涨幅 → 可能做多
+        else if (dropSpaceAbs < riseSpaceAbs) {
+          if (maxRise < 5) requiredRatio = 3;
+          else if (maxRise < 10) requiredRatio = 4;
+          else if (maxRise < 15) requiredRatio = 6;
+          else requiredRatio = 9;
+          
+          const ratio = riseSpaceAbs / dropSpaceAbs;
+          if (ratio >= requiredRatio) {
+            k.operation_tip = '抄底做多';
+          }
+        }
+      }
+    }
     
     // 🔥 获取48小时数据用于计算极值
     const historicalData = await this.get48HoursKlineData(symbol, timeframe);
-    
-    // 🔥 使用 OperationTipCalculator 计算 operation_tip
-    try {
-      const { OperationTipCalculator } = await import('./operationTipCalculator');
-      const calculator = new OperationTipCalculator(this.db);
-      await calculator.calculateOperationTips(symbol, latestThree);
-      console.log(`✅ ${symbol}: operation_tip 计算完成`);
-    } catch (error: any) {
-      console.warn(`计算 ${symbol} operation_tip 失败:`, error.message);
-    }
     
     for (let i = 0; i < latestThree.length; i++) {
       const kline = latestThree[i];
