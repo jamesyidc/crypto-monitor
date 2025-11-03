@@ -1181,6 +1181,20 @@ app.post('/api/kline/sync/auto', async (c) => {
             
             console.log(`   ${result.symbol}: 获取到 ${klineData?.length || 0} 条数据库记录`);
             
+            // 🐛 DEBUG: 打印第一条数据的字段
+            if (klineData && klineData.length > 0) {
+              const firstRecord = klineData[0];
+              console.log(`   🐛 ${result.symbol} 样例数据:`);
+              console.log(`      - sar: ${firstRecord.sar}`);
+              console.log(`      - rsi_5min: ${firstRecord.rsi_5min}`);
+              console.log(`      - operation_tip: ${firstRecord.operation_tip}`);
+              console.log(`      - signal: ${firstRecord.signal}`);
+              console.log(`      - homepage_rank: ${firstRecord.homepage_rank}`);
+              console.log(`      - boll_mb: ${firstRecord.boll_mb}`);
+              console.log(`      - volume_v1: ${firstRecord.volume_v1}`);
+              console.log(`      - channel_state: ${firstRecord.channel_state}`);
+            }
+            
             if (klineData && klineData.length > 0) {
               // 保存最新3条K线快照（直接使用数据库中已计算好的数据）
               await signalMatchingService.saveLatestKlineSnapshots(result.symbol, klineData);

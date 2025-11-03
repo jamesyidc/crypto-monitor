@@ -197,6 +197,18 @@ export class SignalMatchingService {
         }
       }
       
+      // 🐛 DEBUG: 打印源数据
+      if (i === 0) {
+        console.log(`🐛 saveLatestKlineSnapshots - ${symbol} 源数据:`);
+        console.log(`   sar: ${kline.sar}`);
+        console.log(`   rsi_5min: ${kline.rsi_5min}`);
+        console.log(`   operation_tip: ${kline.operation_tip}`);
+        console.log(`   signal: ${kline.signal}`);
+        console.log(`   homepage_rank: ${kline.homepage_rank}`);
+        console.log(`   boll_mb: ${kline.boll_mb}`);
+        console.log(`   volume_v1: ${kline.volume_v1}`);
+      }
+      
       const snapshot: KlineSnapshot = {
         symbol,
         timeframe,
