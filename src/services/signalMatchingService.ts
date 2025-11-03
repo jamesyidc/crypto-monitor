@@ -316,14 +316,31 @@ export class SignalMatchingService {
   private async insertOrUpdateSnapshot(snapshot: KlineSnapshot): Promise<void> {
     // 过滤掉undefined值，D1不支持undefined
     const definedEntries = Object.entries(snapshot).filter(([_, value]) => value !== undefined);
-    const fields = definedEntries.map(([key]) => key).join(', ');
-    const placeholders = definedEntries.map(() => '?').join(', ');
+    const fields = definedEntries.map(([key]) => key);
     const values = definedEntries.map(([_, value]) => value);
     
-    await this.db.prepare(`
-      INSERT OR REPLACE INTO kline_snapshot_latest 
-      (${fields}) VALUES (${placeholders})
-    `).bind(...values).run();
+    // 检查记录是否存在（基于UNIQUE约束：symbol + kline_time + kline_index）
+    const existing = await this.db.prepare(`
+      SELECT id FROM kline_snapshot_latest 
+      WHERE symbol = ? AND kline_time = ? AND kline_index = ?
+    `).bind(snapshot.symbol, snapshot.kline_time, snapshot.kline_index).first();
+    
+    if (existing) {
+      // 已存在则UPDATE（不会违反FK约束）
+      const setClause = fields.map(f => `${f} = ?`).join(', ');
+      await this.db.prepare(`
+        UPDATE kline_snapshot_latest 
+        SET ${setClause}
+        WHERE id = ?
+      `).bind(...values, existing.id).run();
+    } else {
+      // 不存在则INSERT
+      const placeholders = fields.map(() => '?').join(', ');
+      await this.db.prepare(`
+        INSERT INTO kline_snapshot_latest 
+        (${fields.join(', ')}) VALUES (${placeholders})
+      `).bind(...values).run();
+    }
   }
 
   /**
