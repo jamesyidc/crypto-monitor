@@ -174,6 +174,42 @@ export class SignalMatchingService {
     // 🔥 获取48小时数据用于计算极值
     const historicalData = await this.get48HoursKlineData(symbol, timeframe);
     
+    // 🔥 获取ATH/ATL数据用于operation_tip计算
+    let ath: number | null = null;
+    let atl: number | null = null;
+    let max30dDrop = 0;
+    let max30dRise = 0;
+    
+    try {
+      // 1. 从 price_extremes 表获取 ATH 和 ATL
+      const extremesResult: any = await this.db
+        .prepare('SELECT all_time_high, all_time_low FROM price_extremes WHERE symbol = ?')
+        .bind(symbol)
+        .first();
+      
+      if (extremesResult) {
+        ath = extremesResult.all_time_high;
+        atl = extremesResult.all_time_low;
+      }
+      
+      // 2. 计算30天内最大波动（使用48小时数据中的极值字段）
+      const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      for (const k of historicalData) {
+        if (k.open_time && k.open_time >= thirtyDaysAgo) {
+          if (k.drop_from_48h_high) {
+            const dropAbs = Math.abs(k.drop_from_48h_high);
+            if (dropAbs > max30dDrop) max30dDrop = dropAbs;
+          }
+          if (k.rise_from_48h_low) {
+            const riseAbs = Math.abs(k.rise_from_48h_low);
+            if (riseAbs > max30dRise) max30dRise = riseAbs;
+          }
+        }
+      }
+    } catch (error: any) {
+      console.warn(`获取 ${symbol} ATH/ATL 失败:`, error.message);
+    }
+    
     for (let i = 0; i < latestThree.length; i++) {
       const kline = latestThree[i];
       const klineIndex = i + 1; // 1=最新, 2=前1根, 3=前2根
@@ -252,7 +288,8 @@ export class SignalMatchingService {
         homepage_rank: additionalData?.homepage_rank || kline.homepage_rank || null,
         surge_start_point: surgePoint || null,
         crash_start_point: crashPoint || null,
-        operation_tip: kline.operation_tip || this.generateOperationTip(kline, signals) || '观望',
+        // 🔥 实时计算operation_tip（使用完整的ATH/ATL逻辑）
+        operation_tip: await this.generateOperationTip(symbol, latestThree, i, ath, atl, max30dDrop, max30dRise),
         
         // 统计数据 (🆕 优先使用additionalData中的首页统计数据)
         today_surge_count: additionalData?.today_surge_count || kline.today_surge_count || 0,
@@ -1132,25 +1169,87 @@ export class SignalMatchingService {
   }
 
   /**
-   * 生成操作提示
+   * 🔥 生成操作提示（完整版）
+   * 支持：抄底做多、顶部做空、通用卖点等信号
    */
-  private generateOperationTip(kline: any, signals: { buy_signal: string | null; sell_signal: string | null }): string | null {
-    if (signals.buy_signal) {
-      return '做多';
-    }
-    if (signals.sell_signal) {
-      return '做空';
+  private async generateOperationTip(
+    symbol: string,
+    klines: any[], // 最新的3根K线
+    currentIndex: number, // 当前K线在数组中的索引
+    ath: number | null,
+    atl: number | null,
+    max30dDrop: number,
+    max30dRise: number
+  ): Promise<string | null> {
+    const k = klines[currentIndex];
+    
+    // 如果数据库已经有operation_tip，优先使用
+    if (k.operation_tip && k.operation_tip !== 'null' && k.operation_tip !== '观望') {
+      return k.operation_tip;
     }
     
-    // 基于趋势判断
-    const channel_state = kline.channel_state;
-    if (channel_state && channel_state.includes('上升')) {
-      return '观望做多';
-    }
-    if (channel_state && channel_state.includes('下降')) {
-      return '观望做空';
+    // 🆕 【新逻辑】基于ATH/ATL空间比值的抄底做多和顶部做空判断
+    if (ath && atl && k.close) {
+      // 计算距离ATH和ATL的空间
+      const price_drop_from_ath = ((k.close - ath) / ath * 100);
+      const price_rise_from_atl = ((k.close - atl) / atl * 100);
+      
+      const dropFromATH = Math.abs(price_drop_from_ath);
+      const riseFromATL = Math.abs(price_rise_from_atl);
+      
+      // 🔥 前置条件：距离ATH或ATL的空间必须大于0.5%
+      if (dropFromATH > 0.5 || riseFromATL > 0.5) {
+        const totalSpace = dropFromATH + riseFromATL;
+        
+        // 🔥 新增条件：总空间必须大于4%
+        if (totalSpace > 4) {
+          // 确定阈值
+          const max30dValue = Math.max(max30dDrop, max30dRise);
+          let threshold = 3;
+          
+          if (max30dValue < 5) {
+            threshold = 3;
+          } else if (max30dValue >= 5 && max30dValue < 10) {
+            threshold = 4;
+          } else if (max30dValue >= 10 && max30dValue < 15) {
+            threshold = 6;
+          } else if (max30dValue >= 15) {
+            threshold = 9;
+          }
+          
+          const rsi5 = k.rsi_5 || k.rsi_5min || 0;
+          
+          // 📊 顶部做空判断
+          if (riseFromATL > dropFromATH && riseFromATL > 0.5) {
+            const ratio = riseFromATL / dropFromATH;
+            if (ratio > threshold && rsi5 > 65) {
+              console.log(`🔻 ${symbol} 顶部做空: 比值=${ratio.toFixed(2)}, 阈值=${threshold}, RSI5=${rsi5.toFixed(2)}`);
+              return '顶部做空';
+            }
+          }
+          
+          // 📊 抄底做多判断
+          if (dropFromATH > riseFromATL && dropFromATH > 0.5) {
+            const ratio = dropFromATH / riseFromATL;
+            if (ratio > threshold && rsi5 < 35) {
+              console.log(`🔺 ${symbol} 抄底做多: 比值=${ratio.toFixed(2)}, 阈值=${threshold}, RSI5=${rsi5.toFixed(2)}`);
+              return '抄底做多';
+            }
+          }
+        }
+      }
     }
     
-    return '观望';
+    // 🆕 【通用卖点】检测：RSI5 > 65
+    const rsi5min = k.rsi_5 || k.rsi_5min || 0;
+    if (rsi5min > 65) {
+      // 注：bar_10_compare逻辑需要更多历史数据，这里简化处理
+      // 只要RSI > 65就标记为通用卖点
+      console.log(`🔻 ${symbol} 通用卖点: RSI5=${rsi5min.toFixed(2)}`);
+      return '通用卖点';
+    }
+    
+    // 默认返回null（不设置默认值，让前端显示为空）
+    return null;
   }
 }
