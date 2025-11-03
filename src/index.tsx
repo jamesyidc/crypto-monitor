@@ -7628,6 +7628,69 @@ app.get('/api/signal-matching/snapshots/:symbol', async (c) => {
   }
 });
 
+// 🧪 测试API: 手动触发快照保存
+app.post('/api/debug/trigger-snapshot/:symbol', async (c) => {
+  try {
+    const symbol = c.req.param('symbol');
+    
+    const signalMatchingService = new SignalMatchingService(c.env.DB);
+    const { ReadOnlyKlineService } = await import('./services/ReadOnlyKlineService');
+    const readOnlyKlineService = new ReadOnlyKlineService(c.env.DB);
+    
+    // 获取K线数据
+    const klineData = await readOnlyKlineService.getKlineData(symbol, '5m', 3);
+    
+    if (!klineData || klineData.length === 0) {
+      return c.json({ success: false, error: '无K线数据' }, 404);
+    }
+    
+    // 获取首页数据
+    let dashboardData: any = {};
+    try {
+      const { AnalysisService } = await import('./services/analysisService');
+      const { CoinService } = await import('./services/coinService');
+      const coinService = new CoinService(c.env.DB);
+      const analysisService = new AnalysisService(coinService);
+      const dashboardResult = await analysisService.getDashboardData();
+      
+      if (dashboardResult && dashboardResult.coinDetails) {
+        const coinDetail = dashboardResult.coinDetails.find((c: any) => c.symbol === symbol);
+        if (coinDetail) {
+          dashboardData = {
+            homepage_rank: dashboardResult.coinDetails.indexOf(coinDetail) + 1,
+            today_surge_count: coinDetail.today_surge_count || 0,
+            today_crash_count: coinDetail.today_crash_count || 0
+          };
+        }
+      }
+    } catch (e: any) {
+      console.warn(`首页数据获取失败: ${e.message}`);
+    }
+    
+    // 保存快照
+    await signalMatchingService.saveLatestKlineSnapshots(symbol, klineData, dashboardData);
+    
+    // 获取保存后的快照
+    const { results } = await c.env.DB.prepare(`
+      SELECT * FROM kline_snapshot_latest 
+      WHERE symbol = ?
+      ORDER BY kline_time DESC, kline_index ASC
+      LIMIT 3
+    `).bind(symbol).all();
+    
+    return c.json({
+      success: true,
+      message: `${symbol} 快照已更新`,
+      klineDataCount: klineData.length,
+      dashboardData,
+      snapshots: results
+    });
+  } catch (error: any) {
+    console.error('手动触发快照失败:', error);
+    return c.json({ success: false, error: error.message, stack: error.stack }, 500);
+  }
+});
+
 // 🐛 DEBUG API: 直接查看kline_data表的数据
 app.get('/api/debug/kline-data/:symbol', async (c) => {
   try {
