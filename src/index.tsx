@@ -7271,5 +7271,250 @@ app.delete('/api/strategies/clear', async (c) => {
   }
 });
 
+// ===================================
+// 信号匹配系统 API
+// ===================================
+
+import { SignalMatchingService } from './services/signalMatchingService';
+
+// API: 获取信号匹配系统概览
+app.get('/api/signal-matching/overview', async (c) => {
+  try {
+    const service = new SignalMatchingService(c.env.DB);
+    const overview = await service.getSystemOverview();
+    
+    return c.json({
+      success: true,
+      data: overview
+    });
+  } catch (error: any) {
+    console.error('获取系统概览失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 手动触发完整匹配流程
+app.post('/api/signal-matching/run', async (c) => {
+  try {
+    const service = new SignalMatchingService(c.env.DB);
+    const result = await service.runCompleteFlow();
+    
+    return c.json({
+      success: true,
+      message: '信号匹配流程执行完成',
+      ...result
+    });
+  } catch (error: any) {
+    console.error('执行匹配流程失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 扫描并填充待匹配信号池
+app.post('/api/signal-matching/scan-pending', async (c) => {
+  try {
+    const service = new SignalMatchingService(c.env.DB);
+    const count = await service.scanAndFillPendingPool();
+    
+    return c.json({
+      success: true,
+      message: `成功添加 ${count} 个待匹配信号`,
+      count
+    });
+  } catch (error: any) {
+    console.error('扫描待匹配信号失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 执行信号匹配
+app.post('/api/signal-matching/match-signals', async (c) => {
+  try {
+    const service = new SignalMatchingService(c.env.DB);
+    const count = await service.matchSignalsWithLibrary();
+    
+    return c.json({
+      success: true,
+      message: `成功匹配 ${count} 个信号`,
+      count
+    });
+  } catch (error: any) {
+    console.error('信号匹配失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 执行策略匹配
+app.post('/api/signal-matching/match-strategies', async (c) => {
+  try {
+    const service = new SignalMatchingService(c.env.DB);
+    const count = await service.matchSignalsWithStrategies();
+    
+    return c.json({
+      success: true,
+      message: `成功匹配 ${count} 个策略`,
+      count
+    });
+  } catch (error: any) {
+    console.error('策略匹配失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 填充生产池
+app.post('/api/signal-matching/fill-production', async (c) => {
+  try {
+    const service = new SignalMatchingService(c.env.DB);
+    const count = await service.fillProductionPool();
+    
+    return c.json({
+      success: true,
+      message: `成功添加 ${count} 个待执行项到生产池`,
+      count
+    });
+  } catch (error: any) {
+    console.error('填充生产池失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 清理过期信号
+app.post('/api/signal-matching/cleanup', async (c) => {
+  try {
+    const service = new SignalMatchingService(c.env.DB);
+    const count = await service.cleanupExpiredSignals();
+    
+    return c.json({
+      success: true,
+      message: `清理了 ${count} 个过期信号`,
+      count
+    });
+  } catch (error: any) {
+    console.error('清理过期信号失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 获取待匹配信号池
+app.get('/api/signal-matching/pending', async (c) => {
+  try {
+    const limit = parseInt(c.req.query('limit') || '50');
+    const offset = parseInt(c.req.query('offset') || '0');
+    
+    const { results } = await c.env.DB.prepare(`
+      SELECT * FROM signal_pool_pending 
+      WHERE status = 'pending'
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `).bind(limit, offset).all();
+    
+    return c.json({
+      success: true,
+      data: results,
+      count: results.length
+    });
+  } catch (error: any) {
+    console.error('获取待匹配信号失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 获取已匹配信号池
+app.get('/api/signal-matching/matched', async (c) => {
+  try {
+    const limit = parseInt(c.req.query('limit') || '50');
+    const offset = parseInt(c.req.query('offset') || '0');
+    
+    const { results } = await c.env.DB.prepare(`
+      SELECT * FROM signal_pool_matched 
+      WHERE status = 'pending_strategy'
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `).bind(limit, offset).all();
+    
+    return c.json({
+      success: true,
+      data: results,
+      count: results.length
+    });
+  } catch (error: any) {
+    console.error('获取已匹配信号失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 获取今日已匹配记录
+app.get('/api/signal-matching/today', async (c) => {
+  try {
+    const limit = parseInt(c.req.query('limit') || '100');
+    const offset = parseInt(c.req.query('offset') || '0');
+    
+    const { results } = await c.env.DB.prepare(`
+      SELECT * FROM signal_matched_today 
+      WHERE status IN ('pending_execution', 'in_production')
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `).bind(limit, offset).all();
+    
+    return c.json({
+      success: true,
+      data: results,
+      count: results.length
+    });
+  } catch (error: any) {
+    console.error('获取今日已匹配记录失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 获取生产池待执行项
+app.get('/api/signal-matching/production', async (c) => {
+  try {
+    const limit = parseInt(c.req.query('limit') || '100');
+    const offset = parseInt(c.req.query('offset') || '0');
+    const status = c.req.query('status') || 'pending';
+    
+    const { results } = await c.env.DB.prepare(`
+      SELECT * FROM production_pool_pending 
+      WHERE status = ?
+      ORDER BY priority DESC, created_at DESC
+      LIMIT ? OFFSET ?
+    `).bind(status, limit, offset).all();
+    
+    return c.json({
+      success: true,
+      data: results,
+      count: results.length
+    });
+  } catch (error: any) {
+    console.error('获取生产池失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// API: 获取最新K线快照
+app.get('/api/signal-matching/snapshots/:symbol', async (c) => {
+  try {
+    const symbol = c.req.param('symbol');
+    
+    const { results } = await c.env.DB.prepare(`
+      SELECT * FROM kline_snapshot_latest 
+      WHERE symbol = ?
+      ORDER BY kline_time DESC, kline_index ASC
+      LIMIT 3
+    `).bind(symbol).all();
+    
+    return c.json({
+      success: true,
+      symbol,
+      data: results,
+      count: results.length
+    });
+  } catch (error: any) {
+    console.error('获取K线快照失败:', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
 
 export default app
