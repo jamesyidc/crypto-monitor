@@ -43,6 +43,14 @@ export interface KlineSnapshot {
   rounds_since_48h_low?: number;
   rise_from_48h_low?: number;
   
+  // 🆕 新增字段（与前端kline_v2.html对应）
+  change_today?: number;        // 当天涨跌幅
+  bar_10_compare?: number;      // 10格比价 (-1/0/1)
+  high_48h?: number;            // 48小时最高价
+  low_48h?: number;             // 48小时最低价
+  sar_change?: number;          // SAR变化值
+  change_diff?: number;         // 涨跌差值
+  
   // 成交量标记
   v1_flag?: number;
   v2_flag?: number;
@@ -320,6 +328,14 @@ export class SignalMatchingService {
         decline_from_48h_high: extremeData.decline_from_high,
         rounds_since_48h_low: extremeData.rounds_since_low,
         rise_from_48h_low: extremeData.rise_from_low,
+        
+        // 🆕 新增字段 (从kline数据中读取)
+        change_today: kline.change_today || null,
+        bar_10_compare: kline.bar_10_compare !== undefined ? kline.bar_10_compare : null,
+        high_48h: kline.high_48h || null,
+        low_48h: kline.low_48h || null,
+        sar_change: kline.sar_change || kline.sarChange || null,
+        change_diff: kline.change_diff || kline['change-diff'] || null,
         
         // 成交量标记 (支持多种字段名)
         v1_flag: kline.v1_flag || kline.volume_v1 || (kline.is_v1 ? 1 : 0) || 0,
