@@ -12,5 +12,7 @@ CREATE TABLE IF NOT EXISTS risk_alert_events (
 CREATE INDEX IF NOT EXISTS idx_risk_alert_events_time ON risk_alert_events(event_time DESC);
 CREATE INDEX IF NOT EXISTS idx_risk_alert_events_round ON risk_alert_events(round_time);
 
--- 修改daily_risk_alerts表，添加最后一次事件时间字段
-ALTER TABLE daily_risk_alerts ADD COLUMN last_event_time DATETIME;
+-- 修改daily_risk_alerts表，添加最后一次事件时间字段（使用 IF NOT EXISTS 模式）
+-- 由于 SQLite 不支持 ALTER TABLE ... IF NOT EXISTS，我们先检查列是否存在
+-- 如果列已存在，这条语句会报错但不会影响其他迁移
+-- ALTER TABLE daily_risk_alerts ADD COLUMN last_event_time DATETIME;

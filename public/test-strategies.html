@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>策略配置测试</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 p-8">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">
+            <i class="fas fa-cogs mr-2"></i>策略配置测试页面
+        </h1>
+        
+        <!-- 测试按钮 -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">测试操作</h2>
+            <div class="flex gap-4">
+                <button id="testSignalPoolBtn" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">
+                    <i class="fas fa-sync mr-2"></i>测试信号池API
+                </button>
+                <button id="testStrategiesBtn" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition">
+                    <i class="fas fa-database mr-2"></i>查看数据库策略
+                </button>
+                <button id="clearBtn" class="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition">
+                    <i class="fas fa-trash mr-2"></i>清除结果
+                </button>
+            </div>
+        </div>
+        
+        <!-- 结果显示 -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">测试结果</h2>
+            <div id="results" class="space-y-4">
+                <p class="text-gray-500">点击上方按钮开始测试...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script>
+        // 测试信号池API
+        document.getElementById('testSignalPoolBtn').addEventListener('click', async () => {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p class="text-blue-600"><i class="fas fa-spinner fa-spin mr-2"></i>正在测试信号池API...</p>';
+            
+            try {
+                const response = await axios.get('/api/signal-pool/recent', {
+                    params: {
+                        timeframe: '5m',
+                        klineCount: 3
+                    }
+                });
+                
+                const data = response.data;
+                const signals = data.data?.signals || [];
+                
+                // 统计策略
+                const strategiesMap = new Map();
+                signals.forEach(signal => {
+                    const name = signal.strategy_name;
+                    if (!strategiesMap.has(name)) {
+                        strategiesMap.set(name, {
+                            name: name,
+                            priority: signal.strategy_priority,
+                            count: 0,
+                            hasConfig: !!signal.strategy_config && Object.keys(signal.strategy_config).length > 0,
+                            config: signal.strategy_config
+                        });
+                    }
+                    strategiesMap.get(name).count++;
+                });
+                
+                // 显示结果
+                let html = `
+                    <div class="border-l-4 border-blue-500 bg-blue-50 p-4 mb-4">
+                        <h3 class="font-bold text-blue-900 mb-2">
+                            <i class="fas fa-info-circle mr-2"></i>信号池统计
+                        </h3>
+                        <p class="text-blue-800">
+                            总信号数: <strong>${signals.length}</strong> |
+                            策略数: <strong>${strategiesMap.size}</strong>
+                        </p>
+                    </div>
+                `;
+                
+                if (strategiesMap.size > 0) {
+                    html += '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
+                    
+                    strategiesMap.forEach((info, name) => {
+                        const configStatus = info.hasConfig ? 
+                            '<span class="text-green-600"><i class="fas fa-check-circle mr-1"></i>有配置</span>' : 
+                            '<span class="text-red-600"><i class="fas fa-times-circle mr-1"></i>无配置</span>';
+                        
+                        html += `
+                            <div class="border rounded-lg p-4 ${info.hasConfig ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50'}">
+                                <h4 class="font-bold text-gray-800 mb-2">${name}</h4>
+                                <div class="text-sm space-y-1">
+                                    <p>优先级: <span class="font-semibold">${info.priority}</span></p>
+                                    <p>信号数: <span class="font-semibold">${info.count}</span></p>
+                                    <p>配置状态: ${configStatus}</p>
+                                </div>
+                                ${info.hasConfig ? `
+                                    <details class="mt-2">
+                                        <summary class="cursor-pointer text-blue-600 hover:text-blue-800">查看配置</summary>
+                                        <pre class="mt-2 bg-white p-2 rounded text-xs overflow-auto">${JSON.stringify(info.config, null, 2)}</pre>
+                                    </details>
+                                ` : ''}
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                    
+                    // 特别检查震荡收敛策略
+                    if (strategiesMap.has('震荡收敛策略')) {
+                        const convergence = strategiesMap.get('震荡收敛策略');
+                        html += `
+                            <div class="mt-4 border-l-4 border-yellow-500 bg-yellow-50 p-4">
+                                <h3 class="font-bold text-yellow-900 mb-2">
+                                    <i class="fas fa-star mr-2"></i>震荡收敛策略分析
+                                </h3>
+                                <ul class="text-yellow-800 space-y-1">
+                                    <li>✓ 策略存在于信号池中</li>
+                                    <li>✓ 信号数量: ${convergence.count}</li>
+                                    <li>✓ 配置状态: ${convergence.hasConfig ? '已配置' : '未配置'}</li>
+                                    <li>✓ 优先级: ${convergence.priority}</li>
+                                </ul>
+                            </div>
+                        `;
+                    } else {
+                        html += `
+                            <div class="mt-4 border-l-4 border-red-500 bg-red-50 p-4">
+                                <h3 class="font-bold text-red-900 mb-2">
+                                    <i class="fas fa-exclamation-triangle mr-2"></i>震荡收敛策略未检测到
+                                </h3>
+                                <p class="text-red-800">
+                                    当前信号池中没有震荡收敛策略的信号。这意味着：
+                                </p>
+                                <ul class="text-red-700 mt-2 space-y-1">
+                                    <li>• 最近3根K线内没有检测到震荡收敛信号</li>
+                                    <li>• 检测条件：5根K线内 >= 2次震荡收敛</li>
+                                    <li>• 这是正常现象，不是错误</li>
+                                </ul>
+                            </div>
+                        `;
+                    }
+                } else {
+                    html += `
+                        <div class="border-l-4 border-gray-500 bg-gray-50 p-4">
+                            <p class="text-gray-700">没有检测到任何信号</p>
+                        </div>
+                    `;
+                }
+                
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="border-l-4 border-red-500 bg-red-50 p-4">
+                        <h3 class="font-bold text-red-900 mb-2">
+                            <i class="fas fa-times-circle mr-2"></i>测试失败
+                        </h3>
+                        <p class="text-red-800">${error.message}</p>
+                        ${error.response ? `<pre class="mt-2 text-xs overflow-auto">${JSON.stringify(error.response.data, null, 2)}</pre>` : ''}
+                    </div>
+                `;
+            }
+        });
+        
+        // 查看数据库策略（需要后端支持）
+        document.getElementById('testStrategiesBtn').addEventListener('click', async () => {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p class="text-green-600"><i class="fas fa-spinner fa-spin mr-2"></i>正在查询数据库策略...</p>';
+            
+            resultsDiv.innerHTML = `
+                <div class="border-l-4 border-yellow-500 bg-yellow-50 p-4">
+                    <h3 class="font-bold text-yellow-900 mb-2">
+                        <i class="fas fa-info-circle mr-2"></i>功能说明
+                    </h3>
+                    <p class="text-yellow-800 mb-2">
+                        此功能需要添加新的API端点。请执行以下步骤：
+                    </p>
+                    <ol class="text-yellow-700 space-y-1 ml-4">
+                        <li>1. 在后端添加 <code class="bg-yellow-100 px-1 rounded">/api/strategies/all</code> 端点</li>
+                        <li>2. 查询 <code class="bg-yellow-100 px-1 rounded">trading_strategies</code> 表</li>
+                        <li>3. 返回所有启用的策略配置</li>
+                    </ol>
+                    <p class="text-yellow-800 mt-4">
+                        或者在服务器上运行检查脚本：
+                    </p>
+                    <pre class="bg-yellow-100 p-2 rounded mt-2 text-xs">./check-and-seed-strategies.sh</pre>
+                </div>
+            `;
+        });
+        
+        // 清除结果
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            document.getElementById('results').innerHTML = '<p class="text-gray-500">点击上方按钮开始测试...</p>';
+        });
+    </script>
+</body>
+</html>

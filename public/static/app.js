@@ -89,12 +89,16 @@ async function loadDashboard() {
     // 并行获取首页数据和比价数据
     const [dashboardResponse, compareResponse] = await Promise.all([
       axios.get('/api/dashboard'),
-      axios.get('/api/compare')
+      axios.get('/api/compare').catch(err => {
+        // 容忍404错误（数据暂无）
+        console.warn('/api/compare 返回404，可能是暂无数据');
+        return { data: { success: false, coins: [] } };
+      })
     ]);
     
     currentData = dashboardResponse.data;
     // 🆕 添加比价系统的数据（用于显示占比）
-    currentData.compareData = compareResponse.data.coins;
+    currentData.compareData = compareResponse.data.coins || [];
     
     renderDashboard(currentData);
   } catch (error) {
@@ -521,6 +525,15 @@ function renderCoinTable(coinDetails, extremes, priorities) {
       const changeToday = coin.change_today;
       const changeTodayClass = changeToday >= 0 ? 'text-green-600' : 'text-red-600';
       changeTodayDisplay = `<span class="${changeTodayClass} font-bold">${changeToday >= 0 ? '+' : ''}${changeToday.toFixed(2)}%</span>`;
+    } else {
+      // 🐛 调试：记录第一个币种的change_today值
+      if (index === 0) {
+        console.warn('⚠️ change_today 数据缺失:', {
+          symbol: coin.symbol,
+          change_today: coin.change_today,
+          has_value: coin.change_today !== null && coin.change_today !== undefined
+        });
+      }
     }
     
     // 更新时间

@@ -38,7 +38,7 @@ export class KlineService {
   }
 
   // 保存 K线数据 (优化：使用批量插入)
-  async saveKlineData(symbol: string, timeframe: string, klineArray: any[]) {
+  async saveKlineData(symbol: string, timeframe: string, klineArray: any[], homepageRank?: number) {
     if (klineArray.length === 0) return;
     
     // 使用 D1 batch API 批量插入
@@ -53,8 +53,8 @@ export class KlineService {
       return this.db.prepare(`
         INSERT INTO kline_data (
           symbol, timeframe, open_time, open, high, low, close, volume,
-          quote_volume, trades_count, volume_v1, volume_v2
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          quote_volume, trades_count, volume_v1, volume_v2, homepage_rank
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(symbol, timeframe, open_time) 
         DO UPDATE SET
           open = excluded.open,
@@ -64,7 +64,8 @@ export class KlineService {
           volume = excluded.volume,
           quote_volume = excluded.quote_volume,
           volume_v1 = excluded.volume_v1,
-          volume_v2 = excluded.volume_v2
+          volume_v2 = excluded.volume_v2,
+          homepage_rank = excluded.homepage_rank
       `).bind(
         symbol,
         timeframe,
@@ -77,7 +78,8 @@ export class KlineService {
         parseFloat(volCcyQuote || '0'),
         0, // OKX 不提供交易次数
         v1,
-        v2
+        v2,
+        homepageRank || null // 🆕 保存首页排名
       );
     });
     
@@ -138,6 +140,20 @@ export class KlineService {
     const configs: any = await this.getAllOKXConfigs();
     const results = [];
 
+    // 🆕 获取所有币种的排名（从coins表的rank_order）
+    const rankResult: any = await this.db.prepare(`
+      SELECT symbol, rank_order 
+      FROM coins 
+      ORDER BY rank_order
+    `).all();
+    
+    const rankMap = new Map();
+    if (rankResult.results) {
+      rankResult.results.forEach((row: any) => {
+        rankMap.set(row.symbol, row.rank_order);
+      });
+    }
+
     for (let i = 0; i < configs.length; i++) {
       const config = configs[i];
       try {
@@ -146,8 +162,11 @@ export class KlineService {
         // 🔥 过滤掉 confirm=0 的未完成K线（OKX格式第9个字段）
         const confirmedKlines = klineData.filter((k: any) => k[8] === '1');
         
-        // 🔥 只保存已确认的K线
-        await this.saveKlineData(config.symbol, timeframe, confirmedKlines);
+        // 🆕 获取该币种的首页排名
+        const homepageRank = rankMap.get(config.symbol) || null;
+        
+        // 🔥 只保存已确认的K线，并传入排名
+        await this.saveKlineData(config.symbol, timeframe, confirmedKlines, homepageRank);
         
         // 🆕 清理60天以前的旧数据（保留60天 = 17280条5分钟K线）
         await this.cleanOldKlineDataByDays(config.symbol, timeframe, 60);
@@ -157,7 +176,8 @@ export class KlineService {
           success: true,
           count: confirmedKlines.length,
           total: klineData.length,
-          filtered: klineData.length - confirmedKlines.length
+          filtered: klineData.length - confirmedKlines.length,
+          homepage_rank: homepageRank // 🆕 返回排名信息
         });
         
         // 避免OKX API速率限制：每请求后延迟100ms
@@ -289,28 +309,44 @@ export class KlineService {
     
     // 优先使用数据库数据（只要有数据就用，不要求数量）
     if (dbData && dbData.length > 50) {
-      // 保存数据库中的所有技术指标（按open_time索引）
+      // 保存数据库中的所有字段（按open_time索引）
       dbData.forEach((k: any) => {
         dbIndicators.set(k.open_time, {
+          // 基本字段
           signal: k.signal,
           operation_tip: k.operation_tip,
           channel_state: k.channel_state,
+          homepage_rank: k.homepage_rank,
+          
+          // SAR指标
           sar: k.sar,
           sar_change: k.sar_change,
           sar_change_percent: k.sar_change_percent,
+          
+          // RSI指标
           rsi_5min: k.rsi_5min,
           rsi_1h: k.rsi_1h,
+          
+          // 涨跌幅
           change_percent: k.change_percent,
           change_diff: k.change_diff,
+          
+          // BOLL指标
           boll_mb: k.boll_mb,
           boll_ub: k.boll_ub,
           boll_lb: k.boll_lb,
           boll_sar_diff: k.boll_sar_diff,
           boll_angle_mb: k.boll_angle_mb,
           boll_width_change: k.boll_width_change,
+          
+          // 通道比率
           up_channel_exhaustion_ratio: k.up_channel_exhaustion_ratio,
           down_channel_exhaustion_ratio: k.down_channel_exhaustion_ratio,
-          volume_level: k.volume_level
+          
+          // 成交量
+          volume_level: k.volume_level,
+          volume_v1: k.volume_v1,
+          volume_v2: k.volume_v2
         });
       });
       
@@ -380,28 +416,62 @@ export class KlineService {
         signal: getDbValue(dbData?.signal, item.signal),
         operation_tip: getDbValue(dbData?.operation_tip, null),
         channel_state: getDbValue(dbData?.channel_state, item.channel_state),
+        homepage_rank: getDbValue(dbData?.homepage_rank, null),
+        
         // SAR 指标
         sar: getDbValue(dbData?.sar, item.sar),
         sarChange: getDbValue(dbData?.sar_change, item.sarChange),
         sarChangePercent: getDbValue(dbData?.sar_change_percent, item.sarChangePercent),
+        sar_distance_percent: getDbValue(dbData?.sar_change_percent, item.sarChangePercent), // 别名
+        
         // RSI 指标
         rsi_5min: getDbValue(dbData?.rsi_5min, item.rsi_5min),
+        rsi_5: getDbValue(dbData?.rsi_5min, item.rsi_5min), // 别名
+        rsi_14: getDbValue(dbData?.rsi_1h, item.rsi_14 || item.rsi_1h), // 别名
         rsi_1h: getDbValue(dbData?.rsi_1h, item.rsi_1h),
+        
         // 涨跌幅
         change: getDbValue(dbData?.change_percent, item.change),
+        change_percent: parseFloat(getDbValue(dbData?.change_percent, item.change)?.toString().replace('%', '') || '0'),
         'change-diff': getDbValue(dbData?.change_diff, item['change-diff']),
+        
         // BOLL 指标
         boll_mb: getDbValue(dbData?.boll_mb, item.boll_mb),
+        boll_middle: getDbValue(dbData?.boll_mb, item.boll_mb), // 别名
+        bollinger_middle: getDbValue(dbData?.boll_mb, item.boll_mb || item.bollinger_middle), // 别名
         boll_ub: getDbValue(dbData?.boll_ub, item.boll_ub),
+        boll_upper: getDbValue(dbData?.boll_ub, item.boll_ub), // 别名
+        bollinger_upper: getDbValue(dbData?.boll_ub, item.boll_ub || item.bollinger_upper), // 别名
         boll_lb: getDbValue(dbData?.boll_lb, item.boll_lb),
+        boll_lower: getDbValue(dbData?.boll_lb, item.boll_lb), // 别名
+        bollinger_lower: getDbValue(dbData?.boll_lb, item.boll_lb || item.bollinger_lower), // 别名
         boll_sar_diff: getDbValue(dbData?.boll_sar_diff, item.boll_sar_diff),
         boll_angle_mb: getDbValue(dbData?.boll_angle_mb, item.boll_angle_mb),
         boll_width_change: getDbValue(dbData?.boll_width_change, item.boll_width_change),
-        // 通道衰竭比率
+        bollinger_width: getDbValue(dbData?.boll_width_change, item.bollinger_width || item.boll_width_change), // 别名
+        boll_position: getDbValue(dbData?.channel_state, item.boll_position || item.channel_state), // 别名
+        bollinger_position: getDbValue(dbData?.channel_state, item.bollinger_position || item.channel_state), // 别名
+        
+        // MACD指标 (从新计算的值获取)
+        macd_value: item.macd_value || null,
+        macd_signal: item.macd_signal || null,
+        macd_histogram: item.macd_histogram || null,
+        
+        // 通道比率
         up_channel_exhaustion_ratio: getDbValue(dbData?.up_channel_exhaustion_ratio, item.up_channel_exhaustion_ratio),
         down_channel_exhaustion_ratio: getDbValue(dbData?.down_channel_exhaustion_ratio, item.down_channel_exhaustion_ratio),
-        // 成交量等级
-        volume_level: getDbValue(dbData?.volume_level, item.volume_level)
+        channel_rise_ratio: getDbValue(dbData?.up_channel_exhaustion_ratio, item.channel_rise_ratio || item.up_channel_exhaustion_ratio), // 别名
+        channel_decline_ratio: getDbValue(dbData?.down_channel_exhaustion_ratio, item.channel_decline_ratio || item.down_channel_exhaustion_ratio), // 别名
+        
+        // 成交量标记
+        volume_level: getDbValue(dbData?.volume_level, item.volume_level),
+        volume_v1: getDbValue(dbData?.volume_v1, item.volume_v1 || 0),
+        volume_v2: getDbValue(dbData?.volume_v2, item.volume_v2 || 0),
+        v1_flag: getDbValue(dbData?.volume_v1, item.volume_v1 || item.v1_flag || 0),
+        v2_flag: getDbValue(dbData?.volume_v2, item.volume_v2 || item.v2_flag || 0),
+        
+        // SAR位置 (基于价格和SAR值计算)
+        sar_position: item.close > item.sar ? 'above' : 'below'
       };
     });
 
@@ -498,18 +568,25 @@ export class KlineService {
 
     console.log(`开始同步 ${symbol} 的48小时数据...`);
 
+    // 🆕 获取该币种的首页排名
+    const rankResult: any = await this.db.prepare(`
+      SELECT rank_order FROM coins WHERE symbol = ?
+    `).bind(symbol).first();
+    const homepageRank = rankResult?.rank_order || null;
+
     // 获取576根5分钟K线（48小时）
     const klineData = await this.fetchHistoricalKline(config.okx_symbol, '5m', 576);
     
-    // 保存到数据库
-    await this.saveKlineData(symbol, '5m', klineData);
+    // 保存到数据库（包含排名）
+    await this.saveKlineData(symbol, '5m', klineData, homepageRank);
 
     console.log(`${symbol} 同步完成，共 ${klineData.length} 根K线`);
 
     return {
       symbol,
       success: true,
-      count: klineData.length
+      count: klineData.length,
+      homepage_rank: homepageRank
     };
   }
 

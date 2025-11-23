@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>信号匹配系统 - 策略匹配配置系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body class="bg-gray-100">
+    <!-- 顶部导航 -->
+    <nav class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 shadow-lg">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <i class="fas fa-robot text-2xl"></i>
+                <h1 class="text-2xl font-bold">信号匹配系统</h1>
+            </div>
+            <div class="flex space-x-4">
+                <a href="/" class="hover:bg-white hover:bg-opacity-20 px-4 py-2 rounded transition">
+                    <i class="fas fa-home"></i> 首页
+                </a>
+                <a href="/trading.html" class="hover:bg-white hover:bg-opacity-20 px-4 py-2 rounded transition">
+                    <i class="fas fa-chart-line"></i> 交易策略
+                </a>
+                <button onclick="location.reload()" class="hover:bg-white hover:bg-opacity-20 px-4 py-2 rounded transition">
+                    <i class="fas fa-sync-alt"></i> 刷新
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto p-6">
+        <!-- 系统流程图 -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800">
+                <i class="fas fa-project-diagram text-blue-600"></i> 系统流程
+            </h2>
+            <div class="flex items-center justify-between overflow-x-auto pb-4">
+                <div class="text-center min-w-[150px]">
+                    <div class="bg-indigo-100 p-4 rounded-lg mb-2 cursor-pointer hover:bg-indigo-200 transition" onclick="showSnapshotDetails()">
+                        <i class="fas fa-database text-3xl text-indigo-600"></i>
+                    </div>
+                    <div class="font-bold text-sm">K线快照池</div>
+                    <div class="text-xs text-gray-500">最新3根K线</div>
+                    <div class="text-xs text-indigo-600 font-bold mt-1" id="flow-snapshot-count">27×3</div>
+                </div>
+                <i class="fas fa-arrow-right text-2xl text-gray-400 mx-2"></i>
+                <div class="text-center min-w-[150px]">
+                    <div class="bg-blue-100 p-4 rounded-lg mb-2 cursor-pointer hover:bg-blue-200 transition" onclick="showPoolDetails('pending')">
+                        <i class="fas fa-filter text-3xl text-blue-600"></i>
+                    </div>
+                    <div class="font-bold text-sm">待匹配池</div>
+                    <div class="text-xs text-gray-500">有操作提示</div>
+                    <div class="text-xs text-blue-600 font-bold mt-1" id="flow-pending-count">0</div>
+                </div>
+                <i class="fas fa-arrow-right text-2xl text-gray-400 mx-2"></i>
+                <div class="text-center min-w-[150px]">
+                    <div class="bg-green-100 p-4 rounded-lg mb-2 cursor-pointer hover:bg-green-200 transition" onclick="showPoolDetails('matched')">
+                        <i class="fas fa-check-circle text-3xl text-green-600"></i>
+                    </div>
+                    <div class="font-bold text-sm">已匹配池</div>
+                    <div class="text-xs text-gray-500">信号匹配成功</div>
+                    <div class="text-xs text-green-600 font-bold mt-1" id="flow-matched-count">0</div>
+                </div>
+                <i class="fas fa-arrow-right text-2xl text-gray-400 mx-2"></i>
+                <div class="text-center min-w-[150px]">
+                    <div class="bg-purple-100 p-4 rounded-lg mb-2 cursor-pointer hover:bg-purple-200 transition" onclick="showPoolDetails('today')">
+                        <i class="fas fa-tasks text-3xl text-purple-600"></i>
+                    </div>
+                    <div class="font-bold text-sm">今日已匹配</div>
+                    <div class="text-xs text-gray-500">策略匹配</div>
+                    <div class="text-xs text-purple-600 font-bold mt-1" id="flow-today-count">0</div>
+                </div>
+                <i class="fas fa-arrow-right text-2xl text-gray-400 mx-2"></i>
+                <div class="text-center min-w-[150px]">
+                    <div class="bg-red-100 p-4 rounded-lg mb-2 cursor-pointer hover:bg-red-200 transition" onclick="showPoolDetails('production')">
+                        <i class="fas fa-rocket text-3xl text-red-600"></i>
+                    </div>
+                    <div class="font-bold text-sm">生产池</div>
+                    <div class="text-xs text-gray-500">待执行</div>
+                    <div class="text-xs text-red-600 font-bold mt-1" id="flow-production-count">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 运行状态 -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="flex items-center space-x-4">
+                    <div class="bg-blue-100 p-4 rounded-lg">
+                        <i class="fas fa-clock text-3xl text-blue-600"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm text-gray-500">系统运行时间</div>
+                        <div class="text-2xl font-bold text-gray-800" id="system-uptime">-</div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="bg-green-100 p-4 rounded-lg">
+                        <i class="fas fa-sync-alt text-3xl text-green-600"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm text-gray-500">下次自动刷新</div>
+                        <div class="text-2xl font-bold text-gray-800" id="next-refresh">-</div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="bg-purple-100 p-4 rounded-lg">
+                        <i class="fas fa-history text-3xl text-purple-600"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm text-gray-500">上次更新时间</div>
+                        <div class="text-lg font-bold text-gray-800" id="last-update-full">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 系统概览 -->
+        <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+            <div onclick="showSnapshotDetails()" class="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-lg shadow-lg p-6 cursor-pointer transform transition-all hover:scale-105 hover:shadow-xl">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="text-sm opacity-90">K线快照池</div>
+                        <div class="text-3xl font-bold mt-2" id="snapshot-count">0</div>
+                        <div class="text-xs opacity-75 mt-1">27币种×3根</div>
+                    </div>
+                    <i class="fas fa-database text-3xl opacity-50"></i>
+                </div>
+                <div class="mt-3 text-xs opacity-75">点击查看详情 →</div>
+            </div>
+            
+            <div onclick="showPoolDetails('pending')" class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg shadow-lg p-6 cursor-pointer transform transition-all hover:scale-105 hover:shadow-xl">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="text-sm opacity-90">待匹配信号</div>
+                        <div class="text-3xl font-bold mt-2" id="pending-count">0</div>
+                    </div>
+                    <i class="fas fa-hourglass-half text-3xl opacity-50"></i>
+                </div>
+                <div class="mt-3 text-xs opacity-75">点击查看详情 →</div>
+            </div>
+            
+            <div onclick="showPoolDetails('matched')" class="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-lg shadow-lg p-6 cursor-pointer transform transition-all hover:scale-105 hover:shadow-xl">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="text-sm opacity-90">已匹配信号</div>
+                        <div class="text-3xl font-bold mt-2" id="matched-count">0</div>
+                    </div>
+                    <i class="fas fa-check-circle text-3xl opacity-50"></i>
+                </div>
+                <div class="mt-3 text-xs opacity-75">点击查看详情 →</div>
+            </div>
+            
+            <div onclick="showPoolDetails('today')" class="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-lg shadow-lg p-6 cursor-pointer transform transition-all hover:scale-105 hover:shadow-xl">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="text-sm opacity-90">今日已匹配</div>
+                        <div class="text-3xl font-bold mt-2" id="today-count">0</div>
+                    </div>
+                    <i class="fas fa-calendar-check text-3xl opacity-50"></i>
+                </div>
+                <div class="mt-3 text-xs opacity-75">点击查看详情 →</div>
+            </div>
+            
+            <div onclick="showPoolDetails('production')" class="bg-gradient-to-br from-red-500 to-red-600 text-white rounded-lg shadow-lg p-6 cursor-pointer transform transition-all hover:scale-105 hover:shadow-xl">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="text-sm opacity-90">生产池待执行</div>
+                        <div class="text-3xl font-bold mt-2" id="production-count">0</div>
+                    </div>
+                    <i class="fas fa-rocket text-3xl opacity-50"></i>
+                </div>
+                <div class="mt-3 text-xs opacity-75">点击查看详情 →</div>
+            </div>
+            
+            <div class="bg-gradient-to-br from-gray-500 to-gray-600 text-white rounded-lg shadow-lg p-6">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="text-sm opacity-90">上次更新</div>
+                        <div class="text-sm font-bold mt-2" id="last-update">19:16:31</div>
+                    </div>
+                    <i class="fas fa-clock text-3xl opacity-50"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4 text-gray-800">
+                <i class="fas fa-cog text-blue-600"></i> 系统操作
+            </h2>
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
+                <button onclick="runCompleteFlow()" 
+                        class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-lg shadow-lg transition-all transform hover:scale-105">
+                    <i class="fas fa-play-circle"></i> 运行完整流程
+                </button>
+                <button onclick="scanPending()" 
+                        class="bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white px-6 py-3 rounded-lg shadow-lg transition-all transform hover:scale-105">
+                    <i class="fas fa-search"></i> 扫描待匹配
+                </button>
+                <button onclick="matchSignals()" 
+                        class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-3 rounded-lg shadow-lg transition-all transform hover:scale-105">
+                    <i class="fas fa-link"></i> 信号匹配
+                </button>
+                <button onclick="matchStrategies()" 
+                        class="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg shadow-lg transition-all transform hover:scale-105">
+                    <i class="fas fa-chess"></i> 策略匹配
+                </button>
+                <button onclick="fillProduction()" 
+                        class="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-3 rounded-lg shadow-lg transition-all transform hover:scale-105">
+                    <i class="fas fa-plus"></i> 填充生产池
+                </button>
+                <button onclick="cleanupExpired()" 
+                        class="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white px-6 py-3 rounded-lg shadow-lg transition-all transform hover:scale-105">
+                    <i class="fas fa-trash"></i> 清理过期
+                </button>
+            </div>
+        </div>
+
+        <!-- 详情展示区域 - 完整展开 -->
+        <div id="details-panel" class="bg-white rounded-lg shadow-lg p-8 mb-6" style="display: none; min-height: 400px;">
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-gray-800" id="details-title">
+                    <i id="details-icon" class="fas fa-database text-indigo-600"></i> <span id="details-title-text">详情</span>
+                </h2>
+            </div>
+            <div id="details-content">
+                <!-- 动态内容将在这里显示 -->
+            </div>
+        </div>
+
+        <!-- 生产池待执行 -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4 text-gray-800">
+                <i class="fas fa-rocket text-red-600"></i> 生产池待执行
+            </h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">币种</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">策略</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">信号类型</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">入场价格</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">止损</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">止盈</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">杠杆</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">优先级</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">创建时间</th>
+                        </tr>
+                    </thead>
+                    <tbody id="production-table" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="9" class="px-6 py-4 text-center text-gray-500">
+                                <i class="fas fa-spinner fa-spin"></i> 加载中...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 今日已匹配记录 -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4 text-gray-800">
+                <i class="fas fa-calendar-check text-purple-600"></i> 今日已匹配记录
+            </h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">币种</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">策略名称</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">信号类型</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">买点</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">卖点</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">条件检查</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">创建时间</th>
+                        </tr>
+                    </thead>
+                    <tbody id="today-table" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="8" class="px-6 py-4 text-center text-gray-500">
+                                <i class="fas fa-spinner fa-spin"></i> 加载中...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 系统启动时间
+        const systemStartTime = Date.now();
+        
+        // 自动刷新相关
+        const AUTO_REFRESH_INTERVAL = 30; // 30秒
+        let refreshCountdown = AUTO_REFRESH_INTERVAL;
+        
+        // 更新系统运行时间
+        function updateSystemUptime() {
+            const uptime = Math.floor((Date.now() - systemStartTime) / 1000);
+            const hours = Math.floor(uptime / 3600);
+            const minutes = Math.floor((uptime % 3600) / 60);
+            const seconds = uptime % 60;
+            document.getElementById('system-uptime').textContent = 
+                `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+        
+        // 更新下次刷新倒计时
+        function updateRefreshCountdown() {
+            document.getElementById('next-refresh').textContent = `${refreshCountdown}秒`;
+            refreshCountdown--;
+            
+            if (refreshCountdown < 0) {
+                refreshCountdown = AUTO_REFRESH_INTERVAL;
+                loadData();
+            }
+        }
+        
+        // 加载K线快照统计
+        async function loadSnapshotCount() {
+            try {
+                // 获取所有币种的快照数量
+                const symbols = ['BTC', 'ETH', 'XRP', 'SOL', 'BNB', 'LTC', 'DOGE', 'SUI', 'TRX', 'TON', 
+                                'ETC', 'BCH', 'HBAR', 'XLM', 'FIL', 'ADA', 'LINK', 'CRO', 'DOT', 'UNI', 
+                                'NEAR', 'APT', 'CFX', 'CRV', 'STX', 'LDO', 'TAO'];
+                
+                let totalSnapshots = 0;
+                for (const symbol of symbols.slice(0, 3)) { // 先检查前3个币种
+                    try {
+                        const response = await axios.get(`/api/signal-matching/snapshots/${symbol}`);
+                        if (response.data.success && response.data.data) {
+                            totalSnapshots += response.data.data.length;
+                        }
+                    } catch (e) {
+                        // 忽略单个币种错误
+                    }
+                }
+                
+                // 估算总数（3个币种的平均值 × 27）
+                const estimatedTotal = Math.round((totalSnapshots / 3) * 27);
+                document.getElementById('snapshot-count').textContent = estimatedTotal;
+            } catch (error) {
+                console.error('加载快照统计失败:', error);
+                document.getElementById('snapshot-count').textContent = '?';
+            }
+        }
+        
+        // 加载系统概览
+        async function loadOverview() {
+            try {
+                const response = await axios.get('/api/signal-matching/overview');
+                if (response.data.success) {
+                    const overview = response.data.data;
+                    overview.forEach(item => {
+                        if (item.pool_type === 'pending') {
+                            document.getElementById('pending-count').textContent = item.count;
+                            document.getElementById('flow-pending-count').textContent = item.count;
+                        } else if (item.pool_type === 'matched') {
+                            document.getElementById('matched-count').textContent = item.count;
+                            document.getElementById('flow-matched-count').textContent = item.count;
+                        } else if (item.pool_type === 'today_matched') {
+                            document.getElementById('today-count').textContent = item.count;
+                            document.getElementById('flow-today-count').textContent = item.count;
+                        } else if (item.pool_type === 'production') {
+                            document.getElementById('production-count').textContent = item.count;
+                            document.getElementById('flow-production-count').textContent = item.count;
+                        }
+                    });
+                    const now = new Date();
+                    document.getElementById('last-update').textContent = now.toLocaleTimeString('zh-CN');
+                    document.getElementById('last-update-full').textContent = now.toLocaleString('zh-CN');
+                    refreshCountdown = AUTO_REFRESH_INTERVAL; // 重置倒计时
+                }
+                
+                // 加载快照统计
+                loadSnapshotCount();
+            } catch (error) {
+                console.error('加载系统概览失败:', error);
+            }
+        }
+        
+        // 显示K线快照详情
+        // 关闭详情面板
+        function closeDetails() {
+            document.getElementById('details-panel').style.display = 'none';
+        }
+        
+        // 显示详情面板
+        function showDetailsPanel(title, icon, content) {
+            console.log('showDetailsPanel 被调用', title);
+            const panel = document.getElementById('details-panel');
+            const titleText = document.getElementById('details-title-text');
+            const iconElem = document.getElementById('details-icon');
+            const contentElem = document.getElementById('details-content');
+            
+            console.log('panel:', panel);
+            console.log('titleText:', titleText);
+            console.log('iconElem:', iconElem);
+            console.log('contentElem:', contentElem);
+            
+            if (!panel || !titleText || !iconElem || !contentElem) {
+                console.error('找不到必要的DOM元素');
+                alert('错误：找不到详情面板元素');
+                return;
+            }
+            
+            titleText.textContent = title;
+            iconElem.className = `fas ${icon}`;
+            contentElem.innerHTML = content;
+            panel.style.display = 'block';
+            console.log('详情面板已显示');
+            
+            // 滚动到详情面板
+            setTimeout(() => {
+                panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 100);
+        }
+        
+        async function showSnapshotDetails() {
+            try {
+                console.log('showSnapshotDetails 被调用');
+                // 显示加载状态
+                showDetailsPanel('K线快照池', 'fa-database text-indigo-600', '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-3xl text-indigo-600"></i><p class="mt-2 text-gray-600">加载中...</p></div>');
+                
+                // 获取27个币种的列表
+                const symbols = ['BTC', 'ETH', 'XRP', 'SOL', 'BNB', 'LTC', 'DOGE', 'SUI', 'TRX', 'TON', 
+                                'ETC', 'BCH', 'HBAR', 'XLM', 'FIL', 'ADA', 'LINK', 'CRO', 'DOT', 'UNI', 
+                                'NEAR', 'APT', 'CFX', 'CRV', 'STX', 'LDO', 'TAO'];
+                
+                let totalCount = 0;
+                let symbolsData = [];
+                
+                // 检查所有币种
+                for (const symbol of symbols) {
+                    try {
+                        const response = await axios.get(`/api/signal-matching/snapshots/${symbol}`);
+                        if (response.data.success && response.data.data && response.data.data.length > 0) {
+                            const snapshots = response.data.data;
+                            totalCount += snapshots.length;
+                            symbolsData.push({
+                                symbol,
+                                count: snapshots.length,
+                                latest: snapshots[0]
+                            });
+                        }
+                    } catch (e) {
+                        // 忽略错误
+                    }
+                }
+                
+                // 构建HTML内容
+                let content = `
+                    <div class="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 mb-6 border-2 border-indigo-200">
+                        <div class="grid grid-cols-3 gap-8 text-center">
+                            <div>
+                                <div class="text-4xl font-bold text-indigo-600">${totalCount}</div>
+                                <div class="text-base text-gray-600 mt-2">总快照数</div>
+                            </div>
+                            <div>
+                                <div class="text-4xl font-bold text-green-600">${symbolsData.length}</div>
+                                <div class="text-base text-gray-600 mt-2">有数据币种</div>
+                            </div>
+                            <div>
+                                <div class="text-4xl font-bold text-gray-600">${27 - symbolsData.length}</div>
+                                <div class="text-base text-gray-600 mt-2">无数据币种</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                `;
+                
+                // 显示所有有数据的币种
+                symbolsData.forEach(item => {
+                    const latest = item.latest;
+                    content += `
+                        <div onclick="showCoinDetails('${item.symbol}')" class="border-2 border-gray-300 rounded-xl p-5 hover:shadow-xl hover:border-indigo-400 transition-all bg-white cursor-pointer">
+                            <div class="flex justify-between items-start mb-3">
+                                <div class="font-bold text-xl text-gray-800">${item.symbol}</div>
+                                <div class="text-xs bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full font-semibold">${item.count}根</div>
+                            </div>
+                            <div class="space-y-2 text-base">
+                                <div class="flex justify-between items-center py-1">
+                                    <span class="text-gray-600">💰 价格:</span>
+                                    <span class="font-bold text-gray-800">${latest.close_price ? latest.close_price.toFixed(2) : '-'}</span>
+                                </div>
+                                <div class="flex justify-between items-center py-1">
+                                    <span class="text-gray-600">📊 RSI5:</span>
+                                    <span class="font-bold ${latest.rsi_5 < 30 ? 'text-green-600' : latest.rsi_5 > 70 ? 'text-red-600' : 'text-gray-800'}">${latest.rsi_5 ? latest.rsi_5.toFixed(2) : '-'}</span>
+                                </div>
+                                <div class="flex justify-between items-center py-1">
+                                    <span class="text-gray-600">💡 提示:</span>
+                                    <span class="font-bold ${latest.operation_tip ? 'text-blue-600' : 'text-gray-400'}">${latest.operation_tip || '无'}</span>
+                                </div>
+                                <div class="text-xs text-gray-400 mt-3 pt-2 border-t border-gray-200">
+                                    🕒 ${new Date(latest.created_at * 1000).toLocaleString('zh-CN')}
+                                </div>
+                            </div>
+                            <div class="mt-3 text-center text-xs text-indigo-600 font-semibold">
+                                点击查看完整数据 →
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                content += '</div>';
+                
+                showDetailsPanel('K线快照池', 'fa-database text-indigo-600', content);
+            } catch (error) {
+                console.error('加载K线快照详情失败:', error);
+                showDetailsPanel('K线快照池', 'fa-database text-indigo-600', 
+                    `<div class="text-center py-8 text-red-600">
+                        <i class="fas fa-exclamation-circle text-3xl"></i>
+                        <p class="mt-2">加载失败: ${error.message}</p>
+                    </div>`
+                );
+            }
+        }
+        
+        // 显示单个币种的完整详情
+        async function showCoinDetails(symbol) {
+            try {
+                console.log('showCoinDetails 被调用:', symbol);
+                
+                // 显示加载状态
+                showDetailsPanel(`${symbol} 完整数据`, 'fa-coins text-yellow-600', 
+                    '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-3xl text-yellow-600"></i><p class="mt-2 text-gray-600">加载中...</p></div>');
+                
+                // 获取该币种的所有快照数据
+                const response = await axios.get(`/api/signal-matching/snapshots/${symbol}`);
+                
+                if (!response.data.success || !response.data.data || response.data.data.length === 0) {
+                    showDetailsPanel(`${symbol} 完整数据`, 'fa-coins text-yellow-600',
+                        '<div class="text-center py-8 text-gray-400"><i class="fas fa-inbox text-5xl"></i><p class="mt-4 text-lg">暂无数据</p></div>');
+                    return;
+                }
+                
+                const snapshots = response.data.data;
+                
+                // 构建完整数据表格（包含所有字段）
+                let content = `
+                    <div class="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-6 mb-6 border-2 border-yellow-200">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h3 class="text-3xl font-bold text-gray-800">${symbol} 完整数据</h3>
+                                <p class="text-gray-600 mt-2">共 ${snapshots.length} 根K线数据</p>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-4xl font-bold text-yellow-600">${snapshots[0].close_price ? snapshots[0].close_price.toFixed(2) : '-'}</div>
+                                <div class="text-sm text-gray-600 mt-1">最新收盘价</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto shadow-lg rounded-xl border-2 border-gray-300">
+                        <table class="min-w-full divide-y divide-gray-400 text-sm">
+                            <thead class="bg-gradient-to-r from-indigo-100 to-purple-100">
+                                <tr>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">序号</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">时间</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">首页排名</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">起涨点</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">起跌点</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">操作提示</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">当天起涨</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">当天起跌</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">10轮高</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">48h高跌幅</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">10轮低</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">48h低涨幅</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">开</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">高</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">低</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">收</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">涨跌幅</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">量</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">V1</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">V2</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">信号</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">SAR</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">SAR变化</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">SAR%</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">涨差</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">RSI5</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">RSI14</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">MB</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">UB</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">LB</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">下跌%</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">上涨%</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800 border-r">带宽</th>
+                                    <th class="px-3 py-3 text-center font-bold text-gray-800">通道位置</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-300">
+                `;
+                
+                snapshots.forEach((snap, index) => {
+                    const rsi5Color = snap.rsi_5 < 30 ? 'text-green-600 font-bold' : snap.rsi_5 > 70 ? 'text-red-600 font-bold' : '';
+                    const rsi14Color = snap.rsi_14 < 30 ? 'text-green-600 font-bold' : snap.rsi_14 > 70 ? 'text-red-600 font-bold' : '';
+                    const changeColor = snap.change_percent > 0 ? 'text-green-600' : snap.change_percent < 0 ? 'text-red-600' : '';
+                    
+                    content += `
+                        <tr class="hover:bg-yellow-50 transition">
+                            <td class="px-3 py-2 text-center font-bold border-r">${index + 1}</td>
+                            <td class="px-3 py-2 text-center whitespace-nowrap border-r">${new Date(snap.kline_time).toLocaleString('zh-CN', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'})}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.homepage_rank || '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.surge_start_point || '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.crash_start_point || '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">
+                                <span class="px-2 py-1 rounded text-xs font-bold ${snap.operation_tip ? 'bg-blue-100 text-blue-800' : 'text-gray-400'}">${snap.operation_tip || '无'}</span>
+                            </td>
+                            <td class="px-3 py-2 text-center border-r">${snap.today_surge_count || 0}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.today_crash_count || 0}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.rounds_since_48h_high || 0}</td>
+                            <td class="px-3 py-2 text-center text-red-600 border-r">${snap.decline_from_48h_high ? snap.decline_from_48h_high.toFixed(2) + '%' : '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.rounds_since_48h_low || 0}</td>
+                            <td class="px-3 py-2 text-center text-green-600 border-r">${snap.rise_from_48h_low ? snap.rise_from_48h_low.toFixed(2) + '%' : '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.open_price ? snap.open_price.toFixed(2) : '-'}</td>
+                            <td class="px-3 py-2 text-center text-green-600 font-semibold border-r">${snap.high_price ? snap.high_price.toFixed(2) : '-'}</td>
+                            <td class="px-3 py-2 text-center text-red-600 font-semibold border-r">${snap.low_price ? snap.low_price.toFixed(2) : '-'}</td>
+                            <td class="px-3 py-2 text-center font-bold border-r">${snap.close_price ? snap.close_price.toFixed(2) : '-'}</td>
+                            <td class="px-3 py-2 text-center ${changeColor} border-r">${snap.change_percent ? snap.change_percent.toFixed(2) + '%' : '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.volume ? snap.volume.toFixed(0) : '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.v1_flag ? '✓' : ''}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.v2_flag ? '✓' : ''}</td>
+                            <td class="px-3 py-2 text-center border-r">
+                                ${snap.buy_signal ? '<span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">买:' + snap.buy_signal + '</span>' : ''}
+                                ${snap.sell_signal ? '<span class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">卖:' + snap.sell_signal + '</span>' : ''}
+                                ${!snap.buy_signal && !snap.sell_signal ? '-' : ''}
+                            </td>
+                            <td class="px-3 py-2 text-center border-r">${snap.sar_value ? snap.sar_value.toFixed(2) : '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.sar_position || '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.sar_distance_percent ? snap.sar_distance_percent.toFixed(2) + '%' : '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">-</td>
+                            <td class="px-3 py-2 text-center ${rsi5Color} border-r">${snap.rsi_5 ? snap.rsi_5.toFixed(2) : '-'}</td>
+                            <td class="px-3 py-2 text-center ${rsi14Color} border-r">${snap.rsi_14 ? snap.rsi_14.toFixed(2) : '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.bollinger_middle ? snap.bollinger_middle.toFixed(2) : '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.bollinger_upper ? snap.bollinger_upper.toFixed(2) : '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.bollinger_lower ? snap.bollinger_lower.toFixed(2) : '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.channel_decline_ratio ? snap.channel_decline_ratio.toFixed(2) + '%' : '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.channel_rise_ratio ? snap.channel_rise_ratio.toFixed(2) + '%' : '-'}</td>
+                            <td class="px-3 py-2 text-center border-r">${snap.bollinger_width ? snap.bollinger_width.toFixed(4) : '-'}</td>
+                            <td class="px-3 py-2 text-center">${snap.bollinger_position || '-'}</td>
+                        </tr>
+                    `;
+                });
+                
+                content += `
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="mt-6 flex justify-center">
+                        <button onclick="showSnapshotDetails()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg font-semibold transition">
+                            <i class="fas fa-arrow-left mr-2"></i> 返回币种列表
+                        </button>
+                    </div>
+                `;
+                
+                showDetailsPanel(`${symbol} 完整数据`, 'fa-coins text-yellow-600', content);
+            } catch (error) {
+                console.error('加载币种详情失败:', error);
+                showDetailsPanel(`${symbol} 完整数据`, 'fa-coins text-yellow-600',
+                    `<div class="text-center py-8 text-red-600">
+                        <i class="fas fa-exclamation-circle text-3xl"></i>
+                        <p class="mt-2">加载失败: ${error.message}</p>
+                    </div>`
+                );
+            }
+        }
+        
+        // 显示池详情
+        async function showPoolDetails(poolType) {
+            const apiMap = {
+                'pending': '/api/signal-matching/pending?limit=100',
+                'matched': '/api/signal-matching/matched?limit=100',
+                'today': '/api/signal-matching/today?limit=100',
+                'production': '/api/signal-matching/production?limit=100'
+            };
+            
+            const titleMap = {
+                'pending': '待匹配信号池',
+                'matched': '已匹配信号池',
+                'today': '今日已匹配记录',
+                'production': '生产池待执行'
+            };
+            
+            const iconMap = {
+                'pending': 'fa-hourglass-half text-blue-600',
+                'matched': 'fa-check-circle text-green-600',
+                'today': 'fa-calendar-check text-purple-600',
+                'production': 'fa-rocket text-red-600'
+            };
+            
+            try {
+                // 显示加载状态
+                showDetailsPanel(titleMap[poolType], iconMap[poolType], 
+                    '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-3xl"></i><p class="mt-2 text-gray-600">加载中...</p></div>');
+                
+                const response = await axios.get(apiMap[poolType]);
+                if (response.data.success) {
+                    const data = response.data.data;
+                    
+                    if (data.length === 0) {
+                        showDetailsPanel(titleMap[poolType], iconMap[poolType],
+                            '<div class="text-center py-8 text-gray-400"><i class="fas fa-inbox text-5xl"></i><p class="mt-4 text-lg">暂无数据</p></div>');
+                        return;
+                    }
+                    
+                    // 构建HTML内容
+                    let content = `
+                        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 mb-6 border-2 border-blue-200">
+                            <div class="text-center">
+                                <div class="text-5xl font-bold text-gray-800">${data.length}</div>
+                                <div class="text-lg text-gray-600 mt-2">条记录</div>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto shadow-lg rounded-xl border border-gray-200">
+                            <table class="min-w-full divide-y divide-gray-300">
+                                <thead class="bg-gradient-to-r from-gray-100 to-gray-200">
+                                    <tr>
+                    `;
+                    
+                    // 根据不同池类型显示不同的表头和内容
+                    if (poolType === 'pending') {
+                        content += `
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">币种</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">操作提示</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">RSI5</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">价格</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">K线时间</th>
+                        </tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
+                        
+                        data.forEach((item, index) => {
+                            content += `
+                                <tr class="hover:bg-blue-50 transition">
+                                    <td class="px-6 py-4 font-bold text-lg text-gray-800">${item.symbol || '-'}</td>
+                                    <td class="px-6 py-4"><span class="px-3 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm font-semibold">${item.operation_tip || '-'}</span></td>
+                                    <td class="px-6 py-4 text-base font-semibold">${item.rsi_5 ? item.rsi_5.toFixed(2) : '-'}</td>
+                                    <td class="px-6 py-4 text-base font-semibold">${item.close_price ? item.close_price.toFixed(2) : '-'}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-600">${new Date(item.kline_time).toLocaleString('zh-CN')}</td>
+                                </tr>
+                            `;
+                        });
+                    } else if (poolType === 'matched') {
+                        content += `
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">币种</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">信号类型</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">信号名称</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">价格</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">创建时间</th>
+                        </tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
+                        
+                        data.forEach((item, index) => {
+                            content += `
+                                <tr class="hover:bg-green-50 transition">
+                                    <td class="px-6 py-4 font-bold text-lg text-gray-800">${item.symbol || '-'}</td>
+                                    <td class="px-6 py-4">
+                                        <span class="px-3 py-2 rounded-lg text-sm font-bold ${item.signal_type === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                            ${item.signal_type === 'buy' ? '做多' : '做空'}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 text-base">${item.signal_name || '-'}</td>
+                                    <td class="px-6 py-4 text-base font-semibold">${item.close_price ? item.close_price.toFixed(2) : '-'}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-600">${new Date(item.created_at * 1000).toLocaleString('zh-CN')}</td>
+                                </tr>
+                            `;
+                        });
+                    } else if (poolType === 'today') {
+                        content += `
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">币种</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">策略</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">信号</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">状态</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">创建时间</th>
+                        </tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
+                        
+                        data.forEach((item, index) => {
+                            content += `
+                                <tr class="hover:bg-purple-50 transition">
+                                    <td class="px-6 py-4 font-bold text-lg text-gray-800">${item.symbol || '-'}</td>
+                                    <td class="px-6 py-4 text-base">${item.strategy_name || '-'}</td>
+                                    <td class="px-6 py-4">
+                                        <span class="px-3 py-2 rounded-lg text-sm font-bold ${item.signal_type === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                            ${item.signal_type === 'buy' ? '做多' : '做空'}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <span class="px-3 py-2 rounded-lg text-sm font-bold ${item.status === 'in_production' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}">
+                                            ${item.status === 'in_production' ? '生产池' : '待执行'}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 text-sm text-gray-600">${new Date(item.created_at * 1000).toLocaleString('zh-CN')}</td>
+                                </tr>
+                            `;
+                        });
+                    } else if (poolType === 'production') {
+                        content += `
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">币种</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">策略</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">信号</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">入场价</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">杠杆</th>
+                            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase">优先级</th>
+                        </tr></thead><tbody class="bg-white divide-y divide-gray-200">`;
+                        
+                        data.forEach((item, index) => {
+                            content += `
+                                <tr class="hover:bg-red-50 transition">
+                                    <td class="px-6 py-4 font-bold text-lg text-gray-800">${item.symbol || '-'}</td>
+                                    <td class="px-6 py-4 text-base">${item.strategy_name || '-'}</td>
+                                    <td class="px-6 py-4">
+                                        <span class="px-3 py-2 rounded-lg text-sm font-bold ${item.signal_type === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                            ${item.signal_type === 'buy' ? '做多' : '做空'}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 text-base font-semibold">${item.entry_price ? item.entry_price.toFixed(4) : '-'}</td>
+                                    <td class="px-6 py-4 text-base font-bold text-indigo-600">${item.leverage}x</td>
+                                    <td class="px-6 py-4">
+                                        <span class="px-3 py-2 rounded-lg text-sm font-bold ${item.priority === 'high' ? 'bg-red-100 text-red-800' : item.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}">
+                                            ${item.priority || 'normal'}
+                                        </span>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                    }
+                    
+                    content += '</tbody></table></div>';
+                    
+                    showDetailsPanel(titleMap[poolType], iconMap[poolType], content);
+                }
+            } catch (error) {
+                console.error(`加载${titleMap[poolType]}失败:`, error);
+                showDetailsPanel(titleMap[poolType], iconMap[poolType],
+                    `<div class="text-center py-8 text-red-600">
+                        <i class="fas fa-exclamation-circle text-3xl"></i>
+                        <p class="mt-2">加载失败: ${error.message}</p>
+                    </div>`
+                );
+            }
+        }
+
+        // 加载生产池
+        async function loadProduction() {
+            try {
+                const response = await axios.get('/api/signal-matching/production?limit=100');
+                if (response.data.success) {
+                    const tbody = document.getElementById('production-table');
+                    if (response.data.data.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="9" class="px-6 py-4 text-center text-gray-500">暂无待执行项</td></tr>';
+                        return;
+                    }
+                    
+                    tbody.innerHTML = response.data.data.map(item => `
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap font-bold">${item.symbol}</td>
+                            <td class="px-6 py-4">${item.strategy_name}</td>
+                            <td class="px-6 py-4">
+                                <span class="px-2 py-1 text-xs rounded ${item.signal_type === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                    ${item.signal_type === 'buy' ? '做多' : '做空'}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">${item.entry_price ? item.entry_price.toFixed(4) : '-'}</td>
+                            <td class="px-6 py-4">${item.stop_loss ? item.stop_loss.toFixed(4) : '-'}</td>
+                            <td class="px-6 py-4">${item.take_profit ? item.take_profit.toFixed(4) : '-'}</td>
+                            <td class="px-6 py-4">${item.leverage}x</td>
+                            <td class="px-6 py-4">
+                                <span class="px-2 py-1 text-xs rounded ${item.priority >= 7 ? 'bg-red-100 text-red-800' : item.priority >= 4 ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}">
+                                    ${item.priority}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-500">
+                                ${new Date(item.created_at * 1000).toLocaleString('zh-CN')}
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('加载生产池失败:', error);
+                document.getElementById('production-table').innerHTML = 
+                    '<tr><td colspan="9" class="px-6 py-4 text-center text-red-500">加载失败</td></tr>';
+            }
+        }
+
+        // 加载今日已匹配
+        async function loadToday() {
+            try {
+                const response = await axios.get('/api/signal-matching/today?limit=100');
+                if (response.data.success) {
+                    const tbody = document.getElementById('today-table');
+                    if (response.data.data.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">暂无已匹配记录</td></tr>';
+                        return;
+                    }
+                    
+                    tbody.innerHTML = response.data.data.map(item => `
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap font-bold">${item.symbol}</td>
+                            <td class="px-6 py-4">${item.strategy_name}</td>
+                            <td class="px-6 py-4">
+                                <span class="px-2 py-1 text-xs rounded ${item.signal_type === 'buy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                    ${item.signal_type === 'buy' ? '做多' : '做空'}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-sm">${item.buy_point_name || '-'}</td>
+                            <td class="px-6 py-4 text-sm">${item.sell_point_name || '-'}</td>
+                            <td class="px-6 py-4">
+                                <span class="px-2 py-1 text-xs rounded ${item.condition_check_passed ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                    ${item.condition_check_passed ? '通过' : '未通过'}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="px-2 py-1 text-xs rounded ${item.status === 'in_production' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'}">
+                                    ${item.status === 'pending_execution' ? '待执行' : item.status === 'in_production' ? '生产池' : '已执行'}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-500">
+                                ${new Date(item.created_at * 1000).toLocaleString('zh-CN')}
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('加载今日已匹配失败:', error);
+                document.getElementById('today-table').innerHTML = 
+                    '<tr><td colspan="8" class="px-6 py-4 text-center text-red-500">加载失败</td></tr>';
+            }
+        }
+
+        // 运行完整流程
+        async function runCompleteFlow() {
+            if (!confirm('确定要运行完整的信号匹配流程吗？')) return;
+            
+            try {
+                const response = await axios.post('/api/signal-matching/run');
+                if (response.data.success) {
+                    alert(`流程执行成功！\n待匹配: ${response.data.pendingFilled}\n信号匹配: ${response.data.signalsMatched}\n策略匹配: ${response.data.strategiesMatched}\n生产池: ${response.data.productionFilled}`);
+                    loadData();
+                }
+            } catch (error) {
+                alert('执行失败: ' + (error.response?.data?.error || error.message));
+            }
+        }
+
+        // 扫描待匹配
+        async function scanPending() {
+            try {
+                const response = await axios.post('/api/signal-matching/scan-pending');
+                if (response.data.success) {
+                    alert(response.data.message);
+                    loadData();
+                }
+            } catch (error) {
+                alert('扫描失败: ' + (error.response?.data?.error || error.message));
+            }
+        }
+
+        // 信号匹配
+        async function matchSignals() {
+            try {
+                const response = await axios.post('/api/signal-matching/match-signals');
+                if (response.data.success) {
+                    alert(response.data.message);
+                    loadData();
+                }
+            } catch (error) {
+                alert('匹配失败: ' + (error.response?.data?.error || error.message));
+            }
+        }
+
+        // 策略匹配
+        async function matchStrategies() {
+            try {
+                const response = await axios.post('/api/signal-matching/match-strategies');
+                if (response.data.success) {
+                    alert(response.data.message);
+                    loadData();
+                }
+            } catch (error) {
+                alert('匹配失败: ' + (error.response?.data?.error || error.message));
+            }
+        }
+
+        // 填充生产池
+        async function fillProduction() {
+            try {
+                const response = await axios.post('/api/signal-matching/fill-production');
+                if (response.data.success) {
+                    alert(response.data.message);
+                    loadData();
+                }
+            } catch (error) {
+                alert('填充失败: ' + (error.response?.data?.error || error.message));
+            }
+        }
+
+        // 清理过期
+        async function cleanupExpired() {
+            try {
+                const response = await axios.post('/api/signal-matching/cleanup');
+                if (response.data.success) {
+                    alert(response.data.message);
+                    loadData();
+                }
+            } catch (error) {
+                alert('清理失败: ' + (error.response?.data?.error || error.message));
+            }
+        }
+
+        // 加载所有数据
+        function loadData() {
+            loadOverview();
+            loadProduction();
+            loadToday();
+        }
+
+        // 页面加载时执行
+        window.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            
+            // 每秒更新运行时间和倒计时
+            setInterval(() => {
+                updateSystemUptime();
+                updateRefreshCountdown();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

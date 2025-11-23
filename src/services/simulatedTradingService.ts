@@ -339,7 +339,15 @@ export class SimulatedTradingService {
   }
 
   // 批量检查信号并自动交易
-  async autoTradeAllSymbols(accountId: number, strategyId: number) {
+  async autoTradeAllSymbols(
+    accountId: number, 
+    strategyId: number,
+    config?: {
+      maxPositionValue?: number;
+      positionSplits?: number;
+      forceProtectionBalance?: number;
+    }
+  ) {
     const account: any = await this.getAccount(accountId);
     
     if (account.status !== 'ACTIVE') {
@@ -360,19 +368,47 @@ export class SimulatedTradingService {
     for (const signal of signals.results) {
       let signalType = '';
       
-      if (signal.signal && signal.signal.includes('多头')) {
+      // 识别买入/做多信号
+      if (signal.signal && (
+        signal.signal.includes('多头') ||
+        signal.signal.includes('买入') ||
+        signal.signal.includes('开仓') ||
+        signal.signal.includes('↗') ||
+        signal.signal.toLowerCase().includes('buy') ||
+        signal.signal.toLowerCase().includes('long')
+      )) {
         signalType = 'SAR_BULLISH';
-      } else if (signal.signal && signal.signal.includes('空头')) {
+      } 
+      // 识别卖出/做空信号
+      else if (signal.signal && (
+        signal.signal.includes('空头') ||
+        signal.signal.includes('卖出') ||
+        signal.signal.includes('平仓') ||
+        signal.signal.includes('↘') ||
+        signal.signal.toLowerCase().includes('sell') ||
+        signal.signal.toLowerCase().includes('short')
+      )) {
         signalType = 'SAR_BEARISH';
       }
 
       if (signalType) {
+        // Calculate quantity based on config
+        let quantity = undefined;
+        if (config?.maxPositionValue && config?.positionSplits) {
+          const splits = config.positionSplits;
+          // 使用 single_trade_limit 或 maxPositionValue 计算每次交易金额
+          const perTradeAmount = config.maxPositionValue / splits;
+          // Calculate quantity based on current price and per-trade amount
+          quantity = perTradeAmount / signal.close;
+        }
+        
         const result = await this.executeTradeBySignal({
           accountId,
           strategyId,
           symbol: signal.symbol,
           signalType,
-          currentPrice: signal.close
+          currentPrice: signal.close,
+          quantity
         });
         
         results.push({
@@ -384,6 +420,34 @@ export class SimulatedTradingService {
     }
 
     return { success: true, trades: results };
+  }
+
+  // Close all open positions for an account
+  async closeAllPositions(accountId: number) {
+    const openTrades: any = await this.db.prepare(`
+      SELECT id, symbol, close as current_price
+      FROM simulated_trades st
+      LEFT JOIN (
+        SELECT symbol, close 
+        FROM kline_data 
+        WHERE timeframe = '5m'
+        GROUP BY symbol
+        HAVING MAX(open_time)
+      ) k ON st.symbol = k.symbol
+      WHERE st.account_id = ? AND st.status = 'OPEN'
+    `).bind(accountId).all();
+
+    const results = [];
+    for (const trade of openTrades.results) {
+      try {
+        const result = await this.closeTrade(trade.id, trade.current_price || 0);
+        results.push({ trade_id: trade.id, symbol: trade.symbol, result });
+      } catch (error: any) {
+        results.push({ trade_id: trade.id, symbol: trade.symbol, error: error.message });
+      }
+    }
+
+    return { success: true, closed_trades: results };
   }
 
   // 创建账户快照

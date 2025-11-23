@@ -649,7 +649,7 @@
                         <span class="bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-2 font-bold">3</span>
                         <i class="fas fa-sign-in-alt mr-2"></i>选择买点信号（入场点）
                     </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">买点信号类型</label>
                             <select id="entrySignal" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
@@ -660,6 +660,25 @@
                             <label class="block text-sm font-medium text-gray-700 mb-2">买点关键词</label>
                             <input type="text" id="entryKeyword" placeholder="例如: 低吸" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
                         </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                买点价格类型
+                                <i class="fas fa-info-circle text-gray-400 ml-1" title="选择以什么价格买入"></i>
+                            </label>
+                            <select id="entryPriceType" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                                <option value="unlimited">无限制</option>
+                                <option value="open">开盘价</option>
+                                <option value="close">收盘价</option>
+                                <option value="high">最高价</option>
+                                <option value="low">最低价</option>
+                                <option value="specified">指定价格</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="entrySpecifiedPriceContainer" class="mt-4 hidden">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">指定买入价格</label>
+                        <input type="number" id="entrySpecifiedPrice" step="0.01" placeholder="例如: 50000" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                        <p class="text-xs text-gray-500 mt-1">仅当触发买点信号且价格达到指定值时才买入</p>
                     </div>
                 </div>
 
@@ -691,9 +710,30 @@
                         <i class="fas fa-info-circle mr-1"></i>
                         提示：可添加多个卖点信号，策略将在满足任一卖点条件时出场
                     </div>
-                    <div class="mt-3">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">卖点关键词（可选）</label>
-                        <input type="text" id="exitKeyword" placeholder="例如: 高抛" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">卖点关键词（可选）</label>
+                            <input type="text" id="exitKeyword" placeholder="例如: 高抛" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                卖点价格类型
+                                <i class="fas fa-info-circle text-gray-400 ml-1" title="选择以什么价格卖出"></i>
+                            </label>
+                            <select id="exitPriceType" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
+                                <option value="unlimited">无限制</option>
+                                <option value="open">开盘价</option>
+                                <option value="close">收盘价</option>
+                                <option value="high">最高价</option>
+                                <option value="low">最低价</option>
+                                <option value="specified">指定价格</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="exitSpecifiedPriceContainer" class="mt-4 hidden">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">指定卖出价格</label>
+                        <input type="number" id="exitSpecifiedPrice" step="0.01" placeholder="例如: 60000" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
+                        <p class="text-xs text-gray-500 mt-1">仅当触发卖点信号且价格达到指定值时才卖出</p>
                     </div>
                 </div>
 
@@ -724,7 +764,7 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">
                                 间隔百分比
-                                <span class="text-xs text-red-500">价格下跌后加仓</span>
+                                <span id="intervalDirectionHint" class="text-xs text-red-500">价格下跌后加仓</span>
                             </label>
                             <select id="splitInterval" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                                 <option value="0.5">0.5%</option>
@@ -760,9 +800,9 @@
                     <p class="text-sm text-gray-600 mt-2">
                         <i class="fas fa-info-circle text-blue-500"></i>
                         说明：买入时会分<span id="splitPreview">1</span>次建仓<span id="intervalDescription">，每次间隔<span id="intervalPreview">2.0</span>%；
-                        <span class="text-red-600 font-semibold">价格每下跌<span id="intervalPreview2">2.0</span>%时加仓</span></span>；卖出时一次性全部卖出
+                        <span id="intervalDirectionText" class="text-red-600 font-semibold">价格每下跌<span id="intervalPreview2">2.0</span>%时加仓</span></span>；卖出时一次性全部卖出
                     </p>
-                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-3 mt-3">
+                    <div id="splitExampleBox" class="bg-yellow-50 border-l-4 border-yellow-400 p-3 mt-3">
                         <p class="text-xs text-gray-700">
                             <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>
                             <strong>分批加仓逻辑：</strong>例如分3次，间隔2%<br>
@@ -814,6 +854,20 @@
                             <i class="fas fa-info-circle text-purple-500"></i>
                             选择此策略适用的币种级别，可以多选。不选择表示适用于所有级别。
                         </p>
+                        
+                        <!-- 🆕 历史级别选项 -->
+                        <div class="mt-4 p-3 bg-blue-50 border-l-4 border-blue-500 rounded">
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" id="includeHistoricalLevels" class="form-checkbox h-4 w-4 text-blue-600">
+                                <span class="text-sm font-medium text-gray-700">
+                                    <i class="fas fa-history text-blue-600 mr-1"></i>
+                                    包含过去7天内达到过的级别
+                                </span>
+                            </label>
+                            <p class="text-xs text-gray-600 mt-1 ml-6">
+                                勾选后，如果币种在过去7天内曾达到所选级别，也会被包含在内（即使当前级别已降低）
+                            </p>
+                        </div>
                     </div>
                 </div>
 
@@ -1282,6 +1336,21 @@
                                 </div>
                                 <p class="text-sm text-gray-600">${strategy.entry_signal_type || '-'}</p>
                                 <p class="text-xs text-gray-500">${strategy.entry_signal_keyword || ''}</p>
+                                ${(() => {
+                                    const priceTypeMap = {
+                                        'unlimited': '无限制',
+                                        'open': '开盘价',
+                                        'close': '收盘价',
+                                        'high': '最高价',
+                                        'low': '最低价',
+                                        'specified': '指定价格'
+                                    };
+                                    const priceType = priceTypeMap[strategy.entry_price_type] || '无限制';
+                                    const priceDisplay = strategy.entry_price_type === 'specified' && strategy.entry_specified_price 
+                                        ? `${priceType}: ${strategy.entry_specified_price}`
+                                        : priceType;
+                                    return `<p class="text-xs text-green-700 mt-1"><i class="fas fa-dollar-sign mr-1"></i>${priceDisplay}</p>`;
+                                })()}
                             </div>
 
                             <!-- 卖点信息（支持多个） -->
@@ -1306,6 +1375,21 @@
                                     }
                                 })()}
                                 <p class="text-xs text-gray-500">${strategy.exit_signal_keyword || ''}</p>
+                                ${(() => {
+                                    const priceTypeMap = {
+                                        'unlimited': '无限制',
+                                        'open': '开盘价',
+                                        'close': '收盘价',
+                                        'high': '最高价',
+                                        'low': '最低价',
+                                        'specified': '指定价格'
+                                    };
+                                    const priceType = priceTypeMap[strategy.exit_price_type] || '无限制';
+                                    const priceDisplay = strategy.exit_price_type === 'specified' && strategy.exit_specified_price 
+                                        ? `${priceType}: ${strategy.exit_specified_price}`
+                                        : priceType;
+                                    return `<p class="text-xs text-red-700 mt-1"><i class="fas fa-dollar-sign mr-1"></i>${priceDisplay}</p>`;
+                                })()}
                             </div>
 
                             <!-- 仓位管理 -->
@@ -1350,6 +1434,11 @@
                                     <span class="font-semibold text-gray-700">级别过滤</span>
                                 </div>
                                 <p class="text-xs text-gray-600">仅${JSON.parse(strategy.allowed_coin_levels).join('、')}级币种</p>
+                                ${strategy.include_historical_levels === 1 ? `
+                                <p class="text-xs text-blue-600 mt-1">
+                                    <i class="fas fa-history mr-1"></i>包含过去7天内达到过的级别
+                                </p>
+                                ` : ''}
                             </div>
                             ` : ''}
                         </div>
@@ -1368,7 +1457,11 @@
         
         async function loadSignalsToDropdown(strategyType = 'long') {
             try {
-                console.log('🔄 [loadSignalsToDropdown] 开始执行，策略类型:', strategyType);
+                console.log(`\n${'*'.repeat(80)}`);
+                console.log('🔄 [loadSignalsToDropdown] 开始执行');
+                console.log('📍 策略类型:', strategyType);
+                console.log('📍 调用堆栈:', new Error().stack);
+                console.log(`${'*'.repeat(80)}\n`);
                 
                 // 🆕 使用新的 API 端点，明确区分买点和卖点
                 let entrySignalsResponse, exitSignalsResponse;
@@ -1390,13 +1483,18 @@
                 const entrySignals = Array.isArray(entrySignalsData) ? entrySignalsData : (entrySignalsData.signals || []);
                 const exitSignals = Array.isArray(exitSignalsData) ? exitSignalsData : (exitSignalsData.signals || []);
                 
-                // 更新全局缓存（保持向后兼容）
+                // 🔧 修复：直接缓存 entry 和 exit 信号（不再使用 cachedLongSignals/cachedShortSignals）
+                // 这样更清晰，不会混淆
+                window.cachedEntrySignals = entrySignals;
+                window.cachedExitSignals = exitSignals;
+                
+                // 保持向后兼容（但不再使用这些变量）
                 if (strategyType === 'long') {
                     cachedLongSignals = entrySignals;
                     cachedShortSignals = exitSignals;
                 } else {
-                    cachedLongSignals = exitSignals;
-                    cachedShortSignals = entrySignals;
+                    cachedLongSignals = entrySignals;
+                    cachedShortSignals = exitSignals;
                 }
                 
                 console.log('📊 处理后的信号数据:', {
@@ -1444,11 +1542,30 @@
         
         // 更新所有卖点下拉框的选项
         function updateAllExitSignalDropdowns(strategyType) {
-            const exitSelects = document.querySelectorAll('.exit-signal-select');
-            const exitSignals = strategyType === 'long' ? cachedShortSignals : cachedLongSignals;
+            console.log(`\n${'~'.repeat(80)}`);
+            console.log('🔄 [updateAllExitSignalDropdowns] 被调用');
+            console.log('📍 strategyType 参数:', strategyType);
+            console.log('📍 window.cachedExitSignals 数量:', window.cachedExitSignals?.length || 0);
             
-            exitSelects.forEach(select => {
+            const exitSelects = document.querySelectorAll('.exit-signal-select');
+            console.log('📍 找到的卖点下拉框数量:', exitSelects.length);
+            
+            // 🔧 修复：直接使用 cachedExitSignals，不再根据 strategyType 切换
+            const exitSignals = window.cachedExitSignals || [];
+            
+            if (exitSignals.length > 0) {
+                console.log('📍 将要更新的信号列表（前3个）:', 
+                    exitSignals.slice(0, 3).map(s => ({
+                        name: s.signal_name, 
+                        type: s.signal_type, 
+                        entry_exit: s.entry_exit
+                    }))
+                );
+            }
+            
+            exitSelects.forEach((select, index) => {
                 const currentValue = select.value; // 保存当前选中的值
+                console.log(`  更新下拉框 ${index + 1}, 当前值: ${currentValue}`);
                 select.innerHTML = '<option value="">-- 选择卖点信号 --</option>';
                 
                 exitSignals.forEach(signal => {
@@ -1461,16 +1578,18 @@
                 // 尝试恢复之前的选择
                 if (currentValue && Array.from(select.options).some(opt => opt.value === currentValue)) {
                     select.value = currentValue;
+                    console.log(`  ✅ 恢复了选择: ${currentValue}`);
                 }
                 
                 // 添加change事件监听
                 select.removeEventListener('change', checkStopLossTakeProfitSignal); // 先移除避免重复
                 select.addEventListener('change', checkStopLossTakeProfitSignal);
             });
+            console.log(`${'~'.repeat(80)}\n`);
         }
         
         // 添加卖点下拉框
-        function addExitSignalDropdown() {
+        async function addExitSignalDropdown() {
             if (exitSignalDropdownCount >= 10) {
                 alert('最多只能添加10个卖点！');
                 return;
@@ -1479,19 +1598,80 @@
             exitSignalDropdownCount++;
             const container = document.getElementById('exitSignalsContainer');
             const strategyType = document.getElementById('strategyType').value;
-            const exitSignals = strategyType === 'long' ? cachedShortSignals : cachedLongSignals;
+            
+            //🚨 强制从API重新加载，不使用缓存！
+            console.warn(`\n${'='.repeat(80)}`);
+            console.warn(`🆕 添加第 ${exitSignalDropdownCount} 个卖点下拉框`);
+            console.warn(`📍 当前策略类型: ${strategyType}`);
+            console.warn(`📍 window.cachedExitSignals 数量（加载前）: ${window.cachedExitSignals?.length || 0}`);
+            console.warn('🔄 强制从API重新加载卖点信号...');
+            let exitSignals = [];
+            try {
+                const apiUrl = strategyType === 'long' ? '/api/signals/long/exit' : '/api/signals/short/exit';
+                console.log('📡 API URL:', apiUrl);
+                const response = await fetch(apiUrl, {
+                    cache: 'no-cache',  // 禁用HTTP缓存
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    }
+                });
+                const responseText = await response.text();
+                exitSignals = JSON.parse(responseText);
+                console.log('📦 API返回数据:', {
+                    count: exitSignals.length,
+                    all_signals: exitSignals.map(s => ({
+                        name: s.signal_name, 
+                        type: s.signal_type, 
+                        entry_exit: s.entry_exit
+                    }))
+                });
+                window.cachedExitSignals = exitSignals;
+                console.log('✅ window.cachedExitSignals 已更新');
+            } catch (error) {
+                console.error('❌ 加载卖点信号失败:', error);
+                alert('加载卖点信号失败，请刷新页面重试');
+                return;
+            }
+            
+            // 🐛 详细调试日志 - 在创建 HTML 之前再次检查
+            console.log('🔍 准备创建下拉框:', {
+                exitSignalDropdownCount,
+                strategyType,
+                exitSignalsCount: exitSignals.length,
+                allSignalNames: exitSignals.map(s => s.signal_name),
+                allSignalTypes: exitSignals.map(s => s.signal_type),
+                allEntryExits: exitSignals.map(s => s.entry_exit)
+            });
+            
+            // 🔍 验证 exitSignals 数组是否被污染
+            const wrongSignals = exitSignals.filter(s => s.signal_type !== strategyType);
+            if (wrongSignals.length > 0) {
+                console.error('🚨🚨🚨 发现错误的信号类型！');
+                console.error('期望的 signal_type:', strategyType);
+                console.error('错误的信号:', wrongSignals);
+                alert(`检测到信号数据错误！期望${strategyType}类型，但发现${wrongSignals[0].signal_type}类型的信号。请刷新页面重试。`);
+                return;
+            }
             
             const group = document.createElement('div');
             group.className = 'exit-signal-group flex items-center gap-2';
+            
+            // 🔍 生成 HTML 选项字符串，并记录日志
+            const optionsHTML = exitSignals.map((signal, index) => {
+                const optionHTML = `
+                        <option value="${signal.signal_name}">
+                            ${signal.signal_name}${signal.description ? ' - ' + signal.description : ''}
+                        </option>`;
+                console.log(`  选项 ${index + 1}: ${signal.signal_name} (type=${signal.signal_type}, entry_exit=${signal.entry_exit})`);
+                return optionHTML;
+            }).join('');
+            
             group.innerHTML = `
                 <label class="text-sm font-medium text-gray-700 w-20">卖点 ${exitSignalDropdownCount}:</label>
                 <select class="exit-signal-select flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
                     <option value="">-- 选择卖点信号 --</option>
-                    ${exitSignals.map(signal => `
-                        <option value="${signal.signal_name}">
-                            ${signal.signal_name}${signal.description ? ' - ' + signal.description : ''}
-                        </option>
-                    `).join('')}
+                    ${optionsHTML}
                 </select>
                 <button type="button" onclick="removeExitSignalDropdown(this)" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm transition">
                     <i class="fas fa-times"></i>
@@ -1499,13 +1679,18 @@
             `;
             
             container.appendChild(group);
+            console.log('✅ 下拉框已添加到 DOM');
             
-            // 为新添加的下拉框添加事件监听
+            // 验证刚添加的下拉框内容
             const newSelect = group.querySelector('.exit-signal-select');
+            const actualOptions = Array.from(newSelect.options).slice(1).map(opt => opt.value); // 跳过第一个空选项
+            console.log('🔍 验证实际添加的选项:', actualOptions);
+            
             newSelect.addEventListener('change', checkStopLossTakeProfitSignal);
             
             // 更新删除按钮状态
             updateRemoveButtonStates();
+            console.warn(`${'='.repeat(80)}\n`);
         }
         
         // 移除卖点下拉框
@@ -1591,6 +1776,9 @@
             console.log('🔵 准备调用loadSignalsToDropdown，type:', type);
             loadSignalsToDropdown(type);
             
+            // 🆕 更新间隔方向文字
+            updateIntervalDirectionText(type);
+            
             updateSplitPreview();
         };
 
@@ -1604,13 +1792,19 @@
             const splits = parseInt(document.getElementById('positionSplits').value);
             const intervalSelect = document.getElementById('splitInterval');
             const interval = intervalSelect.value;
+            const strategyType = document.getElementById('strategyType').value;
             
             document.getElementById('splitPreview').textContent = splits;
             document.getElementById('intervalPreview').textContent = interval;
-            // 更新第二个预览（如果存在）
-            const intervalPreview2 = document.getElementById('intervalPreview2');
-            if (intervalPreview2) {
-                intervalPreview2.textContent = interval;
+            
+            // 🆕 根据策略类型更新间隔方向文字
+            const intervalDirectionText = document.getElementById('intervalDirectionText');
+            if (intervalDirectionText) {
+                if (strategyType === 'short') {
+                    intervalDirectionText.innerHTML = `价格每上涨<span id="intervalPreview2">${interval}</span>%时加仓`;
+                } else {
+                    intervalDirectionText.innerHTML = `价格每下跌<span id="intervalPreview2">${interval}</span>%时加仓`;
+                }
             }
             
             // 🆕 当分仓次数为1时，禁用间隔百分比选择器并隐藏间隔描述
@@ -1642,11 +1836,84 @@
             updateSplitPreview();
         }
 
+        // 🆕 根据策略类型更新间隔方向提示文字
+        function updateIntervalDirectionText(strategyType) {
+            const intervalHint = document.getElementById('intervalDirectionHint');
+            const intervalDirectionText = document.getElementById('intervalDirectionText');
+            const splitExampleBox = document.getElementById('splitExampleBox');
+            const intervalValue = document.getElementById('splitInterval').value;
+            const intervalPreview2 = document.getElementById('intervalPreview2');
+            
+            if (strategyType === 'short') {
+                // 做空策略：价格上涨时加仓
+                intervalHint.textContent = '价格上涨后加仓';
+                intervalDirectionText.innerHTML = `价格每上涨<span id="intervalPreview2">${intervalValue}</span>%时加仓`;
+                splitExampleBox.innerHTML = `
+                    <p class="text-xs text-gray-700">
+                        <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>
+                        <strong>分批加仓逻辑：</strong>例如分3次，间隔2%<br>
+                        • 第1次买入（开空）：价格100元<br>
+                        • 第2次加仓：价格涨到102元（+2%）时加仓<br>
+                        • 第3次加仓：价格涨到104元（+2%）时加仓<br>
+                        目的：摊高成本，降低做空风险
+                    </p>
+                `;
+            } else {
+                // 做多策略：价格下跌时加仓
+                intervalHint.textContent = '价格下跌后加仓';
+                intervalDirectionText.innerHTML = `价格每下跌<span id="intervalPreview2">${intervalValue}</span>%时加仓`;
+                splitExampleBox.innerHTML = `
+                    <p class="text-xs text-gray-700">
+                        <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>
+                        <strong>分批加仓逻辑：</strong>例如分3次，间隔2%<br>
+                        • 第1次买入：价格100元<br>
+                        • 第2次加仓：价格跌到98元（-2%）时买入<br>
+                        • 第3次加仓：价格跌到96元（-2%）时买入<br>
+                        目的：摊低成本，降低持仓均价
+                    </p>
+                `;
+            }
+            
+            console.log(`✅ 已更新间隔方向文字：${strategyType === 'short' ? '上涨' : '下跌'}`);
+        }
+
         // 监听策略类型变化，动态更新信号列表
         if (document.getElementById('strategyType')) {
             document.getElementById('strategyType').addEventListener('change', function(e) {
                 const strategyType = e.target.value;
+                console.warn('⚠️ 策略类型下拉框被用户更改！新值:', strategyType);
                 loadSignalsToDropdown(strategyType);
+                updateIntervalDirectionText(strategyType); // 🆕 更新间隔方向文字
+            });
+        }
+
+        // 🆕 监听买点价格类型变化，控制指定价格输入框显示
+        if (document.getElementById('entryPriceType')) {
+            document.getElementById('entryPriceType').addEventListener('change', function(e) {
+                const priceType = e.target.value;
+                const specifiedContainer = document.getElementById('entrySpecifiedPriceContainer');
+                
+                if (priceType === 'specified') {
+                    specifiedContainer.classList.remove('hidden');
+                } else {
+                    specifiedContainer.classList.add('hidden');
+                    document.getElementById('entrySpecifiedPrice').value = ''; // 清空值
+                }
+            });
+        }
+
+        // 🆕 监听卖点价格类型变化，控制指定价格输入框显示
+        if (document.getElementById('exitPriceType')) {
+            document.getElementById('exitPriceType').addEventListener('change', function(e) {
+                const priceType = e.target.value;
+                const specifiedContainer = document.getElementById('exitSpecifiedPriceContainer');
+                
+                if (priceType === 'specified') {
+                    specifiedContainer.classList.remove('hidden');
+                } else {
+                    specifiedContainer.classList.add('hidden');
+                    document.getElementById('exitSpecifiedPrice').value = ''; // 清空值
+                }
             });
         }
 
@@ -1670,6 +1937,9 @@
                 const coinLevels = Array.from(document.querySelectorAll('input[name="coinLevel"]:checked'))
                     .map(checkbox => checkbox.value);
                 
+                // 🆕 获取历史级别选项
+                const includeHistoricalLevels = document.getElementById('includeHistoricalLevels').checked;
+                
                 // 检查是否选择了止盈止损卖点
                 const hasStopLossSignal = exitSignals.some(signal => 
                     signal.includes('止盈') || signal.includes('止损') ||
@@ -1687,6 +1957,14 @@
                     }
                 }
                 
+                // 🆕 收集价格类型配置
+                const entryPriceType = document.getElementById('entryPriceType').value;
+                const exitPriceType = document.getElementById('exitPriceType').value;
+                const entrySpecifiedPrice = entryPriceType === 'specified' ? 
+                    (document.getElementById('entrySpecifiedPrice').value ? parseFloat(document.getElementById('entrySpecifiedPrice').value) : null) : null;
+                const exitSpecifiedPrice = exitPriceType === 'specified' ? 
+                    (document.getElementById('exitSpecifiedPrice').value ? parseFloat(document.getElementById('exitSpecifiedPrice').value) : null) : null;
+
                 const strategyData = {
                     strategy_name: document.getElementById('strategyName').value,
                     strategy_type: document.getElementById('strategyType').value,
@@ -1694,12 +1972,20 @@
                     is_enabled: parseInt(document.getElementById('strategyEnabled').value),
                     entry_signal_type: document.getElementById('entrySignal').value,
                     entry_signal_keyword: document.getElementById('entryKeyword').value,
+                    // 🆕 买点价格类型配置
+                    entry_price_type: entryPriceType,
+                    entry_specified_price: entrySpecifiedPrice,
                     // 新增：多卖点支持
                     exit_signals_json: JSON.stringify(exitSignals),
                     exit_signal_type: exitSignals[0], // 保持向后兼容，存储第一个卖点
                     exit_signal_keyword: document.getElementById('exitKeyword').value,
+                    // 🆕 卖点价格类型配置
+                    exit_price_type: exitPriceType,
+                    exit_specified_price: exitSpecifiedPrice,
                     // 新增：币种级别过滤
                     allowed_coin_levels: coinLevels.length > 0 ? JSON.stringify(coinLevels) : null,
+                    // 🆕 新增：包含历史级别
+                    include_historical_levels: includeHistoricalLevels ? 1 : 0,
                     // 新增：涨幅条件
                     daily_gain_condition_operator: document.getElementById('gainConditionOperator').value || null,
                     daily_gain_condition_value: document.getElementById('gainConditionValue').value ? parseFloat(document.getElementById('gainConditionValue').value) : null,
@@ -1759,6 +2045,24 @@
                 document.getElementById('maxHolding').value = strategy.max_holding_periods;
                 document.getElementById('strategyDescription').value = strategy.description || '';
                 
+                // 🆕 填充买点价格类型
+                document.getElementById('entryPriceType').value = strategy.entry_price_type || 'unlimited';
+                if (strategy.entry_price_type === 'specified' && strategy.entry_specified_price) {
+                    document.getElementById('entrySpecifiedPrice').value = strategy.entry_specified_price;
+                    document.getElementById('entrySpecifiedPriceContainer').classList.remove('hidden');
+                } else {
+                    document.getElementById('entrySpecifiedPriceContainer').classList.add('hidden');
+                }
+                
+                // 🆕 填充卖点价格类型
+                document.getElementById('exitPriceType').value = strategy.exit_price_type || 'unlimited';
+                if (strategy.exit_price_type === 'specified' && strategy.exit_specified_price) {
+                    document.getElementById('exitSpecifiedPrice').value = strategy.exit_specified_price;
+                    document.getElementById('exitSpecifiedPriceContainer').classList.remove('hidden');
+                } else {
+                    document.getElementById('exitSpecifiedPriceContainer').classList.add('hidden');
+                }
+                
                 // 填充止盈止损百分比
                 document.getElementById('takeProfitPct').value = strategy.take_profit_pct || '';
                 document.getElementById('stopLossPct').value = strategy.stop_loss_pct || '';
@@ -1779,6 +2083,12 @@
                         } catch (e) {
                             console.error('解析币种级别失败:', e);
                         }
+                    }
+                    
+                    // 🆕 回显历史级别选项
+                    const includeHistoricalCheckbox = document.getElementById('includeHistoricalLevels');
+                    if (includeHistoricalCheckbox && strategy.include_historical_levels) {
+                        includeHistoricalCheckbox.checked = strategy.include_historical_levels === 1;
                     }
                     
                     // 填充多卖点（使用下拉框）

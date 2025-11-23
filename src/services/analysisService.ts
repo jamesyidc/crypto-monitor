@@ -74,6 +74,14 @@ export class AnalysisService {
       
       console.log(`✅ 价格变化检查通过: ${priceChangedCount}/${sampleCheckSymbols.length} 个币种有变化`);
       
+      // 🆕 2.5. 获取OKEx的24小时涨跌幅和当天涨跌幅数据
+      console.log('📊 [runAnalysis] 开始从OKEx API获取涨跌幅数据...');
+      const okexData = await this.coinService.fetchOKExDailyChanges();
+      console.log(`📊 [runAnalysis] OKEx数据获取完成:`, {
+        change24hCount: Object.keys(okexData.change24h).length,
+        changeTodayCount: Object.keys(okexData.changeToday).length
+      });
+      
       // 3. 分析每个币种
       const coinDetails: any[] = [];
       let greenCount = 0;
@@ -189,7 +197,8 @@ export class AnalysisService {
           is_crash: isCrash,
           change_24h: data.usd_24h_change || 0,
           new_high_count: newHighCount,
-          new_low_count: newLowCount
+          new_low_count: newLowCount,
+          change_today: okexData.changeToday[symbol] || null // 🔥 OKEx永续合约当天涨跌幅（基于sodUtc8北京时间0点价格）
         });
       }
 
@@ -488,25 +497,40 @@ export class AnalysisService {
     // 🆕 查询今日每个币种的V1触发次数
     const todayV1Counts = await this.coinService.getTodayV1Counts(today);
 
-    // 🆕 计算当天涨幅（使用OKX永续合约K线数据）
-    const todayStartPrices = await this.coinService.getTodayStartPrices(today);
-    const latestKlinePrices = await this.coinService.getLatestKlinePrices('5m');
+    // 🆕 从OKEx永续合约API获取24小时涨跌幅和当天涨跌幅数据
+    console.log('📊 [getDashboardData] 开始从OKEx API获取涨跌幅数据...');
+    const startTime = Date.now();
+    const okexData = await this.coinService.fetchOKExDailyChanges();
+    const endTime = Date.now();
+    
+    // 🐛 调试日志：检查OKEx数据
+    console.log('📊 [getDashboardData] OKEx涨跌幅数据:', {
+      date: today,
+      dataSource: 'OKEx Perpetual Contract API',
+      fetchTime: `${endTime - startTime}ms`,
+      change24hCount: Object.keys(okexData.change24h).length,
+      changeTodayCount: Object.keys(okexData.changeToday).length,
+      sampleData: Object.keys(okexData.changeToday).slice(0, 10).map(symbol => ({
+        symbol,
+        change24h: okexData.change24h[symbol]?.toFixed(2) + '%' || 'N/A',
+        changeToday: okexData.changeToday[symbol]?.toFixed(2) + '%' || 'N/A'
+      }))
+    });
+    
+    // 🔴 警告：如果OKEx数据为空
+    if (Object.keys(okexData.changeToday).length === 0) {
+      console.error('❌ [getDashboardData] OKEx API返回数据为空！可能需要检查API连接');
+    }
     
     // 🆕 增强coinDetails数据：添加今日V1触发次数和当天涨幅
     const finalEnhancedCoinDetails = enhancedCoinDetails.map((detail: any) => {
-      const startPrice = todayStartPrices[detail.symbol];
-      const currentPrice = latestKlinePrices[detail.symbol];
-      let change_today = null;
-      
-      // 使用OKX K线的当前价格和今天0点价格计算涨幅
-      if (startPrice && startPrice > 0 && currentPrice && currentPrice > 0) {
-        change_today = ((currentPrice - startPrice) / startPrice) * 100;
-      }
+      // 🔥 使用sodUtc8计算的当天涨幅（北京时间0点到现在）
+      const change_today = okexData.changeToday[detail.symbol] || null;
       
       return {
         ...detail,
         today_v1_count: todayV1Counts[detail.symbol] || 0,
-        change_today: change_today // 当天涨幅（%）- 基于OKX永续合约K线
+        change_today: change_today // 当天涨幅（%）- 基于OKEx永续合约sodUtc8（北京时间0点价格）
       };
     });
 
@@ -552,7 +576,7 @@ export class AnalysisService {
     }
 
     // 获取指定轮次的币种详情
-    const coinDetails = await this.coinService.getLatestCoinDetails(roundTime);
+    let coinDetails = await this.coinService.getLatestCoinDetails(roundTime);
 
     // 获取该轮次日期的统计（将UTC时间转换为北京时间日期）
     const date = convertUTCtoBeijingDateString(roundTime); // 🔥 转换为北京时间日期
@@ -563,6 +587,31 @@ export class AnalysisService {
 
     // 获取优先级(使用当前最新的)
     const priorities = await this.coinService.getAllCoinPriorities();
+
+    // 🔥 重要：检查历史数据中的change_today字段
+    // 如果是旧数据（OKEx API集成之前保存的），change_today可能为null
+    // 在这种情况下，我们需要标记这些数据
+    console.log(`📊 [Historical] 轮次 ${roundTime} 的数据检查`);
+    let hasValidChangeTodayCount = 0;
+    let missingChangeTodayCount = 0;
+    
+    coinDetails = coinDetails.map((coin: any) => {
+      if (coin.change_today !== null && coin.change_today !== undefined) {
+        hasValidChangeTodayCount++;
+      } else {
+        missingChangeTodayCount++;
+      }
+      return {
+        ...coin,
+        // 标记数据来源：如果change_today为null，表示是旧数据
+        change_today_source: coin.change_today !== null ? 'OKEx API' : 'Legacy (未使用OKEx API)'
+      };
+    });
+    
+    console.log(`📊 [Historical] 数据统计: 有效=${hasValidChangeTodayCount}, 缺失=${missingChangeTodayCount}`);
+    if (missingChangeTodayCount > 0) {
+      console.warn(`⚠️ [Historical] ${missingChangeTodayCount} 个币种的change_today数据缺失（可能是OKEx API集成之前的历史数据）`);
+    }
 
     // 🆕 计算该轮次的specialStats（用于历史回看）
     const totalCoins = coinDetails.length;
@@ -590,7 +639,15 @@ export class AnalysisService {
         todayNewLowCount
       },
       isHistorical: true,
-      historicalRoundTime: roundTime
+      historicalRoundTime: roundTime,
+      // 添加数据质量提示
+      dataQualityInfo: {
+        hasValidChangeTodayCount,
+        missingChangeTodayCount,
+        note: missingChangeTodayCount > 0 ? 
+          '部分币种的当日涨幅数据缺失（OKEx API集成之前的历史数据）' : 
+          '所有数据均来自OKEx API'
+      }
     };
   }
 }
